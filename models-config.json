@@ -1,0 +1,93 @@
+{
+  "models": {
+    "castleton": {
+      "fileName": "Castleton_001.ply",
+      "displayName": "Castleton Tower",
+      "defaultPointSize": 0.003,
+      "rotation": {
+        "x": -90,
+        "y": 0,
+        "z": 0
+      },
+      "loadingAnimation": {
+        "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
+        "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
+        "target": { "x": 0.13, "y": 0.87, "z": -0.29 },
+        "duration": 5000
+      },
+      "footerPosition": {
+        "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
+        "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
+        "scale": 1,
+        "duration": 2000
+      }
+    },
+    "corona_arch": {
+      "fileName": "Corona_Arch_001_hd02.ply",
+      "displayName": "Corona Arch",
+      "defaultPointSize": 0.009,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "loadingAnimation": {
+        "startPosition": { "x": 0.24, "y": -0.04, "z": 1.87 },
+        "endPosition": { "x": -0.89, "y": 0.04, "z": -1.29 },
+        "target": { "x": 0.39, "y": 0.37, "z": 0.19 },
+        "duration": 5000
+      },
+      "footerPosition": {
+        "cameraPosition": { "x": 0, "y": 0.3, "z": 2.5 },
+        "target": { "x": 0, "y": -0.3, "z": 0 },
+        "scale": 0.3,
+        "duration": 2000
+      }
+    },
+    "delicate_arch": {
+      "fileName": "Delicate_Arch_001_hd02.ply",
+      "displayName": "Delicate Arch",
+      "defaultPointSize": 0.015,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "loadingAnimation": {
+        "startPosition": { "x": 1.0, "y": 2.92, "z": -2.37 },
+        "endPosition": { "x": 2.70, "y": -0.21, "z": -0.05 },
+        "target": { "x": -0.02, "y": 0.13, "z": -0.05},
+        "duration": 5000
+      },
+      "footerPosition": {
+        "cameraPosition": { "x": 4.05, "y": 2.3, "z": 2.13 },
+        "target": { "x": 1.39, "y": 2.78, "z": -0.63 },
+        "scale": 1,
+        "duration": 2000
+      }
+    },
+    "fisher": {
+      "fileName": "Fisher_001_3.ply",
+      "displayName": "Fisher Towers",
+      "defaultPointSize": 0.005,
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "loadingAnimation": {
+        "startPosition": { "x": 3.0, "y": 1.0, "z": 5.0 },
+        "endPosition": { "x": -0.67, "y": 0.34, "z": 3.25 },
+        "target": { "x": 0.14, "y": 0.47, "z": 0.04 },
+        "duration": 5000
+      },
+      "footerPosition": {
+        "cameraPosition": { "x": -1.2, "y": 1.76, "z": 5.97 },
+        "target": { "x": 0.06, "y": 3.35, "z": 0.93 },
+        "scale": 0.3,
+        "duration": 2000
+      }
+    }
+  },
+  "currentModel": "castleton"
+}

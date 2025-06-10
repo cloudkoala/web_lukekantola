@@ -1,0 +1,18 @@
+# Track PLY files with Git LFS for better repository performance
+*.ply filter=lfs diff=lfs merge=lfs -text
+# Ensure line endings are handled correctly
+* text=auto
+*.js text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.mp4 filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,912 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: 'Orbitron', 'Courier New', monospace;
+}
+
+#canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  background: #000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  transition: all 0.3s ease;
+}
+
+#canvas.above-content {
+  z-index: 600;
+  pointer-events: none;
+}
+
+#canvas.interactive {
+  z-index: 1;
+  pointer-events: auto;
+}
+
+#canvas.footer-mode {
+  z-index: 100;
+  pointer-events: none;
+}
+
+.title-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px;
+  background: transparent;
+  z-index: 999;
+  pointer-events: none;
+}
+
+.title-header * {
+  pointer-events: auto;
+}
+
+.title-header h1 {
+  color: white;
+  font-size: 1.45rem;
+  font-weight: 700;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  letter-spacing: 4px;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  text-transform: uppercase;
+}
+
+.model-selector {
+  margin-top: 15px;
+  background: transparent;
+  padding: 12px;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+}
+
+.model-selector label {
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  margin-right: 8px;
+  text-transform: uppercase;
+}
+
+.model-selector select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.8rem;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  padding: 4px 8px;
+  outline: none;
+  min-width: 160px;
+}
+
+.model-selector select option {
+  background: #1a1a1a;
+  color: white;
+}
+
+.controls-panel {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 15px;
+  z-index: 999;
+  max-height: 300px;
+  pointer-events: auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  cursor: pointer;
+}
+
+.controls-header h3 {
+  color: white;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.collapse-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.collapse-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.controls-content {
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  overflow-y: auto;
+  max-height: none;
+  opacity: 1;
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.controls-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.control-group {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-group label {
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+
+.control-group input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  outline: none;
+  appearance: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.control-group input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+.control-group span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  text-align: center;
+  font-family: monospace;
+}
+
+.control-group select {
+  width: 100%;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.control-group select option {
+  background: #1a1a1a;
+  color: white;
+}
+
+.control-group button {
+  width: 100%;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.control-group button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.coordinate-inputs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.coordinate-inputs input {
+  flex: 1;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: white;
+  font-size: 0.75rem;
+  text-align: center;
+  outline: none;
+}
+
+.coordinate-inputs input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.control-group input[type="text"] {
+  width: 100%;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.8rem;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  outline: none;
+  margin-bottom: 5px;
+}
+
+.control-group input[type="text"]:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.control-group input[type="text"]::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.button-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.button-row button {
+  flex: 1;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: white;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.button-row button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#camera-position-display, #orbit-center-display {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.progress-bar {
+  text-align: center;
+  color: white;
+}
+
+.progress-bar p {
+  margin-bottom: 20px;
+  font-size: 18px;
+}
+
+.progress-indicator {
+  width: 300px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #45a049);
+  width: 0%;
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+/* Projects Overlay Styles */
+.projects-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  opacity: 1;
+  visibility: visible;
+}
+
+.projects-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.projects-content {
+  width: 90%;
+  max-width: 1000px;
+  height: 80%;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 20px;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.projects-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.projects-header h2 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin: 0;
+  text-transform: lowercase;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.projects-body {
+  flex: 1;
+  overflow-y: auto;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.projects-body p {
+  margin: 0;
+  opacity: 0.7;
+}
+
+/* Content Area Styles */
+#content-area {
+  position: fixed;
+  top: 120px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  color: white;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  z-index: 500;
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+/* Add margins for wide screens (but not phones) */
+/* 15% margins for your specific screen size range */
+@media (min-aspect-ratio: 4/3) and (min-width: 1400px) {
+  .title-header, #content-area, .controls-panel {
+    left: 15%;
+    right: 15%;
+  }
+  /* Override margins for reel section - use full width */
+  #content-area:has(.reel-section) {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* 15% margins for ultrawide screens */
+@media (min-aspect-ratio: 21/9) and (min-width: 1400px) {
+  .title-header, #content-area, .controls-panel {
+    left: 15%;
+    right: 15%;
+  }
+  /* Override margins for reel section - use full width */
+  #content-area:has(.reel-section) {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* 20% margins for super ultrawide screens */
+@media (min-aspect-ratio: 32/9) and (min-width: 1600px) {
+  .title-header, #content-area, .controls-panel {
+    left: 20%;
+    right: 20%;
+  }
+  /* Override margins for reel section - use full width */
+  #content-area:has(.reel-section) {
+    left: 0;
+    right: 0;
+  }
+}
+
+/* Horizontal scrolling container */
+.content-container {
+  display: flex;
+  flex-direction: row;
+  min-width: 100%;
+  height: 100%;
+}
+
+/* Individual content sections */
+.content-section {
+  min-width: 100vw;
+  height: 100%;
+  padding: 40px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Reel section should ignore margins and use full width */
+.content-section.reel-section {
+  position: relative;
+}
+
+#content-area h2 {
+  color: white;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  margin: 0 0 30px 0;
+  text-transform: uppercase;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 15px;
+}
+
+#content-area p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 20px 0;
+  opacity: 0.9;
+}
+
+/* Content sections with background for readability */
+.terminal-section {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+/* Split title functionality */
+#home-path {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+#home-path:hover {
+  opacity: 0.8;
+}
+
+#current-section {
+  cursor: default;
+}
+
+/* Hamburger Menu Styles */
+.hamburger-menu {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  pointer-events: auto;
+}
+
+.hamburger-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+  pointer-events: auto;
+}
+
+.hamburger-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hamburger-line {
+  width: 25px;
+  height: 3px;
+  background: white;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  transform-origin: center;
+}
+
+/* Hamburger animation */
+.hamburger-button.active .hamburger-line:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger-button.active .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-button.active .hamburger-line:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Dropdown menu */
+.hamburger-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 0;
+  min-width: 150px;
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+.hamburger-dropdown.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.hamburger-dropdown a {
+  display: block;
+  color: white;
+  text-decoration: none;
+  padding: 12px 20px;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: lowercase;
+  transition: background 0.2s ease;
+}
+
+.hamburger-dropdown a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Terminal-style content sections */
+.terminal-section {
+  margin-bottom: 40px;
+  background: rgba(0, 20, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.terminal-section h3 {
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 1rem;
+  font-weight: 400;
+  margin: 0 0 15px 0;
+  letter-spacing: 1px;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+/* Project listing styles */
+.project-listing {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.project-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 15px;
+  margin-bottom: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.project-item:last-child {
+  border-bottom: none;
+}
+
+.project-type {
+  color: #00ff00;
+  font-weight: 400;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.project-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.project-desc {
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  text-align: right;
+}
+
+/* Interest listing styles */
+.interest-listing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-family: 'Space Mono', monospace;
+  margin-top: 10px;
+}
+
+.interest-listing span {
+  color: #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  font-size: 0.85rem;
+}
+
+/* Contact script styles */
+.contact-script {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.contact-script p {
+  margin: 5px 0;
+}
+
+.contact-script strong {
+  color: #00ff00;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+/* Status indicator */
+.status-indicator {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+  margin-right: 8px;
+}
+
+/* Video container styles */
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  overflow: hidden;
+  margin-top: 15px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+/* Standalone reel page styling */
+.reel-page {
+  position: fixed;
+  top: 120px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.reel-container {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 40px;
+}
+
+/* Enhanced content area styling */
+#content-area {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 255, 0, 0.3) rgba(0, 0, 0, 0.1);
+  scroll-behavior: smooth;
+}
+
+#content-area::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+#content-area::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+#content-area::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+}
+
+#content-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+}
+
+/* Individual content sections scroll */
+.content-section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content-section::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.content-section::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+}
+
+.content-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+}
+
+/* Responsive adjustments for content */
+@media (max-width: 768px) {
+  .project-item {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    text-align: left;
+  }
+  
+  .project-desc {
+    text-align: left;
+    font-style: normal;
+    opacity: 0.8;
+  }
+  
+  .interest-listing {
+    gap: 10px;
+  }
+  
+  .terminal-section {
+    padding: 15px;
+  }
+  
+  #content-area {
+    padding: 20px;
+  }
+}
+
+/* Hamburger menu responsive margins - must come after base definition */
+@media (min-aspect-ratio: 4/3) and (min-width: 1400px) {
+  .hamburger-menu {
+    right: 15%;
+  }
+}
+
+@media (min-aspect-ratio: 21/9) and (min-width: 1400px) {
+  .hamburger-menu {
+    right: 15%;
+  }
+}
+
+@media (min-aspect-ratio: 32/9) and (min-width: 1600px) {
+  .hamburger-menu {
+    right: 20%;
+  }
+}
