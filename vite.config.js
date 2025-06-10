@@ -4,7 +4,7 @@ export default defineConfig({
   // Base path for GitHub Pages - matches your repository name
   // For username.github.io: base: '/'
   // For username.github.io/repo-name: base: '/repo-name/'
-  base: '/gsplat-testing/',
+  base: '/web_lukekantola/',
   
   build: {
     // Use esbuild for minification (default, faster than terser)
