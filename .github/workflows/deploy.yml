@@ -25,6 +25,15 @@ jobs:
           
       - name: Git LFS Pull
         run: git lfs pull
+        
+      - name: Verify LFS files
+        run: |
+          echo "Checking LFS files..."
+          git lfs ls-files
+          echo "Checking PLY file sizes..."
+          ls -la public/*.ply
+          echo "Checking first PLY file type..."
+          file public/Castleton_001.ply || echo "File check failed"
           
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -37,6 +46,15 @@ jobs:
         
       - name: Build
         run: npm run build
+        
+      - name: Verify build output
+        run: |
+          echo "Contents of dist directory:"
+          ls -la dist/
+          echo "PLY files in dist:"
+          ls -la dist/*.ply || echo "No PLY files found in dist"
+          echo "Config file in dist:"
+          ls -la dist/models-config.json || echo "No config file found in dist"
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
