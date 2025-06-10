@@ -1254,7 +1254,7 @@ function loadPointCloudByFileName(fileName: string) {
   
   try {
     loader.load(
-      `./${fileName}`,
+      `${fileName}`,
       onLoad,
       onProgress,
       onError
