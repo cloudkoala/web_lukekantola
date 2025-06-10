@@ -1176,7 +1176,7 @@ class OrbitalCameraSystem {
 // Load models configuration
 async function loadModelsConfig() {
   try {
-    const response = await fetch('./models-config.json')
+    const response = await fetch(`${import.meta.env.BASE_URL}models-config.json`)
     modelsConfig = await response.json()
     console.log('Models configuration loaded:', modelsConfig)
   } catch (error) {
@@ -1254,7 +1254,7 @@ function loadPointCloudByFileName(fileName: string) {
   
   try {
     loader.load(
-      `${fileName}`,
+      `${import.meta.env.BASE_URL}${fileName}`,
       onLoad,
       onProgress,
       onError
