@@ -866,6 +866,12 @@ class OrbitalCameraSystem {
       console.log('Home navigation element not found')
     }
     
+    // Remove any existing subpage navigation when returning to home
+    const existingSubpageNav = document.querySelector('.subpage-navigation')
+    if (existingSubpageNav) {
+      existingSubpageNav.remove()
+    }
+    
     // Re-enable orbital controls for home page
     this.controls.enabled = true
     
@@ -933,7 +939,6 @@ class OrbitalCameraSystem {
             <h3>$ ./play_motion_reel.sh</h3>
             <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/661829952?badge=0&autopause=0&player_id=0&app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Luke Kantola 2021 Motion Design Reel"></iframe></div>
           </div>
-          ${this.generatePageNavigation(InterfaceMode.REEL)}
         `
         break
         
@@ -981,7 +986,6 @@ class OrbitalCameraSystem {
             • 3D scene reconstruction from drone imagery<br>
             • Neural radiance field implementations</p>
           </div>
-          ${this.generatePageNavigation(InterfaceMode.PROJECTS)}
         `
         break
         
@@ -1022,7 +1026,6 @@ class OrbitalCameraSystem {
               <span>climbing/</span>
             </div>
           </div>
-          ${this.generatePageNavigation(InterfaceMode.ABOUT)}
         `
         break
         
@@ -1066,15 +1069,16 @@ class OrbitalCameraSystem {
           <div class="terminal-section">
             <p><em>Feel free to reach out about projects, collaborations, or just to discuss the latest in 3D computer vision!</em></p>
           </div>
-          ${this.generatePageNavigation(InterfaceMode.CONTACT)}
         `
         break
     }
     
     contentArea.innerHTML = content
     
-    // Add event listeners for navigation links
-    this.setupPageNavigation()
+    // Create subpage navigation if it doesn't exist (for subpage-to-subpage transitions)
+    if (!document.querySelector('.subpage-navigation')) {
+      this.showDestinationNavigation(mode)
+    }
   }
   
   private generatePageNavigation(currentMode: InterfaceMode): string {
@@ -1088,32 +1092,102 @@ class OrbitalCameraSystem {
     const nextMode = nextIndex < pageOrder.length ? pageOrder[nextIndex] : null
     
     const prevLink = prevMode 
-      ? `<a href="#" class="nav-link" data-mode="${prevMode}">< ../${prevMode}</a>`
-      : `<a href="#" class="nav-link" data-mode="${InterfaceMode.HOME}">< $HOME</a>`
+      ? `<div class="nav-indicator" data-mode="${prevMode}">&lt; ../${prevMode}</div>`
+      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">&lt; $HOME</div>`
       
     const nextLink = nextMode
-      ? `<a href="#" class="nav-link" data-mode="${nextMode}">../${nextMode} ></a>`
-      : `<a href="#" class="nav-link" data-mode="${InterfaceMode.HOME}">$HOME ></a>`
+      ? `<div class="nav-indicator" data-mode="${nextMode}">../${nextMode} &gt;</div>`
+      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">$HOME &gt;</div>`
     
     return `
-      <div class="page-navigation">
+      <div class="subpage-navigation">
         ${prevLink}
         ${nextLink}
       </div>
     `
   }
   
-  private setupPageNavigation() {
-    const navLinks = document.querySelectorAll('.nav-link[data-mode]')
+  public setupPageNavigation() {
+    // Remove existing event listeners to prevent duplicates
+    const existingNavLinks = document.querySelectorAll('.nav-indicator[data-mode]')
+    existingNavLinks.forEach(link => {
+      // Clone and replace to remove all event listeners
+      const newLink = link.cloneNode(true)
+      link.parentNode?.replaceChild(newLink, link)
+    })
+    
+    // Add fresh event listeners
+    const navLinks = document.querySelectorAll('.nav-indicator[data-mode]')
     navLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault()
         const mode = (e.target as HTMLElement).getAttribute('data-mode') as InterfaceMode
         if (mode) {
+          // Update navigation text immediately for subpages
+          if (currentInterfaceMode !== InterfaceMode.HOME) {
+            this.updateNavigationText(mode)
+          } else {
+            // For home page, hide controls and show destination navigation immediately
+            this.hideControlsImmediately()
+            this.showDestinationNavigation(mode)
+          }
           this.transitionToMode(mode)
         }
       })
     })
+  }
+  
+  private updateNavigationText(newMode: InterfaceMode) {
+    const subpageNav = document.querySelector('.subpage-navigation')
+    if (subpageNav && newMode !== InterfaceMode.HOME) {
+      // Generate new navigation for the target mode
+      const newNavHTML = this.generatePageNavigation(newMode)
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = newNavHTML
+      const newNavElement = tempDiv.querySelector('.subpage-navigation')
+      
+      if (newNavElement) {
+        subpageNav.innerHTML = newNavElement.innerHTML
+      }
+    }
+  }
+  
+  private showDestinationNavigation(mode: InterfaceMode) {
+    if (mode === InterfaceMode.HOME) return
+    
+    // Hide home navigation
+    const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
+    if (homeNavigation) {
+      homeNavigation.style.display = 'none'
+    }
+    
+    // Remove any existing subpage navigation
+    const existingSubpageNav = document.querySelector('.subpage-navigation')
+    if (existingSubpageNav) {
+      existingSubpageNav.remove()
+    }
+    
+    // Create and show destination subpage navigation
+    const navHTML = this.generatePageNavigation(mode)
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = navHTML
+    const newNavElement = tempDiv.querySelector('.subpage-navigation')
+    if (newNavElement) {
+      document.body.appendChild(newNavElement)
+      
+      // Add event listeners only to the new navigation elements
+      const newNavLinks = newNavElement.querySelectorAll('.nav-indicator[data-mode]')
+      newNavLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault()
+          const mode = (e.target as HTMLElement).getAttribute('data-mode') as InterfaceMode
+          if (mode) {
+            this.updateNavigationText(mode)
+            this.transitionToMode(mode)
+          }
+        })
+      })
+    }
   }
   
   private updateHeaderPath(mode: InterfaceMode) {
@@ -1187,9 +1261,11 @@ class OrbitalCameraSystem {
         // From home page, go to first/last page and hide controls immediately
         if (e.key === 'ArrowLeft') {
           this.hideControlsImmediately()
+          this.showDestinationNavigation(InterfaceMode.CONTACT)
           this.transitionToMode(InterfaceMode.CONTACT) // Go to last page
         } else if (e.key === 'ArrowRight') {
           this.hideControlsImmediately()
+          this.showDestinationNavigation(InterfaceMode.REEL)
           this.transitionToMode(InterfaceMode.REEL) // Go to first page
         }
       } else {
@@ -1198,13 +1274,17 @@ class OrbitalCameraSystem {
         
         if (e.key === 'ArrowLeft') {
           if (currentIndex > 0) {
-            this.transitionToMode(pageOrder[currentIndex - 1])
+            const newMode = pageOrder[currentIndex - 1]
+            this.updateNavigationText(newMode)
+            this.transitionToMode(newMode)
           } else {
             this.transitionToMode(InterfaceMode.HOME)
           }
         } else if (e.key === 'ArrowRight') {
           if (currentIndex < pageOrder.length - 1) {
-            this.transitionToMode(pageOrder[currentIndex + 1])
+            const newMode = pageOrder[currentIndex + 1]
+            this.updateNavigationText(newMode)
+            this.transitionToMode(newMode)
           } else {
             this.transitionToMode(InterfaceMode.HOME)
           }
@@ -1540,6 +1620,9 @@ async function initialize() {
     homeNavigation.style.display = 'flex'
     homeNavigation.style.visibility = 'visible'
   }
+  
+  // Setup navigation event listeners
+  orbitalCamera.setupPageNavigation()
   
   // Start loading animation every time (regardless of caching)
   orbitalCamera.startLoadingAnimation()

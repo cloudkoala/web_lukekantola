@@ -577,10 +577,10 @@ body, html {
   top: 60px;
   left: 0;
   right: 0;
-  bottom: 0px;
+  bottom: 80px;
   background: transparent;
   color: white;
-  padding: 40px 40px 240px 40px;
+  padding: 40px;
   overflow-x: hidden;
   overflow-y: auto;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
@@ -1030,6 +1030,26 @@ body, html {
   color: #00ff00;
   font-size: 0.9rem;
   letter-spacing: 1px;
+}
+
+/* Subpage navigation at bottom (similar to home navigation) */
+.subpage-navigation {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1001;
+  pointer-events: none;
+  font-family: 'Space Mono', monospace;
+  padding: 0 20px;
+}
+
+.subpage-navigation .nav-indicator {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Page navigation at bottom */
