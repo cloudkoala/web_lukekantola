@@ -1326,6 +1326,29 @@ class OrbitalCameraSystem {
     // Setup hamburger menu toggle
     this.setupHamburgerMenu()
     
+    // Click outside green elements to return home
+    document.addEventListener('click', (e) => {
+      // Only on subpages
+      if (currentInterfaceMode === InterfaceMode.HOME) return
+      
+      // Check if click is inside any green element
+      const greenSelectors = [
+        '.terminal-section',
+        '.nav-indicator', 
+        '.subpage-navigation',
+        '.terminal-form',
+        '.hamburger-menu'
+      ]
+      
+      const isInsideGreen = greenSelectors.some(selector => 
+        (e.target as Element).closest(selector)
+      )
+      
+      if (!isInsideGreen) {
+        this.transitionToMode(InterfaceMode.HOME)
+      }
+    })
+    
     // Escape key to return home, arrow keys for navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && currentInterfaceMode !== InterfaceMode.HOME) {
@@ -1367,6 +1390,22 @@ class OrbitalCameraSystem {
             this.transitionToMode(InterfaceMode.HOME)
           }
         }
+      }
+    })
+    
+    // Click outside green elements to return home
+    document.addEventListener('click', (e) => {
+      // Only trigger when not on home page
+      if (currentInterfaceMode === InterfaceMode.HOME) return
+      
+      const target = e.target as HTMLElement
+      
+      // Check if click is on or inside a green element
+      const isGreenElement = this.isClickOnGreenElement(target)
+      
+      if (!isGreenElement) {
+        console.log('Click detected outside green elements, returning to home')
+        this.transitionToMode(InterfaceMode.HOME)
       }
     })
   }
@@ -1550,6 +1589,78 @@ class OrbitalCameraSystem {
     }
     
     return nearestPoint
+  }
+  
+  private isClickOnGreenElement(target: HTMLElement): boolean {
+    // List of green element selectors based on the CSS classes and IDs
+    const greenElementSelectors = [
+      '.nav-indicator',
+      '.nav-key',
+      '.nav-label',
+      '.terminal-section',
+      '.terminal-section h3',
+      '.project-type',
+      '.project-name',
+      '.status-indicator',
+      '.form-field',
+      '.form-field label',
+      '.form-field input',
+      '.form-field textarea',
+      '.terminal-submit',
+      '.interest-listing span',
+      '.hamburger-menu',
+      '.hamburger-button',
+      '.hamburger-dropdown',
+      '.hamburger-dropdown a',
+      '.typewriter',
+      '.navigation-command',
+      '.subpage-navigation',
+      '.home-navigation'
+    ]
+    
+    // Check if the target or any of its parents match green element selectors
+    let currentElement: HTMLElement | null = target
+    
+    while (currentElement && currentElement !== document.body) {
+      // Check if current element matches any green selector
+      for (const selector of greenElementSelectors) {
+        if (currentElement.matches && currentElement.matches(selector)) {
+          return true
+        }
+      }
+      
+      // Also check by class names and IDs for specific green elements
+      if (currentElement.classList) {
+        const classList = Array.from(currentElement.classList)
+        
+        // Check for green-related classes
+        if (classList.some(className => 
+          className.includes('nav-') || 
+          className.includes('terminal') ||
+          className.includes('project') ||
+          className.includes('form') ||
+          className.includes('hamburger') ||
+          className.includes('typewriter') ||
+          className.includes('navigation')
+        )) {
+          return true
+        }
+      }
+      
+      // Check for specific green elements by tag and context
+      if (currentElement.tagName === 'H3' && currentElement.closest('.terminal-section')) {
+        return true
+      }
+      
+      if (currentElement.tagName === 'SPAN' && currentElement.closest('.interest-listing')) {
+        return true
+      }
+      
+      // Move to parent element
+      currentElement = currentElement.parentElement
+    }
+    
+    return false
   }
   
 }
