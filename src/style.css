@@ -70,9 +70,14 @@ body, html {
   text-transform: uppercase;
 }
 
+.title-header .green-text {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
 .model-selector-container {
   position: fixed;
-  top: 80px;
+  top: 120px;
   left: 20px;
   z-index: 998;
   pointer-events: none;
@@ -80,18 +85,10 @@ body, html {
 
 .model-selector {
   background: transparent;
-  padding: 12px;
+  padding: 0;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
   pointer-events: auto;
-}
-
-.model-selector label {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.7rem;
-  font-weight: 400;
-  letter-spacing: 1px;
-  margin-right: 8px;
 }
 
 .model-selector select {
@@ -115,8 +112,8 @@ body, html {
 /* Point Size Control */
 .point-size-control {
   position: fixed;
-  top: 140px;
-  left: 32px;
+  top: 160px;
+  left: 20px;
   z-index: 998;
   background: transparent;
   padding: 0;
@@ -191,6 +188,18 @@ body, html {
   gap: 0px;
   padding: 0;
   margin: 0;
+}
+
+.camera-target-info {
+  margin-top: -10px;
+}
+
+.camera-target-info label {
+  margin-top: -5px;
+}
+
+#camera-target-display {
+  margin-top: -3px;
 }
 
 .camera-info label {
@@ -592,8 +601,10 @@ body, html {
 #content-area {
   position: fixed;
   top: 60px;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
   bottom: 80px;
   background: transparent;
   color: white;
@@ -606,10 +617,30 @@ body, html {
   opacity: 0;
   visibility: hidden;
   display: block;
-  max-width: 1200px;
-  margin: 0 auto;
   box-sizing: border-box;
   transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+
+/* Top fade overlay element - always visible on subpages */
+.content-fade-overlay-top {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 1200px;
+  height: 60px;
+  background: linear-gradient(to top, transparent 0%, rgba(0, 0, 0, 0.95) 100%);
+  pointer-events: none;
+  z-index: 600;
+  opacity: 1;
+  visibility: visible;
+  display: none;
+}
+
+.content-fade-overlay-top.visible {
+  display: block;
 }
 
 #content-area.fade-in {
@@ -617,30 +648,6 @@ body, html {
   visibility: visible;
 }
 
-/* Add margins for wide screens (but not phones) */
-/* 15% margins for your specific screen size range */
-@media (min-aspect-ratio: 4/3) and (min-width: 1400px) {
-  .title-header, .controls-panel {
-    left: 15%;
-    right: 15%;
-  }
-}
-
-/* 15% margins for ultrawide screens */
-@media (min-aspect-ratio: 21/9) and (min-width: 1400px) {
-  .title-header, .controls-panel {
-    left: 15%;
-    right: 15%;
-  }
-}
-
-/* 20% margins for super ultrawide screens */
-@media (min-aspect-ratio: 32/9) and (min-width: 1600px) {
-  .title-header, .controls-panel {
-    left: 20%;
-    right: 20%;
-  }
-}
 
 /* Horizontal scrolling container */
 .content-container {
@@ -1233,6 +1240,10 @@ body, html {
     bottom: 15px;
   }
   
+  .subpage-navigation {
+    bottom: 15px;
+  }
+  
   .nav-indicator {
     padding: 6px 10px;
   }
@@ -1430,11 +1441,11 @@ body, html {
   }
   
   .model-selector-container {
-    top: 60px;
+    top: 100px;
   }
   
   .point-size-control {
-    top: 110px;
+    top: 140px;
   }
   
   .form-field {

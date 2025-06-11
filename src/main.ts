@@ -887,16 +887,18 @@ class OrbitalCameraSystem {
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
+    const topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'flex'
     if (cameraInfo) cameraInfo.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
-      contentArea.classList.remove('fade-in')
+      contentArea.classList.remove('fade-in', 'has-scroll')
     }
     if (modelSelector) modelSelector.style.display = 'block'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
     if (navigationHelp) navigationHelp.style.display = 'flex'
+    if (topFadeOverlay) topFadeOverlay.classList.remove('visible')
     if (homeNavigation) {
       homeNavigation.style.display = 'flex'
       homeNavigation.style.visibility = 'visible'
@@ -939,6 +941,7 @@ class OrbitalCameraSystem {
       // Add fade-in effect
       setTimeout(() => {
         contentArea.classList.add('fade-in')
+        this.checkScrollable(contentArea)
       }, 50)
     }
     if (titleHeader) titleHeader.classList.add('subpage-mode')
@@ -1284,9 +1287,9 @@ class OrbitalCameraSystem {
     if (!currentSection) return
     
     if (mode === InterfaceMode.HOME) {
-      currentSection.textContent = ''
+      currentSection.innerHTML = ''
     } else {
-      currentSection.textContent = `/${mode}`
+      currentSection.innerHTML = `<span class="green-text">/</span>${mode}`
     }
   }
   
@@ -1462,6 +1465,19 @@ class OrbitalCameraSystem {
     
     hamburgerButton?.classList.remove('active')
     hamburgerDropdown?.classList.remove('open')
+  }
+  
+  private checkScrollable(element: HTMLElement) {
+    // Create top fade overlay if it doesn't exist
+    let topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
+    if (!topFadeOverlay) {
+      topFadeOverlay = document.createElement('div')
+      topFadeOverlay.className = 'content-fade-overlay-top'
+      document.body.appendChild(topFadeOverlay)
+    }
+    
+    // Show top fade overlay immediately for subpages
+    topFadeOverlay.classList.add('visible')
   }
   
   private hideControlsImmediately() {
@@ -1693,100 +1709,6 @@ class OrbitalCameraSystem {
     return false
   }
   
-}
-
-// Typewriter Animation Utility Class
-class TypewriterAnimation {
-  private static debugMode = false
-  
-  static enableDebug(enable: boolean = true) {
-    TypewriterAnimation.debugMode = enable
-  }
-  
-  static create(text: string, container: HTMLElement, options: {
-    className?: string,
-    color?: string,
-    fontSize?: string,
-    speed?: number, // characters per second
-    showCursor?: boolean,
-    onComplete?: () => void,
-    debug?: boolean
-  } = {}): HTMLElement {
-    // Default options
-    const {
-      className = 'typewriter',
-      color = '#00ff00',
-      fontSize = '0.8rem',
-      speed = 10,
-      showCursor = true,
-      onComplete,
-      debug = TypewriterAnimation.debugMode
-    } = options
-    
-    // Create element
-    const element = document.createElement('span')
-    element.className = className
-    element.textContent = text
-    element.style.color = color
-    element.style.fontSize = fontSize
-    
-    // Calculate timing
-    const steps = text.length
-    const duration = Math.max(0.5, steps / speed)
-    
-    // Set CSS custom properties
-    element.style.setProperty('--steps', steps.toString())
-    element.style.setProperty('--duration', `${duration}s`)
-    
-    // Add to container
-    container.appendChild(element)
-    
-    // Debug logging
-    if (debug) {
-      console.log(`TypewriterAnimation: "${text}" - ${steps} chars, ${duration}s duration, speed: ${speed} cps`)
-    }
-    
-    // Start animation
-    setTimeout(() => {
-      element.classList.add('animate')
-      
-      if (debug) {
-        console.log(`TypewriterAnimation started: "${text}"`)
-      }
-      
-      // Handle completion
-      setTimeout(() => {
-        if (!showCursor) {
-          element.classList.add('complete')
-        }
-        if (onComplete) {
-          onComplete()
-        }
-        
-        if (debug) {
-          console.log(`TypewriterAnimation completed: "${text}"`)
-        }
-      }, (duration * 1000) + 100)
-    }, 50)
-    
-    return element
-  }
-  
-  static animateExisting(element: HTMLElement, text: string, speed: number = 10): void {
-    if (!element) return
-    
-    const steps = text.length
-    const duration = Math.max(0.5, steps / speed)
-    
-    element.style.setProperty('--steps', steps.toString())
-    element.style.setProperty('--duration', `${duration}s`)
-    
-    element.classList.remove('animate', 'complete')
-    
-    setTimeout(() => {
-      element.classList.add('animate')
-    }, 50)
-  }
 }
 
 // Load models configuration
@@ -2069,9 +1991,3 @@ async function initialize() {
 // Start the application
 initialize()
 
-// Expose debug utilities to global scope for testing
-if (typeof window !== 'undefined') {
-  (window as any).TypewriterAnimation = TypewriterAnimation
-  (window as any).enableTypewriterDebug = () => TypewriterAnimation.enableDebug(true)
-  (window as any).disableTypewriterDebug = () => TypewriterAnimation.enableDebug(false)
-}
