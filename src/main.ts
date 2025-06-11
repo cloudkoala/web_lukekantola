@@ -797,6 +797,9 @@ class OrbitalCameraSystem {
     console.log('Starting footer transition to:', mode)
     currentInterfaceMode = mode
     
+    // Show navigation animation overlay
+    this.showNavigationAnimation(mode)
+    
     // Animate to footer position
     const footerPos = currentModel.footerPosition
     this.animateToPosition(
@@ -811,6 +814,7 @@ class OrbitalCameraSystem {
     setTimeout(() => {
       this.enterFooterMode()
       this.showContentInterface(mode)
+      this.hideNavigationAnimation()
     }, footerPos.duration)
   }
   
@@ -1349,6 +1353,44 @@ class OrbitalCameraSystem {
     }
     if (modelSelector) {
       modelSelector.style.display = 'none'
+    }
+  }
+  
+  private showNavigationAnimation(mode: InterfaceMode) {
+    // Hide model selector
+    const modelSelector = document.querySelector('.model-selector') as HTMLElement
+    if (modelSelector) {
+      modelSelector.style.display = 'none'
+    }
+    
+    // Create navigation animation in the same position as model selector
+    const animationElement = document.createElement('div')
+    animationElement.id = 'navigation-animation'
+    animationElement.className = 'navigation-command'
+    animationElement.innerHTML = `<span class="typewriter">cd ./${mode}</span>`
+    
+    // Insert into the model selector container
+    const modelSelectorContainer = document.querySelector('.model-selector-container')
+    if (modelSelectorContainer) {
+      modelSelectorContainer.appendChild(animationElement)
+      
+      // Force a reflow to ensure the animation starts
+      animationElement.offsetHeight
+      
+      // Add the animation class after a small delay to trigger the animation
+      setTimeout(() => {
+        const typewriterElement = animationElement.querySelector('.typewriter')
+        if (typewriterElement) {
+          typewriterElement.classList.add('animate')
+        }
+      }, 10)
+    }
+  }
+  
+  private hideNavigationAnimation() {
+    const animationElement = document.querySelector('#navigation-animation')
+    if (animationElement) {
+      animationElement.remove()
     }
   }
   

@@ -85,7 +85,7 @@ body, html {
 
 .model-selector label {
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 400;
   letter-spacing: 1px;
   margin-right: 8px;
@@ -97,16 +97,17 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   padding: 4px 8px;
   outline: none;
-  min-width: 160px;
+  min-width: 100px;
 }
 
 .model-selector select option {
   background: #1a1a1a;
   color: white;
+  opacity: 0.7;
 }
 
 /* Point Size Control */
@@ -135,7 +136,7 @@ body, html {
 }
 
 .point-size-control input[type="range"] {
-  width: 120px;
+  width: 100px;
   height: 4px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
@@ -145,8 +146,8 @@ body, html {
 
 .point-size-control input[type="range"]::-webkit-slider-thumb {
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   background: white;
   border-radius: 50%;
   cursor: pointer;
@@ -154,12 +155,12 @@ body, html {
 }
 
 .point-size-control input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.5);
 }
 
 .point-size-control span {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   font-family: monospace;
   min-width: 40px;
 }
@@ -167,8 +168,8 @@ body, html {
 /* Camera Info Display */
 .camera-info {
   position: fixed;
-  top: 180px;
-  left: 32px;
+  bottom: 60px;
+  left: 20px;
   z-index: 998;
   background: transparent;
   padding: 0;
@@ -177,21 +178,21 @@ body, html {
   pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0px;
 }
 
 .camera-position-info,
 .camera-target-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0px;
   padding: 0;
   margin: 0;
 }
 
 .camera-info label {
   color: rgba(255, 255, 255, 0.8);
-  font-size: 0.7rem;
+  font-size: 0.5rem;
   font-family: monospace;
   font-weight: 400;
   letter-spacing: 0;
@@ -206,7 +207,7 @@ body, html {
   margin: 0;
   border-radius: 3px;
   font-family: monospace;
-  font-size: 0.7rem;
+  font-size: 0.5rem;
   color: rgba(255, 255, 255, 0.8);
   text-align: left;
 }
@@ -439,15 +440,16 @@ body, html {
   background: rgba(255, 255, 255, 0.2);
 }
 
-#camera-position-display, #orbit-center-display {
+#camera-position-display, #camera-target-display, #orbit-center-display {
   background: rgba(255, 255, 255, 0.05);
   padding: 4px 8px;
   border-radius: 3px;
   font-family: monospace;
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   color: rgba(255, 255, 255, 0.8);
-  text-align: center;
+  text-align: left;
   margin-bottom: 5px;
+  opacity: 0.8;
 }
 
 .progress {
@@ -823,6 +825,60 @@ body, html {
   text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
+/* Typewriter animation for terminal commands */
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  position: relative;
+  border-right: 2px solid transparent;
+}
+
+.typewriter.animate {
+  animation: typewriter 1.5s steps(25) 0.5s both, cursor-blink 0.8s 0s infinite;
+  border-right: 2px solid #00ff00;
+}
+
+.typewriter.animate::after {
+  content: "";
+}
+
+@keyframes typewriter {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes initial-cursor-flash {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 50% {
+    border-right-color: #00ff00;
+  }
+  51%, 100% {
+    border-right-color: transparent;
+  }
+}
+
+@keyframes fade-cursor {
+  to {
+    opacity: 0;
+  }
+}
+
 /* Project listing styles */
 .project-listing {
   font-family: 'Space Mono', monospace;
@@ -1159,6 +1215,23 @@ body, html {
   .nav-label {
     font-size: 0.7rem;
   }
+}
+
+/* Navigation Command Animation (replaces model selector during transition) */
+.navigation-command {
+  background: transparent;
+  padding: 12px;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: none;
+}
+
+.navigation-command span {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
 }
 
 /* Hamburger menu responsive margins - must come after base definition */

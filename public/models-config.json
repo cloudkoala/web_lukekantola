@@ -19,7 +19,7 @@
         "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
         "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
         "scale": 1,
-        "duration": 2000
+        "duration": 1000
       }
     },
     "corona_arch": {
@@ -41,7 +41,7 @@
         "cameraPosition": { "x": 0, "y": 0.3, "z": 2.5 },
         "target": { "x": 0, "y": -0.3, "z": 0 },
         "scale": 0.3,
-        "duration": 2000
+        "duration": 1000
       }
     },
     "delicate_arch": {
@@ -63,7 +63,7 @@
         "cameraPosition": { "x": 4.05, "y": 2.3, "z": 2.13 },
         "target": { "x": 1.39, "y": 2.78, "z": -0.63 },
         "scale": 1,
-        "duration": 2000
+        "duration": 1000
       }
     },
     "fisher": {
@@ -85,7 +85,7 @@
         "cameraPosition": { "x": -1.2, "y": 1.76, "z": 5.97 },
         "target": { "x": 0.06, "y": 3.35, "z": 0.93 },
         "scale": 0.3,
-        "duration": 2000
+        "duration":  1000
       }
     }
   },
