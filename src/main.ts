@@ -1065,12 +1065,12 @@ class OrbitalCameraSystem {
     const nextMode = nextIndex < pageOrder.length ? pageOrder[nextIndex] : null
     
     const prevLink = prevMode 
-      ? `<a href="#" class="nav-link" data-mode="${prevMode}">← ./${prevMode}</a>`
-      : `<span class="nav-link disabled">← prev</span>`
+      ? `<a href="#" class="nav-link" data-mode="${prevMode}">< ../${prevMode}</a>`
+      : `<a href="#" class="nav-link" data-mode="${InterfaceMode.HOME}">< $HOME</a>`
       
     const nextLink = nextMode
-      ? `<a href="#" class="nav-link" data-mode="${nextMode}">→ ./${nextMode}</a>`
-      : `<span class="nav-link disabled">next →</span>`
+      ? `<a href="#" class="nav-link" data-mode="${nextMode}">../${nextMode} ></a>`
+      : `<a href="#" class="nav-link" data-mode="${InterfaceMode.HOME}">$HOME ></a>`
     
     return `
       <div class="page-navigation">
@@ -1151,10 +1151,30 @@ class OrbitalCameraSystem {
     // Setup hamburger menu toggle
     this.setupHamburgerMenu()
     
-    // Escape key to return home
+    // Escape key to return home, arrow keys for navigation
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && currentInterfaceMode !== InterfaceMode.HOME) {
         this.transitionToMode(InterfaceMode.HOME)
+      }
+      
+      // Arrow key navigation when in subpages
+      if (currentInterfaceMode !== InterfaceMode.HOME) {
+        const pageOrder = [InterfaceMode.REEL, InterfaceMode.PROJECTS, InterfaceMode.ABOUT, InterfaceMode.CONTACT]
+        const currentIndex = pageOrder.indexOf(currentInterfaceMode as any)
+        
+        if (e.key === 'ArrowLeft') {
+          if (currentIndex > 0) {
+            this.transitionToMode(pageOrder[currentIndex - 1])
+          } else {
+            this.transitionToMode(InterfaceMode.HOME)
+          }
+        } else if (e.key === 'ArrowRight') {
+          if (currentIndex < pageOrder.length - 1) {
+            this.transitionToMode(pageOrder[currentIndex + 1])
+          } else {
+            this.transitionToMode(InterfaceMode.HOME)
+          }
+        }
       }
     })
   }
