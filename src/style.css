@@ -52,6 +52,10 @@ body, html {
   pointer-events: none;
 }
 
+.title-header.subpage-mode {
+  padding-bottom: 8px;
+}
+
 .title-header * {
   pointer-events: auto;
 }

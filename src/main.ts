@@ -832,10 +832,12 @@ class OrbitalCameraSystem {
     const controlsPanel = document.querySelector('.controls-panel') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const modelSelector = document.querySelector('.model-selector') as HTMLElement
+    const titleHeader = document.querySelector('.title-header') as HTMLElement
     
     if (controlsPanel) controlsPanel.style.display = 'flex'
     if (contentArea) contentArea.style.display = 'none'
     if (modelSelector) modelSelector.style.display = 'block'
+    if (titleHeader) titleHeader.classList.remove('subpage-mode')
     
     // Re-enable orbital controls for home page
     this.controls.enabled = true
@@ -851,12 +853,14 @@ class OrbitalCameraSystem {
     // Hide controls, show content area
     const controlsPanel = document.querySelector('.controls-panel') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
+    const titleHeader = document.querySelector('.title-header') as HTMLElement
     
     if (controlsPanel) controlsPanel.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       this.updateContentArea(mode)
     }
+    if (titleHeader) titleHeader.classList.add('subpage-mode')
     
     // Disable canvas interaction and layer above content
     this.disableCanvasInteraction()
