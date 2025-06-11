@@ -1036,25 +1036,6 @@ class OrbitalCameraSystem {
       case InterfaceMode.CONTACT:
         content = `
           <div class="terminal-section">
-            <h3>$ cat ~/contact_info.sh</h3>
-            <div class="contact-script">
-              <p>#!/bin/bash</p>
-              <p># Contact information and preferred communication methods</p>
-              <p></p>
-              <p><strong>EMAIL="luke@kantola.dev"</strong></p>
-              <p><strong>GITHUB="github.com/lukekantola"</strong></p>
-              <p><strong>LINKEDIN="linkedin.com/in/lukekantola"</strong></p>
-              <p></p>
-              <p># Professional inquiries welcome</p>
-              <p>echo "Available for consulting on:"</p>
-              <p>echo "  - 3D computer vision projects"</p>
-              <p>echo "  - Point cloud visualization systems"</p>
-              <p>echo "  - Real-time rendering applications"</p>
-              <p>echo "  - Photogrammetry and reconstruction"</p>
-            </div>
-          </div>
-          
-          <div class="terminal-section">
             <h3>$ ./availability_status.sh</h3>
             <p><span class="status-indicator">●</span> <strong>Currently:</strong> Available for new projects</p>
             <p><span class="status-indicator">●</span> <strong>Response Time:</strong> Usually within 24 hours</p>
@@ -1062,16 +1043,35 @@ class OrbitalCameraSystem {
           </div>
           
           <div class="terminal-section">
-            <h3>$ find ~/projects -name "*.collaboration" -type f</h3>
-            <p>Open to collaborations on:</p>
-            <p>• Open source 3D visualization tools</p>
-            <p>• Research projects in neural rendering</p>
-            <p>• Cultural heritage documentation initiatives</p>
-            <p>• Educational content creation</p>
-          </div>
-          
-          <div class="terminal-section">
-            <p><em>Feel free to reach out about projects, collaborations, or just to discuss the latest in 3D computer vision!</em></p>
+            <h3>$ ./contact_form.sh</h3>
+            <form class="terminal-form" action="https://formspree.io/f/xgvykakv" method="POST">
+              <div class="form-field">
+                <label for="name">$ enter name:</label>
+                <input type="text" id="name" name="name" required>
+              </div>
+              
+              <div class="form-field">
+                <label for="subject">$ enter subject:</label>
+                <input type="text" id="subject" name="subject" required>
+              </div>
+              
+              <div class="form-field">
+                <label for="email">$ enter email:</label>
+                <input type="email" id="email" name="email" required>
+              </div>
+              
+              <div class="form-field">
+                <label for="phone">$ enter phone:</label>
+                <input type="tel" id="phone" name="phone">
+              </div>
+              
+              <div class="form-field">
+                <label for="content">$ enter message:</label>
+                <textarea id="content" name="content" rows="4" required></textarea>
+              </div>
+              
+              <button type="submit" class="terminal-submit">./send_message.sh</button>
+            </form>
           </div>
         `
         break
@@ -1083,6 +1083,11 @@ class OrbitalCameraSystem {
     if (!document.querySelector('.subpage-navigation')) {
       this.showDestinationNavigation(mode)
     }
+    
+    // Ensure all navigation elements have event listeners (with small delay for DOM updates)
+    setTimeout(() => {
+      this.setupPageNavigation()
+    }, 10)
   }
   
   private generatePageNavigation(currentMode: InterfaceMode): string {
@@ -1125,7 +1130,7 @@ class OrbitalCameraSystem {
     navLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault()
-        const mode = (e.target as HTMLElement).getAttribute('data-mode') as InterfaceMode
+        const mode = (e.currentTarget as HTMLElement).getAttribute('data-mode') as InterfaceMode
         if (mode) {
           // Update navigation text immediately for subpages
           if (currentInterfaceMode !== InterfaceMode.HOME) {
@@ -1184,7 +1189,7 @@ class OrbitalCameraSystem {
       newNavLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault()
-          const mode = (e.target as HTMLElement).getAttribute('data-mode') as InterfaceMode
+          const mode = (e.currentTarget as HTMLElement).getAttribute('data-mode') as InterfaceMode
           if (mode) {
             this.updateNavigationText(mode)
             this.transitionToMode(mode)
