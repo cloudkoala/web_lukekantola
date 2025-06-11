@@ -833,57 +833,73 @@ body, html {
 }
 
 /* Typewriter animation for terminal commands */
-.typewriter {
+.navigation-command .typewriter {
   overflow: hidden;
   white-space: nowrap;
   width: 0;
+  display: inline-block;
   position: relative;
-  border-right: 2px solid transparent;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: #00ff00;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+  padding-right: 15px; /* Space for cursor so it doesn't get clipped */
 }
 
-.typewriter.animate {
-  animation: typewriter 1.5s steps(25) 0.5s both, cursor-blink 0.8s 0s infinite;
-  border-right: 2px solid #00ff00;
+.navigation-command .typewriter::after {
+  content: '█' !important;
+  color: #00ff00 !important;
+  opacity: 1 !important;
+  display: inline-block !important;
+  font-family: 'Space Mono', monospace !important;
+  font-size: 1.2rem !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 1) !important;
+  background: #00ff00 !important;
+  width: 10px !important;
+  height: 1em !important;
+  margin-left: 2px !important;
 }
 
-.typewriter.animate::after {
-  content: "";
+/* Fallback for browsers that don't support CSS custom properties */
+@supports not (animation-duration: var(--duration)) {
+  .typewriter.animate {
+    animation: typewriter-expand 1s steps(10, end) forwards;
+  }
 }
 
-@keyframes typewriter {
-  from {
+@keyframes typewriter-expand {
+  0% {
     width: 0;
   }
-  to {
-    width: 100%;
-  }
-}
-
-@keyframes initial-cursor-flash {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
   100% {
-    opacity: 1;
+    width: var(--target-width, 100%);
   }
 }
 
 @keyframes cursor-blink {
-  0%, 50% {
-    border-right-color: #00ff00;
+  0%, 49% {
+    opacity: 1;
   }
-  51%, 100% {
-    border-right-color: transparent;
+  50%, 100% {
+    opacity: 0;
   }
 }
 
-@keyframes fade-cursor {
-  to {
-    opacity: 0;
-  }
+/* Ensure proper text rendering during animation */
+.typewriter.animate {
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Reset text rendering after animation */
+.typewriter.complete {
+  text-rendering: auto;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* Project listing styles */
@@ -1231,6 +1247,7 @@ body, html {
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
   pointer-events: none;
+  min-height: 24px; /* Prevent layout shift */
 }
 
 .navigation-command span {
@@ -1239,6 +1256,40 @@ body, html {
   font-weight: 400;
   letter-spacing: 1px;
   text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+/* Enhanced typewriter animation with better cursor control */
+.typewriter {
+  position: relative;
+}
+
+.typewriter::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #00ff00;
+  animation: cursor-blink 1s infinite;
+  box-shadow: 0 0 2px rgba(0, 255, 0, 0.5);
+}
+
+.typewriter.animate::after {
+  animation: cursor-blink 1s infinite;
+}
+
+/* Hide cursor after animation completes */
+.typewriter.complete::after {
+  display: none;
+}
+
+/* Ensure cursor visibility on high DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .typewriter::after {
+    width: 1px;
+    box-shadow: 0 0 1px rgba(0, 255, 0, 0.8);
+  }
 }
 
 /* Terminal Contact Form Styles */
@@ -1370,6 +1421,14 @@ body, html {
   .title-header h1 {
     font-size: 1.1rem;
     letter-spacing: 2px;
+  }
+  
+  .model-selector-container {
+    top: 60px;
+  }
+  
+  .point-size-control {
+    top: 110px;
   }
   
   .form-field {

@@ -1484,20 +1484,39 @@ class OrbitalCameraSystem {
     const animationElement = document.createElement('div')
     animationElement.id = 'navigation-animation'
     animationElement.className = 'navigation-command'
-    animationElement.innerHTML = `<span class="typewriter">cd ./${mode}</span>`
+    const text = `cd ./${mode}`
+    
+    // Create a hidden span to measure text width
+    const measureSpan = document.createElement('span')
+    measureSpan.style.visibility = 'hidden'
+    measureSpan.style.position = 'absolute'
+    measureSpan.style.fontFamily = "'Space Mono', monospace"
+    measureSpan.style.fontSize = '0.8rem'
+    measureSpan.textContent = text
+    document.body.appendChild(measureSpan)
+    const fullWidth = measureSpan.offsetWidth
+    document.body.removeChild(measureSpan)
+    
+    // Create typewriter element with proper initial state
+    animationElement.innerHTML = `<span class="typewriter" style="width: 0; overflow: hidden;">${text}</span>`
     
     // Insert into the model selector container
     const modelSelectorContainer = document.querySelector('.model-selector-container')
     if (modelSelectorContainer) {
       modelSelectorContainer.appendChild(animationElement)
       
-      // Force a reflow to ensure the animation starts
-      animationElement.offsetHeight
-      
-      // Add the animation class after a small delay to trigger the animation
+      // Start animation immediately
       setTimeout(() => {
-        const typewriterElement = animationElement.querySelector('.typewriter')
+        const typewriterElement = animationElement.querySelector('.typewriter') as HTMLElement
         if (typewriterElement) {
+          // Set the animation with steps based on text length
+          const steps = text.length
+          // Add extra width for the block cursor
+          const cursorWidth = fullWidth / text.length // approximate character width
+          const totalWidth = fullWidth + cursorWidth + 8 // extra padding for cursor
+          typewriterElement.style.setProperty('--target-width', `${totalWidth}px`)
+          // 0.7s for typing + 0.3s pause with full text visible
+          typewriterElement.style.animation = `typewriter-expand 0.7s steps(${steps}) forwards`
           typewriterElement.classList.add('animate')
         }
       }, 10)
@@ -1663,6 +1682,100 @@ class OrbitalCameraSystem {
     return false
   }
   
+}
+
+// Typewriter Animation Utility Class
+class TypewriterAnimation {
+  private static debugMode = false
+  
+  static enableDebug(enable: boolean = true) {
+    TypewriterAnimation.debugMode = enable
+  }
+  
+  static create(text: string, container: HTMLElement, options: {
+    className?: string,
+    color?: string,
+    fontSize?: string,
+    speed?: number, // characters per second
+    showCursor?: boolean,
+    onComplete?: () => void,
+    debug?: boolean
+  } = {}): HTMLElement {
+    // Default options
+    const {
+      className = 'typewriter',
+      color = '#00ff00',
+      fontSize = '0.8rem',
+      speed = 10,
+      showCursor = true,
+      onComplete,
+      debug = TypewriterAnimation.debugMode
+    } = options
+    
+    // Create element
+    const element = document.createElement('span')
+    element.className = className
+    element.textContent = text
+    element.style.color = color
+    element.style.fontSize = fontSize
+    
+    // Calculate timing
+    const steps = text.length
+    const duration = Math.max(0.5, steps / speed)
+    
+    // Set CSS custom properties
+    element.style.setProperty('--steps', steps.toString())
+    element.style.setProperty('--duration', `${duration}s`)
+    
+    // Add to container
+    container.appendChild(element)
+    
+    // Debug logging
+    if (debug) {
+      console.log(`TypewriterAnimation: "${text}" - ${steps} chars, ${duration}s duration, speed: ${speed} cps`)
+    }
+    
+    // Start animation
+    setTimeout(() => {
+      element.classList.add('animate')
+      
+      if (debug) {
+        console.log(`TypewriterAnimation started: "${text}"`)
+      }
+      
+      // Handle completion
+      setTimeout(() => {
+        if (!showCursor) {
+          element.classList.add('complete')
+        }
+        if (onComplete) {
+          onComplete()
+        }
+        
+        if (debug) {
+          console.log(`TypewriterAnimation completed: "${text}"`)
+        }
+      }, (duration * 1000) + 100)
+    }, 50)
+    
+    return element
+  }
+  
+  static animateExisting(element: HTMLElement, text: string, speed: number = 10): void {
+    if (!element) return
+    
+    const steps = text.length
+    const duration = Math.max(0.5, steps / speed)
+    
+    element.style.setProperty('--steps', steps.toString())
+    element.style.setProperty('--duration', `${duration}s`)
+    
+    element.classList.remove('animate', 'complete')
+    
+    setTimeout(() => {
+      element.classList.add('animate')
+    }, 50)
+  }
 }
 
 // Load models configuration
@@ -1944,3 +2057,10 @@ async function initialize() {
 
 // Start the application
 initialize()
+
+// Expose debug utilities to global scope for testing
+if (typeof window !== 'undefined') {
+  (window as any).TypewriterAnimation = TypewriterAnimation
+  (window as any).enableTypewriterDebug = () => TypewriterAnimation.enableDebug(true)
+  (window as any).disableTypewriterDebug = () => TypewriterAnimation.enableDebug(false)
+}
