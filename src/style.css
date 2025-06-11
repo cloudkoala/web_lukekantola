@@ -113,10 +113,10 @@ body, html {
 .point-size-control {
   position: fixed;
   top: 140px;
-  left: 20px;
+  left: 32px;
   z-index: 998;
   background: transparent;
-  padding: 12px;
+  padding: 0;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
   pointer-events: auto;
@@ -126,11 +126,12 @@ body, html {
 }
 
 .point-size-control label {
-  color: white;
-  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
   font-weight: 400;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .point-size-control input[type="range"] {
@@ -167,10 +168,10 @@ body, html {
 .camera-info {
   position: fixed;
   top: 180px;
-  left: 20px;
+  left: 32px;
   z-index: 998;
   background: transparent;
-  padding: 12px;
+  padding: 0;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
   pointer-events: none;
@@ -184,19 +185,25 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 0;
+  margin: 0;
 }
 
 .camera-info label {
-  color: white;
-  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
   font-weight: 400;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0;
+  margin: 0;
 }
 
 .camera-info div {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 4px 8px;
+  background: transparent;
+  padding: 0;
+  margin: 0;
   border-radius: 3px;
   font-family: monospace;
   font-size: 0.7rem;
