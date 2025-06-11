@@ -758,16 +758,27 @@ class OrbitalCameraSystem {
       currentInterfaceMode = mode
       
     } else {
-      // If currently animating (loading animation), queue the transition
-      if (this.isAnimating) {
-        console.log('Animation in progress, queuing transition to:', mode)
-        this.pendingTransition = mode
-        this.updateHeaderPath(mode)
-        return
-      }
+      // Check if we're already in a subpage for immediate transition
+      const isAlreadyInSubpage = currentInterfaceMode !== InterfaceMode.HOME
       
-      // Start footer transition sequence for all pages including reel
-      this.startFooterTransition(mode)
+      if (isAlreadyInSubpage) {
+        console.log('Direct subpage transition from', currentInterfaceMode, 'to', mode)
+        // Immediate transition - no camera animation needed
+        this.enterFooterMode()
+        this.showContentInterface(mode)
+        currentInterfaceMode = mode
+      } else {
+        // If currently animating (loading animation), queue the transition
+        if (this.isAnimating) {
+          console.log('Animation in progress, queuing transition to:', mode)
+          this.pendingTransition = mode
+          this.updateHeaderPath(mode)
+          return
+        }
+        
+        // Start footer transition sequence for transition from home
+        this.startFooterTransition(mode)
+      }
     }
     
     this.updateHeaderPath(mode)
@@ -889,17 +900,21 @@ class OrbitalCameraSystem {
     const contentArea = document.querySelector('#content-area') as HTMLElement
     if (!contentArea) return
     
-    // Create horizontal scrolling container with all sections including reel
-    const allSections = `
-      <div class="content-container">
-        <div class="content-section reel-section">
+    // Create content based on the current mode (vertical only)
+    let content = ''
+    
+    switch (mode) {
+      case InterfaceMode.REEL:
+        content = `
           <div class="terminal-section">
             <h3>$ ./play_motion_reel.sh</h3>
             <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/661829952?badge=0&autopause=0&player_id=0&app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Luke Kantola 2021 Motion Design Reel"></iframe></div>
           </div>
-        </div>
+        `
+        break
         
-        <div class="content-section">
+      case InterfaceMode.PROJECTS:
+        content = `
           <div class="terminal-section">
             <h3>$ ls -la ~/projects/</h3>
             <div class="project-listing">
@@ -942,10 +957,11 @@ class OrbitalCameraSystem {
             • 3D scene reconstruction from drone imagery<br>
             • Neural radiance field implementations</p>
           </div>
-          
-        </div>
+        `
+        break
         
-        <div class="content-section">
+      case InterfaceMode.ABOUT:
+        content = `
           <div class="terminal-section">
             <h3>$ whoami</h3>
             <p>luke@kantola:~$ Computational researcher and developer specializing in 3D computer vision, photogrammetry, and real-time rendering systems.</p>
@@ -981,9 +997,11 @@ class OrbitalCameraSystem {
               <span>climbing/</span>
             </div>
           </div>
-        </div>
+        `
+        break
         
-        <div class="content-section">
+      case InterfaceMode.CONTACT:
+        content = `
           <div class="terminal-section">
             <h3>$ cat ~/contact_info.sh</h3>
             <div class="contact-script">
@@ -1022,36 +1040,11 @@ class OrbitalCameraSystem {
           <div class="terminal-section">
             <p><em>Feel free to reach out about projects, collaborations, or just to discuss the latest in 3D computer vision!</em></p>
           </div>
-        </div>
-      </div>
-    `
-    
-    contentArea.innerHTML = allSections
-    
-    // Scroll to the appropriate section based on mode
-    const container = contentArea.querySelector('.content-container') as HTMLElement
-    if (container) {
-      let scrollPosition = 0
-      switch (mode) {
-        case InterfaceMode.REEL:
-          scrollPosition = 0
-          break
-        case InterfaceMode.PROJECTS:
-          scrollPosition = window.innerWidth
-          break
-        case InterfaceMode.ABOUT:
-          scrollPosition = window.innerWidth * 2
-          break
-        case InterfaceMode.CONTACT:
-          scrollPosition = window.innerWidth * 3
-          break
-      }
-      
-      contentArea.scrollTo({
-        left: scrollPosition,
-        behavior: 'smooth'
-      })
+        `
+        break
     }
+    
+    contentArea.innerHTML = content
   }
   
   private updateHeaderPath(mode: InterfaceMode) {
