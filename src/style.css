@@ -603,12 +603,18 @@ body, html {
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   z-index: 500;
   pointer-events: auto;
-  opacity: 1;
-  visibility: visible;
+  opacity: 0;
+  visibility: hidden;
   display: block;
   max-width: 1200px;
   margin: 0 auto;
   box-sizing: border-box;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+#content-area.fade-in {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Add margins for wide screens (but not phones) */

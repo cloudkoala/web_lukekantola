@@ -836,12 +836,16 @@ class OrbitalCameraSystem {
     
     
     
-    // Enable footer mode and show content after animation
+    // Enable footer mode after typewriter finishes (after 700ms)
     setTimeout(() => {
       this.enterFooterMode()
       this.showContentInterface(mode)
+    }, 700)
+    
+    // Hide navigation animation sooner (after 800ms)
+    setTimeout(() => {
       this.hideNavigationAnimation()
-    }, footerPos.duration)
+    }, 800)
   }
   
   private enterFooterMode() {
@@ -886,7 +890,10 @@ class OrbitalCameraSystem {
     
     if (pointSizeControl) pointSizeControl.style.display = 'flex'
     if (cameraInfo) cameraInfo.style.display = 'flex'
-    if (contentArea) contentArea.style.display = 'none'
+    if (contentArea) {
+      contentArea.style.display = 'none'
+      contentArea.classList.remove('fade-in')
+    }
     if (modelSelector) modelSelector.style.display = 'block'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
     if (navigationHelp) navigationHelp.style.display = 'flex'
@@ -929,6 +936,10 @@ class OrbitalCameraSystem {
     if (contentArea) {
       contentArea.style.display = 'block'
       this.updateContentArea(mode)
+      // Add fade-in effect
+      setTimeout(() => {
+        contentArea.classList.add('fade-in')
+      }, 50)
     }
     if (titleHeader) titleHeader.classList.add('subpage-mode')
     if (homeNavigation) {
