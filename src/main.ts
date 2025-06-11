@@ -997,7 +997,7 @@ class OrbitalCameraSystem {
         content = `
           <div class="terminal-section">
             <h3>$ whoami</h3>
-            <p>luke@kantola:~$ Computational researcher and developer specializing in 3D computer vision, photogrammetry, and real-time rendering systems.</p>
+            <p>luke@kantola:~$ Motion-Design artist specializing in GIS mapping and 3D computer vision, photogrammetry, and real-time rendering systems.</p>
           </div>
           
           <div class="terminal-section">
@@ -1014,9 +1014,10 @@ class OrbitalCameraSystem {
             • Spatial computing applications</p>
             
             <p><strong>Education & Experience:</strong><br>
-            • M.S. Computer Science - Focus on Computer Vision<br>
-            • 5+ years developing 3D visualization systems<br>
-            • Published research in 3D reconstruction techniques<br>
+            • B.S. Economics<br>
+            • B.S. Studio Art<br>
+            • 10+ years developing 3D visualization systems<br>
+            • Real-time 3D rendering and visualization for film and video production<br>
             • Open source contributor to spatial computing tools</p>
           </div>
           
@@ -1101,12 +1102,24 @@ class OrbitalCameraSystem {
     const nextMode = nextIndex < pageOrder.length ? pageOrder[nextIndex] : null
     
     const prevLink = prevMode 
-      ? `<div class="nav-indicator" data-mode="${prevMode}">&lt; ../${prevMode}</div>`
-      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">&lt; $HOME</div>`
+      ? `<div class="nav-indicator" data-mode="${prevMode}">
+           <span class="nav-key">&lt;</span>
+           <span class="nav-label">../${prevMode}</span>
+         </div>`
+      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">
+           <span class="nav-key">&lt;</span>
+           <span class="nav-label">$HOME</span>
+         </div>`
       
     const nextLink = nextMode
-      ? `<div class="nav-indicator" data-mode="${nextMode}">../${nextMode} &gt;</div>`
-      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">$HOME &gt;</div>`
+      ? `<div class="nav-indicator" data-mode="${nextMode}">
+           <span class="nav-label">../${nextMode}</span>
+           <span class="nav-key">&gt;</span>
+         </div>`
+      : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">
+           <span class="nav-label">$HOME</span>
+           <span class="nav-key">&gt;</span>
+         </div>`
     
     return `
       <div class="subpage-navigation">
@@ -1130,7 +1143,20 @@ class OrbitalCameraSystem {
     navLinks.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault()
-        const mode = (e.currentTarget as HTMLElement).getAttribute('data-mode') as InterfaceMode
+        e.stopPropagation()
+        
+        // Get the mode from the clicked element or traverse up to find it
+        let targetElement = e.target as HTMLElement
+        let mode = targetElement.getAttribute('data-mode') as InterfaceMode
+        
+        // If the target doesn't have data-mode, look up the parent chain
+        while (!mode && targetElement.parentElement) {
+          targetElement = targetElement.parentElement
+          mode = targetElement.getAttribute('data-mode') as InterfaceMode
+        }
+        
+        console.log('Navigation click detected, mode:', mode, 'currentMode:', currentInterfaceMode)
+        
         if (mode) {
           // Update navigation text immediately for subpages
           if (currentInterfaceMode !== InterfaceMode.HOME) {
@@ -1189,7 +1215,20 @@ class OrbitalCameraSystem {
       newNavLinks.forEach(link => {
         link.addEventListener('click', (e) => {
           e.preventDefault()
-          const mode = (e.currentTarget as HTMLElement).getAttribute('data-mode') as InterfaceMode
+          e.stopPropagation()
+          
+          // Get the mode from the clicked element or traverse up to find it
+          let targetElement = e.target as HTMLElement
+          let mode = targetElement.getAttribute('data-mode') as InterfaceMode
+          
+          // If the target doesn't have data-mode, look up the parent chain
+          while (!mode && targetElement.parentElement) {
+            targetElement = targetElement.parentElement
+            mode = targetElement.getAttribute('data-mode') as InterfaceMode
+          }
+          
+          console.log('Dynamic navigation click detected, mode:', mode, 'currentMode:', currentInterfaceMode)
+          
           if (mode) {
             this.updateNavigationText(mode)
             this.transitionToMode(mode)
