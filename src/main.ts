@@ -391,13 +391,19 @@ class OrbitalCameraSystem {
     
     if (posDisplay) {
       const pos = this.camera.position
-      posDisplay.textContent = `X: ${pos.x.toFixed(2)}, Y: ${pos.y.toFixed(2)}, Z: ${pos.z.toFixed(2)}`
+      posDisplay.textContent = `X: ${this.formatNumber(pos.x)}, Y: ${this.formatNumber(pos.y)}, Z: ${this.formatNumber(pos.z)}`
     }
     
     if (targetDisplay) {
       const target = this.controls.target
-      targetDisplay.textContent = `X: ${target.x.toFixed(2)}, Y: ${target.y.toFixed(2)}, Z: ${target.z.toFixed(2)}`
+      targetDisplay.textContent = `X: ${this.formatNumber(target.x)}, Y: ${this.formatNumber(target.y)}, Z: ${this.formatNumber(target.z)}`
     }
+  }
+  
+  private formatNumber(value: number): string {
+    const formatted = value.toFixed(2)
+    // Add a leading non-breaking space for positive numbers to align with negative numbers
+    return value >= 0 ? `\u00A0${formatted}` : formatted
   }
   
   private updateOrbitCenterDisplay() {
@@ -876,12 +882,14 @@ class OrbitalCameraSystem {
     const modelSelector = document.querySelector('.model-selector') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
+    const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'flex'
     if (cameraInfo) cameraInfo.style.display = 'flex'
     if (contentArea) contentArea.style.display = 'none'
     if (modelSelector) modelSelector.style.display = 'block'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
+    if (navigationHelp) navigationHelp.style.display = 'flex'
     if (homeNavigation) {
       homeNavigation.style.display = 'flex'
       homeNavigation.style.visibility = 'visible'
@@ -913,9 +921,11 @@ class OrbitalCameraSystem {
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
+    const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'none'
     if (cameraInfo) cameraInfo.style.display = 'none'
+    if (navigationHelp) navigationHelp.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       this.updateContentArea(mode)
@@ -1408,6 +1418,7 @@ class OrbitalCameraSystem {
     const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const modelSelector = document.querySelector('.model-selector') as HTMLElement
+    const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     
     if (pointSizeControl) {
       pointSizeControl.style.display = 'none'
@@ -1417,6 +1428,9 @@ class OrbitalCameraSystem {
     }
     if (modelSelector) {
       modelSelector.style.display = 'none'
+    }
+    if (navigationHelp) {
+      navigationHelp.style.display = 'none'
     }
   }
   
