@@ -42,95 +42,34 @@
       </div>
     </div>
     
-    <div class="controls-panel">
-      <div class="controls-header" id="controls-header">
-        <h3>Camera Controls</h3>
-        <button class="collapse-button" id="collapse-button">+</button>
+    <!-- Point Size Control -->
+    <div class="point-size-control">
+      <label for="point-size">Point Size:</label>
+      <input type="range" id="point-size" min="0.001" max="0.1" step="0.001" value="0.001">
+      <span id="point-size-value">0.001</span>
+    </div>
+    
+    <!-- Camera Info Display -->
+    <div class="camera-info">
+      <div class="camera-position-info">
+        <label>Camera Position:</label>
+        <div id="camera-position-display">X: 0.00, Y: 0.00, Z: 0.00</div>
       </div>
-      <div class="controls-content collapsed" id="controls-content">
-        <div class="control-group">
-        <label for="mode">Interaction Mode</label>
-        <select id="mode">
-          <option value="free-nav">Free Navigation</option>
-          <option value="orbit">Orbit Only</option>
-        </select>
+      <div class="camera-target-info">
+        <label>Look At:</label>
+        <div id="camera-target-display">X: 0.00, Y: 0.00, Z: 0.00</div>
       </div>
-      <div class="control-group">
-        <label for="rotation-speed">Rotation Speed</label>
-        <input type="range" id="rotation-speed" min="0" max="0.5" step="0.01" value="0.1">
-        <span id="rotation-speed-value">0.1</span>
+    </div>
+    
+    <!-- Navigation indicators for home page (separate from controls) -->
+    <div class="home-navigation" id="home-navigation">
+      <div class="nav-indicator">
+        <span class="nav-key">&lt;</span>
+        <span class="nav-label">../contact</span>
       </div>
-      <div class="control-group">
-        <label for="rotation-radius">Rotation Radius</label>
-        <input type="range" id="rotation-radius" min="0.1" max="100" step="0.5" value="5.0">
-        <span id="rotation-radius-value">5.0</span>
-      </div>
-      <div class="control-group">
-        <label for="point-size">Point Size</label>
-        <input type="range" id="point-size" min="0.001" max="0.1" step="0.001" value="0.001">
-        <span id="point-size-value">0.001</span>
-        <button id="set-default-point-size">Set as Default</button>
-      </div>
-      <div class="control-group">
-        <label>Orbit Center</label>
-        <div id="orbit-center-display">
-          X: 0.08, Y: 0.80, Z: -0.21
-        </div>
-        <button id="clear-point">Reset to Origin</button>
-      </div>
-        
-        <div class="control-group">
-          <label>Camera Position</label>
-          <div id="camera-position-display">
-            X: 0.00, Y: 0.00, Z: 0.00
-          </div>
-          <div class="button-row">
-            <button id="save-camera">Save Position</button>
-            <button id="load-camera">Load Saved</button>
-          </div>
-        </div>
-        
-        <div class="control-group">
-          <label>Camera Presets</label>
-          <div class="button-row">
-            <button id="preset-top">Top</button>
-            <button id="preset-front">Front</button>
-            <button id="preset-side">Side</button>
-          </div>
-          <div class="button-row">
-            <button id="save-preset-top">Save Top</button>
-            <button id="save-preset-front">Save Front</button>
-            <button id="save-preset-side">Save Side</button>
-          </div>
-        </div>
-        
-        <div class="control-group">
-          <label>Model Controls</label>
-          <div class="button-row">
-            <button id="center-model">Center Model</button>
-            <button id="reset-model">Reset Model</button>
-          </div>
-        </div>
-        
-        <div class="control-group">
-          <label for="display-name">Display Name</label>
-          <input type="text" id="display-name" placeholder="Enter model display name">
-          <div class="button-row">
-            <button id="save-display-name">Save Name</button>
-          </div>
-        </div>
-        
-        <div class="control-group">
-          <label>Animation Configuration</label>
-          <div class="button-row">
-            <button id="save-start-position">Save Start Position</button>
-            <button id="save-end-position">Save End Position</button>
-          </div>
-          <div class="button-row">
-            <button id="preview-animation">Preview Animation</button>
-          </div>
-        </div>
-        
+      <div class="nav-indicator">
+        <span class="nav-label">../reel</span>
+        <span class="nav-key">&gt;</span>
       </div>
     </div>
     

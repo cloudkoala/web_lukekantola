@@ -366,11 +366,17 @@ class OrbitalCameraSystem {
   
   
   private updateCameraPositionDisplay() {
-    const display = document.querySelector('#camera-position-display') as HTMLDivElement
-    if (display) {
+    const posDisplay = document.querySelector('#camera-position-display') as HTMLDivElement
+    const targetDisplay = document.querySelector('#camera-target-display') as HTMLDivElement
+    
+    if (posDisplay) {
       const pos = this.camera.position
+      posDisplay.textContent = `X: ${pos.x.toFixed(2)}, Y: ${pos.y.toFixed(2)}, Z: ${pos.z.toFixed(2)}`
+    }
+    
+    if (targetDisplay) {
       const target = this.controls.target
-      display.textContent = `Pos: X: ${pos.x.toFixed(2)}, Y: ${pos.y.toFixed(2)}, Z: ${pos.z.toFixed(2)} | Target: X: ${target.x.toFixed(2)}, Y: ${target.y.toFixed(2)}, Z: ${target.z.toFixed(2)}`
+      targetDisplay.textContent = `X: ${target.x.toFixed(2)}, Y: ${target.y.toFixed(2)}, Z: ${target.z.toFixed(2)}`
     }
   }
   
@@ -839,16 +845,26 @@ class OrbitalCameraSystem {
   
   
   private showHomeInterface() {
-    // Show controls and model selector, hide content area
-    const controlsPanel = document.querySelector('.controls-panel') as HTMLElement
+    // Show point size control, camera info, model selector, hide content area
+    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const modelSelector = document.querySelector('.model-selector') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
+    const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     
-    if (controlsPanel) controlsPanel.style.display = 'flex'
+    if (pointSizeControl) pointSizeControl.style.display = 'flex'
+    if (cameraInfo) cameraInfo.style.display = 'flex'
     if (contentArea) contentArea.style.display = 'none'
     if (modelSelector) modelSelector.style.display = 'block'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
+    if (homeNavigation) {
+      homeNavigation.style.display = 'flex'
+      homeNavigation.style.visibility = 'visible'
+      console.log('Showing home navigation indicators', homeNavigation)
+    } else {
+      console.log('Home navigation element not found')
+    }
     
     // Re-enable orbital controls for home page
     this.controls.enabled = true
@@ -861,17 +877,24 @@ class OrbitalCameraSystem {
   }
   
   private showContentInterface(mode: InterfaceMode) {
-    // Hide controls, show content area
-    const controlsPanel = document.querySelector('.controls-panel') as HTMLElement
+    // Hide point size control, camera info, show content area
+    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
+    const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     
-    if (controlsPanel) controlsPanel.style.display = 'none'
+    if (pointSizeControl) pointSizeControl.style.display = 'none'
+    if (cameraInfo) cameraInfo.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       this.updateContentArea(mode)
     }
     if (titleHeader) titleHeader.classList.add('subpage-mode')
+    if (homeNavigation) {
+      homeNavigation.style.display = 'none'
+      console.log('Hiding home navigation indicators')
+    }
     
     // Disable canvas interaction and layer above content
     this.disableCanvasInteraction()
@@ -1157,9 +1180,20 @@ class OrbitalCameraSystem {
         this.transitionToMode(InterfaceMode.HOME)
       }
       
-      // Arrow key navigation when in subpages
-      if (currentInterfaceMode !== InterfaceMode.HOME) {
-        const pageOrder = [InterfaceMode.REEL, InterfaceMode.PROJECTS, InterfaceMode.ABOUT, InterfaceMode.CONTACT]
+      const pageOrder = [InterfaceMode.REEL, InterfaceMode.PROJECTS, InterfaceMode.ABOUT, InterfaceMode.CONTACT]
+      
+      // Arrow key navigation
+      if (currentInterfaceMode === InterfaceMode.HOME) {
+        // From home page, go to first/last page and hide controls immediately
+        if (e.key === 'ArrowLeft') {
+          this.hideControlsImmediately()
+          this.transitionToMode(InterfaceMode.CONTACT) // Go to last page
+        } else if (e.key === 'ArrowRight') {
+          this.hideControlsImmediately()
+          this.transitionToMode(InterfaceMode.REEL) // Go to first page
+        }
+      } else {
+        // Navigation when in subpages
         const currentIndex = pageOrder.indexOf(currentInterfaceMode as any)
         
         if (e.key === 'ArrowLeft') {
@@ -1223,11 +1257,15 @@ class OrbitalCameraSystem {
   }
   
   private hideControlsImmediately() {
-    const controlsPanel = document.querySelector('.controls-panel') as HTMLElement
+    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const modelSelector = document.querySelector('.model-selector') as HTMLElement
     
-    if (controlsPanel) {
-      controlsPanel.style.display = 'none'
+    if (pointSizeControl) {
+      pointSizeControl.style.display = 'none'
+    }
+    if (cameraInfo) {
+      cameraInfo.style.display = 'none'
     }
     if (modelSelector) {
       modelSelector.style.display = 'none'
@@ -1495,6 +1533,13 @@ async function initialize() {
   setupModelDropdown()
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
+  
+  // Show home navigation indicators on initial load
+  const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
+  if (homeNavigation) {
+    homeNavigation.style.display = 'flex'
+    homeNavigation.style.visibility = 'visible'
+  }
   
   // Start loading animation every time (regardless of caching)
   orbitalCamera.startLoadingAnimation()
