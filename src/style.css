@@ -52,10 +52,6 @@ body, html {
   pointer-events: none;
 }
 
-.title-header.subpage-mode {
-  padding-bottom: 8px;
-}
-
 .title-header * {
   pointer-events: auto;
 }
@@ -71,12 +67,20 @@ body, html {
   text-transform: uppercase;
 }
 
+.model-selector-container {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  z-index: 998;
+  pointer-events: none;
+}
+
 .model-selector {
-  margin-top: 15px;
   background: transparent;
   padding: 12px;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
+  pointer-events: auto;
 }
 
 .model-selector label {
@@ -475,62 +479,48 @@ body, html {
 /* Content Area Styles */
 #content-area {
   position: fixed;
-  top: 120px;
+  top: 60px;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 0px;
   background: transparent;
   color: white;
-  padding: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  padding: 40px;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   z-index: 500;
   pointer-events: auto;
   opacity: 1;
   visibility: visible;
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* Add margins for wide screens (but not phones) */
 /* 15% margins for your specific screen size range */
 @media (min-aspect-ratio: 4/3) and (min-width: 1400px) {
-  .title-header, #content-area, .controls-panel {
+  .title-header, .controls-panel {
     left: 15%;
     right: 15%;
-  }
-  /* Override margins for reel section - use full width */
-  #content-area:has(.reel-section) {
-    left: 0;
-    right: 0;
   }
 }
 
 /* 15% margins for ultrawide screens */
 @media (min-aspect-ratio: 21/9) and (min-width: 1400px) {
-  .title-header, #content-area, .controls-panel {
+  .title-header, .controls-panel {
     left: 15%;
     right: 15%;
-  }
-  /* Override margins for reel section - use full width */
-  #content-area:has(.reel-section) {
-    left: 0;
-    right: 0;
   }
 }
 
 /* 20% margins for super ultrawide screens */
 @media (min-aspect-ratio: 32/9) and (min-width: 1600px) {
-  .title-header, #content-area, .controls-panel {
+  .title-header, .controls-panel {
     left: 20%;
     right: 20%;
-  }
-  /* Override margins for reel section - use full width */
-  #content-area:has(.reel-section) {
-    left: 0;
-    right: 0;
   }
 }
 
@@ -546,15 +536,39 @@ body, html {
 .content-section {
   min-width: 100vw;
   height: 100%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Inner content wrapper for proper margins */
+.content-section > .terminal-section,
+.content-section > div:not(.reel-section) {
+  width: 100%;
+  max-width: 1200px;
   padding: 40px;
   box-sizing: border-box;
   overflow-y: auto;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  height: 100%;
 }
 
 /* Reel section should ignore margins and use full width */
 .content-section.reel-section {
   position: relative;
+  justify-content: stretch;
+}
+
+.content-section.reel-section > .terminal-section {
+  max-width: none;
+  width: 100%;
+  padding: 40px;
+  overflow-y: auto;
+  height: 100%;
 }
 
 #content-area h2 {
@@ -809,7 +823,7 @@ body, html {
 /* Standalone reel page styling */
 .reel-page {
   position: fixed;
-  top: 120px;
+  top: 30px;
   left: 0;
   right: 0;
   bottom: 0;
