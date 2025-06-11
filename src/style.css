@@ -485,7 +485,7 @@ body, html {
   bottom: 0px;
   background: transparent;
   color: white;
-  padding: 40px;
+  padding: 40px 40px 240px 40px;
   overflow-x: hidden;
   overflow-y: auto;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
@@ -883,6 +883,54 @@ body, html {
   background: rgba(0, 255, 0, 0.5);
 }
 
+/* Page navigation at bottom */
+.page-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 60px;
+  padding: 20px 0;
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+  font-family: 'Space Mono', monospace;
+}
+
+.nav-link {
+  color: #00ff00;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 1px;
+  padding: 8px 16px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 255, 0, 0.1);
+  transition: all 0.3s ease;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  transform: translateY(-1px);
+}
+
+.nav-link.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+  text-shadow: none;
+}
+
+.nav-link.disabled:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Responsive adjustments for content */
 @media (max-width: 768px) {
   .project-item {
@@ -906,7 +954,17 @@ body, html {
   }
   
   #content-area {
-    padding: 20px;
+    padding: 20px 20px 240px 20px;
+  }
+  
+  .page-navigation {
+    margin-top: 40px;
+    padding: 15px 0;
+  }
+  
+  .nav-link {
+    font-size: 0.8rem;
+    padding: 6px 12px;
   }
 }
 

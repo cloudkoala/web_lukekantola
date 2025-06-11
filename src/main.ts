@@ -910,6 +910,7 @@ class OrbitalCameraSystem {
             <h3>$ ./play_motion_reel.sh</h3>
             <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/661829952?badge=0&autopause=0&player_id=0&app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Luke Kantola 2021 Motion Design Reel"></iframe></div>
           </div>
+          ${this.generatePageNavigation(InterfaceMode.REEL)}
         `
         break
         
@@ -957,6 +958,7 @@ class OrbitalCameraSystem {
             • 3D scene reconstruction from drone imagery<br>
             • Neural radiance field implementations</p>
           </div>
+          ${this.generatePageNavigation(InterfaceMode.PROJECTS)}
         `
         break
         
@@ -997,6 +999,7 @@ class OrbitalCameraSystem {
               <span>climbing/</span>
             </div>
           </div>
+          ${this.generatePageNavigation(InterfaceMode.ABOUT)}
         `
         break
         
@@ -1040,11 +1043,54 @@ class OrbitalCameraSystem {
           <div class="terminal-section">
             <p><em>Feel free to reach out about projects, collaborations, or just to discuss the latest in 3D computer vision!</em></p>
           </div>
+          ${this.generatePageNavigation(InterfaceMode.CONTACT)}
         `
         break
     }
     
     contentArea.innerHTML = content
+    
+    // Add event listeners for navigation links
+    this.setupPageNavigation()
+  }
+  
+  private generatePageNavigation(currentMode: InterfaceMode): string {
+    const pageOrder = [InterfaceMode.REEL, InterfaceMode.PROJECTS, InterfaceMode.ABOUT, InterfaceMode.CONTACT]
+    const currentIndex = pageOrder.indexOf(currentMode as any)
+    
+    const prevIndex = currentIndex - 1
+    const nextIndex = currentIndex + 1
+    
+    const prevMode = prevIndex >= 0 ? pageOrder[prevIndex] : null
+    const nextMode = nextIndex < pageOrder.length ? pageOrder[nextIndex] : null
+    
+    const prevLink = prevMode 
+      ? `<a href="#" class="nav-link" data-mode="${prevMode}">← ./${prevMode}</a>`
+      : `<span class="nav-link disabled">← prev</span>`
+      
+    const nextLink = nextMode
+      ? `<a href="#" class="nav-link" data-mode="${nextMode}">→ ./${nextMode}</a>`
+      : `<span class="nav-link disabled">next →</span>`
+    
+    return `
+      <div class="page-navigation">
+        ${prevLink}
+        ${nextLink}
+      </div>
+    `
+  }
+  
+  private setupPageNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link[data-mode]')
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault()
+        const mode = (e.target as HTMLElement).getAttribute('data-mode') as InterfaceMode
+        if (mode) {
+          this.transitionToMode(mode)
+        }
+      })
+    })
   }
   
   private updateHeaderPath(mode: InterfaceMode) {

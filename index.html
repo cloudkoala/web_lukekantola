@@ -13,17 +13,6 @@
         <span id="home-path">./kantola/luke</span><span id="current-section"></span>
       </h1>
       
-      <!-- Model Selector moved under title -->
-      <div class="model-selector">
-        <label for="model-dropdown">Model:</label>
-        <select id="model-dropdown">
-          <option value="castleton">Castleton Heritage Site</option>
-          <option value="corona_arch">Corona Arch</option>
-          <option value="delicate_arch">Delicate Arch</option>
-          <option value="fisher">Fisher Towers</option>
-        </select>
-      </div>
-      
       <!-- Hamburger Menu (always visible) -->
       <div class="hamburger-menu" id="hamburger-menu">
         <button class="hamburger-button" id="hamburger-button">
@@ -39,6 +28,20 @@
         </nav>
       </div>
     </header>
+    
+    <!-- Model Selector Container (separate from title bar) -->
+    <div class="model-selector-container">
+      <div class="model-selector">
+        <label for="model-dropdown">Model:</label>
+        <select id="model-dropdown">
+          <option value="castleton">Castleton Heritage Site</option>
+          <option value="corona_arch">Corona Arch</option>
+          <option value="delicate_arch">Delicate Arch</option>
+          <option value="fisher">Fisher Towers</option>
+        </select>
+      </div>
+    </div>
+    
     <div class="controls-panel">
       <div class="controls-header" id="controls-header">
         <h3>Camera Controls</h3>
