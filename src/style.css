@@ -168,8 +168,8 @@ body, html {
 /* Camera Info Display */
 .camera-info {
   position: fixed;
-  bottom: 60px;
-  left: 20px;
+  bottom: 80px;
+  right: 20px;
   z-index: 998;
   background: transparent;
   padding: 0;

@@ -173,6 +173,26 @@ class OrbitalCameraSystem {
     canvas.addEventListener('mouseleave', () => {
       // Mouse left canvas
     })
+    
+    // Add double-click handler for point cloud interaction
+    canvas.addEventListener('dblclick', (event) => {
+      this.handleCanvasClick(event)
+    })
+    
+    // Add touch handler for mobile devices (double-tap)
+    let lastTouchTime = 0
+    canvas.addEventListener('touchend', (event) => {
+      if (event.touches.length === 0 && event.changedTouches.length === 1) {
+        const currentTime = Date.now()
+        const timeDiff = currentTime - lastTouchTime
+        
+        if (timeDiff < 300 && timeDiff > 0) { // Double-tap within 300ms
+          this.handleCanvasTouch(event.changedTouches[0])
+        }
+        
+        lastTouchTime = currentTime
+      }
+    })
   }
   
   update() {
@@ -1436,6 +1456,86 @@ class OrbitalCameraSystem {
     if (animationElement) {
       animationElement.remove()
     }
+  }
+  
+  private handleCanvasClick(event: MouseEvent) {
+    // Only handle clicks when on home page and canvas is interactive
+    if (currentInterfaceMode !== InterfaceMode.HOME) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const clickX = event.clientX - rect.left
+    const clickY = event.clientY - rect.top
+    
+    this.handlePointCloudClick(clickX, clickY)
+  }
+  
+  private handleCanvasTouch(touch: Touch) {
+    // Only handle touches when on home page and canvas is interactive
+    if (currentInterfaceMode !== InterfaceMode.HOME) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const touchX = touch.clientX - rect.left
+    const touchY = touch.clientY - rect.top
+    
+    this.handlePointCloudClick(touchX, touchY)
+  }
+  
+  private handlePointCloudClick(x: number, y: number) {
+    if (!this.currentPointCloud) return
+    
+    // Convert screen coordinates to normalized device coordinates (-1 to 1)
+    const mouse = new THREE.Vector2()
+    mouse.x = (x / canvas.clientWidth) * 2 - 1
+    mouse.y = -(y / canvas.clientHeight) * 2 + 1
+    
+    // Create raycaster
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera(mouse, this.camera)
+    
+    // Find nearest point within click radius
+    const nearestPoint = this.findNearestPointToRay(raycaster)
+    
+    if (nearestPoint) {
+      console.log('Double-clicked near point at:', nearestPoint)
+      
+      // Update look-at target and orbit center
+      this.clickedPoint = nearestPoint.clone()
+      this.controls.target.copy(nearestPoint)
+      this.controls.update()
+      
+      console.log('Updated look-at target to:', nearestPoint)
+    }
+  }
+  
+  private findNearestPointToRay(raycaster: THREE.Raycaster): THREE.Vector3 | null {
+    if (!this.currentPointCloud || !this.currentPointCloud.geometry) return null
+    
+    const geometry = this.currentPointCloud.geometry
+    const positions = geometry.attributes.position
+    if (!positions) return null
+    
+    const clickRadius = 0.5 // Maximum distance from ray to consider a point
+    let nearestPoint: THREE.Vector3 | null = null
+    let nearestDistance = Infinity
+    
+    // Check points in batches for performance
+    const tempPoint = new THREE.Vector3()
+    const worldMatrix = this.currentPointCloud.matrixWorld
+    
+    for (let i = 0; i < positions.count; i += 10) { // Sample every 10th point for performance
+      tempPoint.fromBufferAttribute(positions, i)
+      tempPoint.applyMatrix4(worldMatrix) // Transform to world coordinates
+      
+      // Calculate distance from point to ray
+      const distanceToRay = raycaster.ray.distanceToPoint(tempPoint)
+      
+      if (distanceToRay < clickRadius && distanceToRay < nearestDistance) {
+        nearestDistance = distanceToRay
+        nearestPoint = tempPoint.clone()
+      }
+    }
+    
+    return nearestPoint
   }
   
 }
