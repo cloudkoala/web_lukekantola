@@ -175,7 +175,7 @@ class OrbitalCameraSystem {
     this.loadSavedCameraPosition()
   }
   
-  private resetInteractionTimer(source?: string) {
+  private resetInteractionTimer() {
     this.lastInteractionTime = Date.now()
     this.autoRotationIntensity = 0 // Reset intensity when user interacts
   }
@@ -189,7 +189,7 @@ class OrbitalCameraSystem {
     })
     
     canvas.addEventListener('mousedown', () => {
-      this.resetInteractionTimer('mousedown')
+      this.resetInteractionTimer()
     })
     
     // Don't stop auto-rotation on zoom/scroll
@@ -204,13 +204,13 @@ class OrbitalCameraSystem {
     // Add double-click handler for point cloud interaction
     canvas.addEventListener('dblclick', (event) => {
       this.handleCanvasClick(event)
-      this.resetInteractionTimer('dblclick')
+      this.resetInteractionTimer()
     })
     
     // Add touch handler for mobile devices (double-tap)
     let lastTouchTime = 0
     canvas.addEventListener('touchstart', () => {
-      this.resetInteractionTimer('touchstart')
+      this.resetInteractionTimer()
     })
     
     // Don't reset timer on touch move - only on touch start/end
@@ -219,7 +219,7 @@ class OrbitalCameraSystem {
     })
     
     canvas.addEventListener('touchend', (event) => {
-      this.resetInteractionTimer('touchend')
+      this.resetInteractionTimer()
       
       if (event.touches.length === 0 && event.changedTouches.length === 1) {
         const currentTime = Date.now()
