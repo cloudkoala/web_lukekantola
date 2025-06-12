@@ -20,6 +20,10 @@
         "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
         "scale": 1,
         "duration": 1000
+      },
+      "idleRotation": {
+        "speed": 0.02,
+        "direction": -1
       }
     },
     "corona_arch": {
@@ -42,6 +46,10 @@
         "target": { "x": 0, "y": -0.3, "z": 0 },
         "scale": 0.3,
         "duration": 1000
+      },
+      "idleRotation": {
+        "speed": 0.08,
+        "direction": 1
       }
     },
     "delicate_arch": {
@@ -64,6 +72,10 @@
         "target": { "x": 1.39, "y": 2.78, "z": -0.63 },
         "scale": 1,
         "duration": 1000
+      },
+      "idleRotation": {
+        "speed": 0.08,
+        "direction": 1
       }
     },
     "fisher": {
@@ -86,6 +98,10 @@
         "target": { "x": 0.06, "y": 3.35, "z": 0.93 },
         "scale": 0.3,
         "duration":  1000
+      },
+      "idleRotation": {
+        "speed": 0.08,
+        "direction": 1
       }
     }
   },

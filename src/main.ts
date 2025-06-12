@@ -30,6 +30,10 @@ interface ModelConfig {
     scale: number
     duration: number
   }
+  idleRotation: {
+    speed: number
+    direction: number
+  }
 }
 
 interface ModelsConfig {
@@ -133,6 +137,13 @@ class OrbitalCameraSystem {
   private animationStartQuaternion: THREE.Quaternion = new THREE.Quaternion()
   private animationEndQuaternion: THREE.Quaternion = new THREE.Quaternion()
   
+  // Auto-rotation properties
+  private lastInteractionTime: number = Date.now()
+  private autoRotationEnabled: boolean = true
+  private autoRotationIntensity: number = 0 // Starts at 0, eases up to 1
+  private readonly INACTIVITY_THRESHOLD: number = 2000 // 2 seconds
+  private readonly EASE_IN_DURATION: number = 3000 // 3 seconds to reach full intensity
+  
   
   
   // Navigation state management
@@ -148,6 +159,7 @@ class OrbitalCameraSystem {
     this.camera = camera
     this.controls = controls
     this.setupMouseTracking()
+    this.setupControlsInteractionTracking()
     this.setupControls()
     this.setupCollapsiblePanel()
     this.setupNavigation()
@@ -163,11 +175,25 @@ class OrbitalCameraSystem {
     this.loadSavedCameraPosition()
   }
   
+  private resetInteractionTimer() {
+    this.lastInteractionTime = Date.now()
+    this.autoRotationIntensity = 0 // Reset intensity when user interacts
+  }
+  
   private setupMouseTracking() {
     canvas.addEventListener('mousemove', (event) => {
       const rect = canvas.getBoundingClientRect()
       this.currentMousePos.x = event.clientX - rect.left
       this.currentMousePos.y = event.clientY - rect.top
+      // Don't reset timer on mouse move - only on clicks
+    })
+    
+    canvas.addEventListener('mousedown', () => {
+      this.resetInteractionTimer()
+    })
+    
+    canvas.addEventListener('wheel', () => {
+      this.resetInteractionTimer()
     })
     
     canvas.addEventListener('mouseleave', () => {
@@ -177,11 +203,23 @@ class OrbitalCameraSystem {
     // Add double-click handler for point cloud interaction
     canvas.addEventListener('dblclick', (event) => {
       this.handleCanvasClick(event)
+      this.resetInteractionTimer()
     })
     
     // Add touch handler for mobile devices (double-tap)
     let lastTouchTime = 0
+    canvas.addEventListener('touchstart', () => {
+      this.resetInteractionTimer()
+    })
+    
+    // Don't reset timer on touch move - only on touch start/end
+    canvas.addEventListener('touchmove', () => {
+      // this.resetInteractionTimer()
+    })
+    
     canvas.addEventListener('touchend', (event) => {
+      this.resetInteractionTimer()
+      
       if (event.touches.length === 0 && event.changedTouches.length === 1) {
         const currentTime = Date.now()
         const timeDiff = currentTime - lastTouchTime
@@ -206,7 +244,8 @@ class OrbitalCameraSystem {
       return // Skip other controls during animation
     }
     
-    
+    // Handle auto-rotation
+    this.updateAutoRotation()
     
     // Skip orbital controls in free navigation mode
     if (this.interactionMode === 'free-nav') {
@@ -236,6 +275,76 @@ class OrbitalCameraSystem {
       
       // Always look at the clicked point
       this.camera.lookAt(this.clickedPoint)
+    }
+  }
+  
+  private setupControlsInteractionTracking() {
+    // Track OrbitControls interactions - but only user-initiated ones
+    this.controls.addEventListener('start', () => {
+      this.resetInteractionTimer()
+    })
+    
+    // Don't track 'change' events as they fire constantly during animations
+    // this.controls.addEventListener('change', () => {
+    //   this.resetInteractionTimer()
+    // })
+    
+    this.controls.addEventListener('end', () => {
+      this.resetInteractionTimer()
+    })
+  }
+  
+  private updateAutoRotation() {
+    // Only apply auto-rotation in free navigation mode and when not animating
+    if (this.interactionMode !== 'free-nav' || this.isAnimating || !this.autoRotationEnabled) {
+      return
+    }
+    
+    // Only apply on home page, not on subpages
+    if (currentInterfaceMode !== InterfaceMode.HOME) {
+      return
+    }
+    
+    // Get current model configuration
+    const currentModel = modelsConfig.models[modelsConfig.currentModel]
+    if (!currentModel || !currentModel.idleRotation) {
+      return
+    }
+    
+    const currentTime = Date.now()
+    const timeSinceLastInteraction = currentTime - this.lastInteractionTime
+    
+    // Only start auto-rotation after inactivity threshold
+    if (timeSinceLastInteraction < this.INACTIVITY_THRESHOLD) {
+      return
+    }
+    
+    // Calculate how long we've been in auto-rotation mode
+    const autoRotationTime = timeSinceLastInteraction - this.INACTIVITY_THRESHOLD
+    
+    // Gradually ease in the rotation intensity over EASE_IN_DURATION
+    const targetIntensity = Math.min(autoRotationTime / this.EASE_IN_DURATION, 1)
+    
+    // Smooth ease-in using smoothstep function for natural feel
+    this.autoRotationIntensity = targetIntensity * targetIntensity * (3 - 2 * targetIntensity)
+    
+    
+    // Apply rotation around Y axis using model configuration
+    if (this.autoRotationIntensity > 0) {
+      const rotationAmount = currentModel.idleRotation.speed * currentModel.idleRotation.direction * this.autoRotationIntensity * 0.016 // Assuming ~60fps
+      
+      // Get current camera position relative to target
+      const target = this.controls.target.clone()
+      const cameraPos = this.camera.position.clone()
+      const offset = cameraPos.sub(target)
+      
+      // Rotate around Y axis
+      const rotationMatrix = new THREE.Matrix4().makeRotationY(rotationAmount)
+      offset.applyMatrix4(rotationMatrix)
+      
+      // Apply new position
+      this.camera.position.copy(target.add(offset))
+      this.camera.lookAt(this.controls.target)
     }
   }
   
