@@ -1467,7 +1467,7 @@ class OrbitalCameraSystem {
     hamburgerDropdown?.classList.remove('open')
   }
   
-  private checkScrollable(element: HTMLElement) {
+  private checkScrollable(_element: HTMLElement) {
     // Create top fade overlay if it doesn't exist
     let topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
     if (!topFadeOverlay) {

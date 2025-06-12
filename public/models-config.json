@@ -12,8 +12,8 @@
       "loadingAnimation": {
         "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
         "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
-        "target": { "x": 0.13, "y": 0.87, "z": -0.29 },
-        "duration": 5000
+        "target": { "x": -0.13, "y": 0.87, "z": -0.29 },
+        "duration": 4000
       },
       "footerPosition": {
         "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
