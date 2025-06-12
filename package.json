@@ -15,6 +15,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "@mkkellogg/gaussian-splats-3d": "^0.4.7",
     "@types/three": "^0.177.0",
     "three": "^0.177.0"
   }

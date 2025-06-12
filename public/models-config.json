@@ -3,6 +3,7 @@
     "castleton": {
       "fileName": "Castleton_001.ply",
       "displayName": "Castleton Tower",
+      "renderType": "point-cloud",
       "defaultPointSize": 0.003,
       "rotation": {
         "x": -90,
@@ -29,6 +30,7 @@
     "corona_arch": {
       "fileName": "Corona_Arch_001_hd02.ply",
       "displayName": "Corona Arch",
+      "renderType": "point-cloud",
       "defaultPointSize": 0.009,
       "rotation": {
         "x": 0,
@@ -55,6 +57,7 @@
     "delicate_arch": {
       "fileName": "Delicate_Arch_001_hd02.ply",
       "displayName": "Delicate Arch",
+      "renderType": "point-cloud",
       "defaultPointSize": 0.015,
       "rotation": {
         "x": 0,
@@ -81,6 +84,7 @@
     "fisher": {
       "fileName": "Fisher_001_3.ply",
       "displayName": "Fisher Towers",
+      "renderType": "point-cloud",
       "defaultPointSize": 0.005,
       "rotation": {
         "x": 0,
@@ -101,6 +105,33 @@
       },
       "idleRotation": {
         "speed": 0.01,
+        "direction": -1
+      }
+    },
+    "castleton_splat": {
+      "fileName": "Castelton_002.ply",
+      "displayName": "Castleton Tower (Gaussian Splat)",
+      "renderType": "gaussian-splat",
+      "defaultPointSize": 0.003,
+      "rotation": {
+        "x": 180,
+        "y": 180,
+        "z": 180
+      },
+      "loadingAnimation": {
+        "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
+        "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
+        "target": { "x": -0.13, "y": 0.87, "z": -0.29 },
+        "duration": 4000
+      },
+      "footerPosition": {
+        "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
+        "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
+        "scale": 1,
+        "duration": 1000
+      },
+      "idleRotation": {
+        "speed": 0.02,
         "direction": -1
       }
     }

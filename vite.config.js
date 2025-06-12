@@ -33,6 +33,33 @@ export default defineConfig({
     port: 5173
   },
   
+  // Preview server configuration (for production builds)
+  preview: {
+    host: true,
+    port: 4173
+  },
+  
+  // Add custom plugin to set cross-origin isolation headers
+  plugins: [
+    {
+      name: 'cross-origin-isolation',
+      configureServer(server) {
+        server.middlewares.use((_req, res, next) => {
+          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+          res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
+          next()
+        })
+      },
+      configurePreviewServer(server) {
+        server.middlewares.use((_req, res, next) => {
+          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin')
+          res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp')
+          next()
+        })
+      }
+    }
+  ],
+  
   // Optimize dependencies
   optimizeDeps: {
     include: ['three']

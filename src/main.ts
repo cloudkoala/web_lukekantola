@@ -2,6 +2,7 @@ import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
+import { Viewer as GaussianSplatViewer } from '@mkkellogg/gaussian-splats-3d'
 
 
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -12,6 +13,7 @@ const progressFill = document.querySelector<HTMLDivElement>('#progress-fill')!
 interface ModelConfig {
   fileName: string
   displayName: string
+  renderType: 'point-cloud' | 'gaussian-splat'
   defaultPointSize: number
   rotation: {
     x: number
@@ -44,6 +46,7 @@ interface ModelsConfig {
 // Global models configuration
 let modelsConfig: ModelsConfig
 let isModelSwitching: boolean = false
+let currentRenderObject: THREE.Points | THREE.Object3D | null = null
 
 // Interface state management
 const InterfaceMode = {
@@ -737,6 +740,18 @@ class OrbitalCameraSystem {
   
   setCurrentPointCloud(pointCloud: THREE.Points) {
     this.currentPointCloud = pointCloud
+    currentRenderObject = pointCloud
+  }
+  
+  setCurrentRenderObject(object: THREE.Object3D) {
+    // Update global reference
+    currentRenderObject = object
+    // If it's a Points object, also set the currentPointCloud for compatibility
+    if (object instanceof THREE.Points) {
+      this.currentPointCloud = object
+    } else {
+      this.currentPointCloud = null
+    }
   }
   
   clearClickedPoint() {
@@ -754,6 +769,8 @@ class OrbitalCameraSystem {
       material.needsUpdate = true
       console.log('Point size updated to:', this.pointSize)
     }
+    // Note: Gaussian splats don't use point size in the same way
+    // Point size control may not apply to Gaussian splat rendering
   }
   
   private saveStartPosition() {
@@ -1877,10 +1894,50 @@ async function switchToModel(modelKey: string) {
   orbitalCamera.loadDefaultPointSize()
   
   // Clear current scene
-  const existingPointCloud = scene.children.find(child => child instanceof THREE.Points)
-  if (existingPointCloud) {
-    scene.remove(existingPointCloud)
+  if (currentRenderObject) {
+    // Check if it's a Gaussian splat viewer
+    if ((currentRenderObject as any).dispose && typeof (currentRenderObject as any).dispose === 'function') {
+      console.log('Disposing Gaussian splat viewer')
+      ;(currentRenderObject as any).dispose()
+      
+      // Remove splat canvas
+      const splatCanvas = document.getElementById('splat-canvas')
+      if (splatCanvas) {
+        splatCanvas.remove()
+      }
+      
+      // Restore main Three.js canvas
+      canvas.style.display = 'block'
+      
+      // Restore UI elements that were hidden for splat mode
+      const elementsToRestore = [
+        '.point-size-control',
+        '.camera-info', 
+        '.home-navigation',
+        '.navigation-help'
+      ]
+      elementsToRestore.forEach(selector => {
+        const element = document.querySelector(selector) as HTMLElement
+        if (element) {
+          element.style.display = ''
+        }
+      })
+    } else {
+      // Regular Three.js object
+      scene.remove(currentRenderObject)
+    }
+    currentRenderObject = null
   }
+  
+  // Also clear any existing point clouds or other objects
+  const existingObjects = scene.children.filter(child => 
+    child instanceof THREE.Points || 
+    (child.type === 'Mesh' && child.userData?.isSplatMesh)
+  )
+  existingObjects.forEach(obj => scene.remove(obj))
+  
+  // Clear camera system references
+  orbitalCamera.setCurrentRenderObject(new THREE.Object3D()) // Clear reference
   
   // Show loading screen
   progressEl.style.display = 'flex'
@@ -1888,11 +1945,25 @@ async function switchToModel(modelKey: string) {
   progressEl.querySelector('p')!.textContent = `Loading ${model.displayName}...`
   
   // Load new model
-  loadPointCloudByFileName(model.fileName)
+  loadModelByFileName(model.fileName)
 }
 
 // Create orbital camera system
 const orbitalCamera = new OrbitalCameraSystem(camera, controls)
+
+function loadModelByFileName(fileName: string) {
+  const currentModel = modelsConfig.models[modelsConfig.currentModel]
+  if (!currentModel) {
+    console.error('Current model not found in configuration')
+    return
+  }
+  
+  if (currentModel.renderType === 'gaussian-splat') {
+    loadGaussianSplat(fileName)
+  } else {
+    loadPointCloudByFileName(fileName)
+  }
+}
 
 function loadPointCloudByFileName(fileName: string) {
   const loader = new PLYLoader()
@@ -1910,6 +1981,212 @@ function loadPointCloudByFileName(fileName: string) {
   }
 }
 
+async function loadGaussianSplat(fileName: string) {
+  try {
+    console.log('Loading real Gaussian splat:', fileName)
+    
+    // Create a dedicated canvas for the Gaussian splat viewer
+    const splatCanvas = document.createElement('canvas')
+    splatCanvas.id = 'splat-canvas'
+    splatCanvas.style.position = 'absolute'
+    splatCanvas.style.top = '0'
+    splatCanvas.style.left = '0'
+    splatCanvas.style.width = '100%'
+    splatCanvas.style.height = '100%'
+    splatCanvas.style.zIndex = '2001'
+    splatCanvas.style.pointerEvents = 'auto'
+    splatCanvas.style.touchAction = 'none'
+    
+    // We're using the main canvas, so don't hide it or add splat canvas
+    
+    // We'll position the camera after the splat loads
+    
+    // Try regular Viewer with our existing canvas
+    console.log('Trying regular Viewer with canvas integration')
+    
+    // Show our canvas instead of hiding it
+    canvas.style.display = 'block'
+    canvas.style.zIndex = '1'
+    
+    const viewer = new GaussianSplatViewer({
+      'canvas': canvas,
+      'renderer': renderer,
+      'camera': camera,
+      'useBuiltInControls': false,
+      'enableThreeJSRendering': true
+    })
+    
+    console.log('Regular Viewer created, starting and loading splat scene...')
+    
+    // Remove our custom canvas since we're using the main canvas
+    if (splatCanvas.parentNode) {
+      splatCanvas.parentNode.removeChild(splatCanvas)
+    }
+    
+    // Start the viewer first
+    await viewer.start()
+    
+    // Add the splat scene
+    await viewer.addSplatScene(`${import.meta.env.BASE_URL}${fileName}`, {
+      'showLoadingUI': false,
+      'progressiveLoad': true
+    })
+    
+    console.log('Regular Viewer scene loaded successfully')
+    console.log('Viewer object:', viewer)
+    console.log('Splat mesh:', (viewer as any).splatMesh)
+    
+    // Try to get scene bounds and camera info
+    const splat = (viewer as any).splatMesh
+    if (splat && splat.geometry) {
+      console.log('Splat geometry:', splat.geometry)
+      splat.geometry.computeBoundingBox()
+      if (splat.geometry.boundingBox) {
+        const box = splat.geometry.boundingBox
+        console.log('Splat bounding box:', box)
+        const size = box.getSize(new THREE.Vector3())
+        const center = box.getCenter(new THREE.Vector3())
+        console.log('Splat size:', size, 'center:', center)
+        
+        // Position camera to see the whole splat
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const distance = Math.max(maxDim * 3, 5) // At least 5 units away
+        
+        camera.position.set(center.x, center.y, center.z + distance)
+        controls.target.copy(center)
+        controls.update()
+        
+        console.log('Positioned camera to see splat - distance:', distance)
+      }
+    }
+    
+    // Since we're using Three.js integration, our camera should work
+    console.log('Our camera position:', camera.position)
+    console.log('Our camera target:', controls.target)
+    
+    console.log('Real Gaussian splat loaded successfully!')
+    console.log('Canvas controls - try click and drag to orbit, scroll to zoom')
+    
+    // Store viewer reference globally for cleanup
+    currentRenderObject = viewer as any
+    
+    // Hide loading screen
+    progressEl.style.display = 'none'
+    
+    // Trigger loading animation if switching models
+    if (isModelSwitching) {
+      isModelSwitching = false
+    }
+    
+  } catch (error) {
+    console.error('Failed to load real Gaussian splat:', error)
+    console.log('Falling back to enhanced point cloud rendering...')
+    
+    // Restore main canvas
+    canvas.style.display = 'block'
+    
+    // Remove splat canvas if it exists
+    const splatCanvas = document.getElementById('splat-canvas')
+    if (splatCanvas) {
+      splatCanvas.remove()
+    }
+    
+    // Fallback to enhanced point cloud
+    loadGaussianSplatAsPLY(fileName)
+  }
+}
+
+function loadGaussianSplatAsPLY(fileName: string) {
+  const loader = new PLYLoader()
+  
+  try {
+    loader.load(
+      `${import.meta.env.BASE_URL}${fileName}`,
+      onGaussianSplatPLYLoad,
+      onProgress,
+      onError
+    )
+  } catch (error) {
+    console.error('Failed to load Gaussian splat PLY:', error)
+    progressEl.querySelector('p')!.textContent = 'Failed to load Gaussian splat'
+    onError(error)
+  }
+}
+
+function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
+  console.log('Processing Gaussian splat PLY with', geometry.attributes.position.count, 'points')
+  
+  // Create enhanced material for Gaussian splat visualization
+  const material = new THREE.PointsMaterial({
+    size: orbitalCamera.pointSize * 2, // Slightly larger for Gaussian splats
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8, // Slightly more transparent
+    map: createCircularTexture(),
+    alphaTest: 0.1,
+    blending: THREE.AdditiveBlending // Use additive blending for better Gaussian appearance
+  })
+  
+  // Check if the PLY has opacity information (typical for Gaussian splats)
+  if (geometry.attributes.opacity) {
+    console.log('Found opacity attribute in Gaussian splat PLY')
+    // We could use this for more advanced rendering
+  }
+  
+  // Check for spherical harmonic coefficients
+  if (geometry.attributes.f_dc_0) {
+    console.log('Found spherical harmonic coefficients - this is definitely a Gaussian splat')
+  }
+  
+  const pointCloud = new THREE.Points(geometry, material)
+  
+  // Apply per-model rotation from configuration
+  const currentModel = modelsConfig.models[modelsConfig.currentModel]
+  if (currentModel && currentModel.rotation) {
+    // Convert degrees to radians and apply rotation
+    pointCloud.rotateX((currentModel.rotation.x * Math.PI) / 180)
+    pointCloud.rotateY((currentModel.rotation.y * Math.PI) / 180)
+    pointCloud.rotateZ((currentModel.rotation.z * Math.PI) / 180)
+  }
+  
+  scene.add(pointCloud)
+  
+  // Register with orbital camera system
+  orbitalCamera.setCurrentPointCloud(pointCloud)
+  currentRenderObject = pointCloud
+  
+  // Update point size to current setting
+  orbitalCamera.updatePointSize()
+  
+  // Hide loading screen
+  progressEl.style.display = 'none'
+  
+  // Calculate bounding box for model info
+  geometry.computeBoundingBox()
+  if (geometry.boundingBox) {
+    const size = geometry.boundingBox.getSize(new THREE.Vector3())
+    const center = geometry.boundingBox.getCenter(new THREE.Vector3())
+    const maxDimension = Math.max(size.x, size.y, size.z)
+    
+    console.log('Gaussian splat info - Size:', size, 'Center:', center, 'Max dimension:', maxDimension)
+    
+    // Auto-scale very large models to reasonable size
+    if (maxDimension > 50) {
+      const scale = 20 / maxDimension  // Scale to max 20 units
+      pointCloud.scale.setScalar(scale)
+      console.log('Gaussian splat auto-scaled by factor:', scale)
+    }
+  }
+  
+  // Trigger loading animation if switching models
+  if (isModelSwitching) {
+    orbitalCamera.startLoadingAnimation()
+    isModelSwitching = false
+  }
+  
+  console.log('Gaussian splat PLY loaded successfully as enhanced point cloud')
+}
+
 async function loadPointCloud() {
   if (!modelsConfig) {
     console.error('Models configuration not loaded')
@@ -1922,7 +2199,7 @@ async function loadPointCloud() {
     return
   }
   
-  loadPointCloudByFileName(currentModel.fileName)
+  loadModelByFileName(currentModel.fileName)
 }
 
 function onLoad(geometry: THREE.BufferGeometry) {
