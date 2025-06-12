@@ -36,19 +36,19 @@
         "z": 0
       },
       "loadingAnimation": {
-        "startPosition": { "x": 0.24, "y": -0.04, "z": 1.87 },
-        "endPosition": { "x": -0.89, "y": 0.04, "z": -1.29 },
-        "target": { "x": 0.39, "y": 0.37, "z": 0.19 },
+        "startPosition": { "x": 0.33, "y": 4.00, "z": 5.05 },
+        "endPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
+        "target": { "x": 0.36, "y": 0.36, "z": -0.22 },
         "duration": 5000
       },
       "footerPosition": {
-        "cameraPosition": { "x": 0, "y": 0.3, "z": 2.5 },
-        "target": { "x": 0, "y": -0.3, "z": 0 },
+        "cameraPosition": { "x": 9.91, "y": 2.84, "z": 1.59 },
+        "target": { "x": 1.23, "y": 5.71, "z": -0.87 },
         "scale": 0.3,
         "duration": 1000
       },
       "idleRotation": {
-        "speed": 0.08,
+        "speed": 0.01,
         "direction": 1
       }
     },
@@ -74,8 +74,8 @@
         "duration": 1000
       },
       "idleRotation": {
-        "speed": 0.08,
-        "direction": 1
+        "speed": 0.04,
+        "direction": -1
       }
     },
     "fisher": {
@@ -100,8 +100,8 @@
         "duration":  1000
       },
       "idleRotation": {
-        "speed": 0.08,
-        "direction": 1
+        "speed": 0.01,
+        "direction": -1
       }
     }
   },

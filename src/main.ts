@@ -175,7 +175,7 @@ class OrbitalCameraSystem {
     this.loadSavedCameraPosition()
   }
   
-  private resetInteractionTimer() {
+  private resetInteractionTimer(source?: string) {
     this.lastInteractionTime = Date.now()
     this.autoRotationIntensity = 0 // Reset intensity when user interacts
   }
@@ -189,12 +189,13 @@ class OrbitalCameraSystem {
     })
     
     canvas.addEventListener('mousedown', () => {
-      this.resetInteractionTimer()
+      this.resetInteractionTimer('mousedown')
     })
     
-    canvas.addEventListener('wheel', () => {
-      this.resetInteractionTimer()
-    })
+    // Don't stop auto-rotation on zoom/scroll
+    // canvas.addEventListener('wheel', () => {
+    //   this.resetInteractionTimer()
+    // })
     
     canvas.addEventListener('mouseleave', () => {
       // Mouse left canvas
@@ -203,13 +204,13 @@ class OrbitalCameraSystem {
     // Add double-click handler for point cloud interaction
     canvas.addEventListener('dblclick', (event) => {
       this.handleCanvasClick(event)
-      this.resetInteractionTimer()
+      this.resetInteractionTimer('dblclick')
     })
     
     // Add touch handler for mobile devices (double-tap)
     let lastTouchTime = 0
     canvas.addEventListener('touchstart', () => {
-      this.resetInteractionTimer()
+      this.resetInteractionTimer('touchstart')
     })
     
     // Don't reset timer on touch move - only on touch start/end
@@ -218,7 +219,7 @@ class OrbitalCameraSystem {
     })
     
     canvas.addEventListener('touchend', (event) => {
-      this.resetInteractionTimer()
+      this.resetInteractionTimer('touchend')
       
       if (event.touches.length === 0 && event.changedTouches.length === 1) {
         const currentTime = Date.now()
@@ -279,19 +280,16 @@ class OrbitalCameraSystem {
   }
   
   private setupControlsInteractionTracking() {
-    // Track OrbitControls interactions - but only user-initiated ones
-    this.controls.addEventListener('start', () => {
-      this.resetInteractionTimer()
-    })
+    // Don't track OrbitControls events at all - they fire for zoom too
+    // We'll rely on direct mouse/touch events instead
     
-    // Don't track 'change' events as they fire constantly during animations
-    // this.controls.addEventListener('change', () => {
-    //   this.resetInteractionTimer()
+    // this.controls.addEventListener('start', () => {
+    //   this.resetInteractionTimer('controls-start')
     // })
     
-    this.controls.addEventListener('end', () => {
-      this.resetInteractionTimer()
-    })
+    // this.controls.addEventListener('end', () => {
+    //   this.resetInteractionTimer('controls-end')
+    // })
   }
   
   private updateAutoRotation() {
