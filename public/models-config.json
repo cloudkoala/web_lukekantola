@@ -2,6 +2,7 @@
   "models": {
     "castleton": {
       "fileName": "Castleton_001.ply",
+      "gaussianSplatFile": "Castelton_003_orient.ply",
       "displayName": "Castleton Tower",
       "renderType": "point-cloud",
       "defaultPointSize": 0.003,
@@ -9,6 +10,11 @@
         "x": -90,
         "y": 0,
         "z": 0
+      },
+      "gaussianSplatRotation": {
+        "x": 180,
+        "y": 180,
+        "z": 180
       },
       "loadingAnimation": {
         "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
@@ -105,33 +111,6 @@
       },
       "idleRotation": {
         "speed": 0.01,
-        "direction": -1
-      }
-    },
-    "castleton_splat": {
-      "fileName": "Castelton_003_orient.ply",
-      "displayName": "Castleton Tower (Gaussian Splat)",
-      "renderType": "gaussian-splat",
-      "defaultPointSize": 0.003,
-      "rotation": {
-        "x": 180,
-        "y": 180,
-        "z": 180
-      },
-      "loadingAnimation": {
-        "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
-        "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
-        "target": { "x": -0.13, "y": 0.87, "z": -0.29 },
-        "duration": 4000
-      },
-      "footerPosition": {
-        "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
-        "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
-        "scale": 1,
-        "duration": 1000
-      },
-      "idleRotation": {
-        "speed": 0.02,
         "direction": -1
       }
     }

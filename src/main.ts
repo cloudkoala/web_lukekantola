@@ -12,10 +12,16 @@ const progressFill = document.querySelector<HTMLDivElement>('#progress-fill')!
 // Model configuration interface
 interface ModelConfig {
   fileName: string
+  gaussianSplatFile?: string
   displayName: string
   renderType: 'point-cloud' | 'gaussian-splat'
   defaultPointSize: number
   rotation: {
+    x: number
+    y: number
+    z: number
+  }
+  gaussianSplatRotation?: {
     x: number
     y: number
     z: number
@@ -47,6 +53,7 @@ interface ModelsConfig {
 let modelsConfig: ModelsConfig
 let isModelSwitching: boolean = false
 let currentRenderObject: THREE.Points | THREE.Object3D | null = null
+let currentQuality: 'low' | 'high' = 'low'
 
 // Interface state management
 const InterfaceMode = {
@@ -1870,10 +1877,71 @@ function setupModelDropdown() {
   dropdown.addEventListener('change', (e) => {
     const newModel = (e.target as HTMLSelectElement).value
     switchToModel(newModel)
+    updateQualityDropdown()
   })
   
   // Set initial selection
   dropdown.value = modelsConfig.currentModel
+}
+
+// Setup quality dropdown functionality
+function setupQualityDropdown() {
+  const dropdown = document.querySelector('#quality-dropdown') as HTMLSelectElement
+  if (!dropdown) return
+  
+  dropdown.addEventListener('change', (e) => {
+    const newQuality = (e.target as HTMLSelectElement).value as 'low' | 'high'
+    switchToQuality(newQuality)
+  })
+  
+  // Set initial selection
+  dropdown.value = currentQuality
+  
+  // Update initial state
+  updateQualityDropdown()
+}
+
+// Update quality dropdown availability
+function updateQualityDropdown() {
+  const dropdown = document.querySelector('#quality-dropdown') as HTMLSelectElement
+  if (!dropdown) return
+  
+  const currentModel = modelsConfig.models[modelsConfig.currentModel]
+  const hasGaussianSplat = currentModel && currentModel.gaussianSplatFile
+  
+  dropdown.disabled = !hasGaussianSplat
+  
+  if (!hasGaussianSplat && currentQuality === 'high') {
+    currentQuality = 'low'
+    dropdown.value = 'low'
+  }
+}
+
+// Switch to different quality
+function switchToQuality(quality: 'low' | 'high') {
+  const currentModel = modelsConfig.models[modelsConfig.currentModel]
+  
+  // Don't allow high quality if no Gaussian splat file available
+  if (quality === 'high' && (!currentModel || !currentModel.gaussianSplatFile)) {
+    console.log('High quality not available for this model')
+    return
+  }
+  
+  currentQuality = quality
+  
+  // Reload the current model with new quality
+  switchToModel(modelsConfig.currentModel)
+  
+  // Update point size control visibility
+  updatePointSizeControlVisibility()
+}
+
+// Update point size control visibility based on quality
+function updatePointSizeControlVisibility() {
+  const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+  if (pointSizeControl) {
+    pointSizeControl.style.display = currentQuality === 'high' ? 'none' : 'flex'
+  }
 }
 
 // Switch to a different model
@@ -1958,9 +2026,11 @@ function loadModelByFileName(fileName: string) {
     return
   }
   
-  if (currentModel.renderType === 'gaussian-splat') {
-    loadGaussianSplat(fileName)
+  if (currentQuality === 'high' && currentModel.gaussianSplatFile) {
+    // Load Gaussian splat version
+    loadGaussianSplat(currentModel.gaussianSplatFile)
   } else {
+    // Load point cloud version
     loadPointCloudByFileName(fileName)
   }
 }
@@ -2140,13 +2210,16 @@ function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
   
   const pointCloud = new THREE.Points(geometry, material)
   
-  // Apply per-model rotation from configuration
+  // Apply per-model rotation from configuration (use Gaussian splat rotation if available)
   const currentModel = modelsConfig.models[modelsConfig.currentModel]
-  if (currentModel && currentModel.rotation) {
-    // Convert degrees to radians and apply rotation
-    pointCloud.rotateX((currentModel.rotation.x * Math.PI) / 180)
-    pointCloud.rotateY((currentModel.rotation.y * Math.PI) / 180)
-    pointCloud.rotateZ((currentModel.rotation.z * Math.PI) / 180)
+  if (currentModel) {
+    const rotation = currentModel.gaussianSplatRotation || currentModel.rotation
+    if (rotation) {
+      // Convert degrees to radians and apply rotation
+      pointCloud.rotateX((rotation.x * Math.PI) / 180)
+      pointCloud.rotateY((rotation.y * Math.PI) / 180)
+      pointCloud.rotateZ((rotation.z * Math.PI) / 180)
+    }
   }
   
   scene.add(pointCloud)
@@ -2352,6 +2425,7 @@ window.addEventListener('resize', handleResize)
 async function initialize() {
   await loadModelsConfig()
   setupModelDropdown()
+  setupQualityDropdown()
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
   
@@ -2364,6 +2438,9 @@ async function initialize() {
   
   // Setup navigation event listeners
   orbitalCamera.setupPageNavigation()
+  
+  // Update initial point size control visibility
+  updatePointSizeControlVisibility()
   
   // Start loading animation every time (regardless of caching)
   orbitalCamera.startLoadingAnimation()

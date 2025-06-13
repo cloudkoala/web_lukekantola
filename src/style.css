@@ -81,6 +81,9 @@ body, html {
   left: 20px;
   z-index: 998;
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .model-selector {
@@ -109,10 +112,42 @@ body, html {
   opacity: 0.7;
 }
 
+/* Quality Selector */
+.quality-selector {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+}
+
+.quality-selector select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.7rem;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  padding: 4px 8px;
+  outline: none;
+  min-width: 100px;
+}
+
+.quality-selector select option {
+  background: #1a1a1a;
+  color: white;
+  opacity: 0.7;
+}
+
+.quality-selector select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Point Size Control */
 .point-size-control {
   position: fixed;
-  top: 160px;
+  top: 190px;
   left: 20px;
   z-index: 998;
   background: transparent;
@@ -1445,7 +1480,7 @@ body, html {
   }
   
   .point-size-control {
-    top: 140px;
+    top: 170px;
   }
   
   .form-field {
