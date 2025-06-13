@@ -761,13 +761,13 @@ body, html {
 }
 
 .hamburger-button:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 255, 0, 0.1);
 }
 
 .hamburger-line {
   width: 26px;
   height: 2px;
-  background: white;
+  background: #00ff00;
   border-radius: 2px;
   transition: all 0.3s ease;
   transform-origin: center;
@@ -791,8 +791,8 @@ body, html {
   position: absolute;
   top: 50px;
   right: 0;
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 20, 0, 0.95);
+  border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 6px;
   padding: 10px 0;
   min-width: 150px;
@@ -823,7 +823,7 @@ body, html {
 }
 
 .hamburger-dropdown a:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 255, 0, 0.1);
 }
 
 /* Terminal-style content sections */

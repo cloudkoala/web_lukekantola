@@ -109,7 +109,7 @@
       }
     },
     "castleton_splat": {
-      "fileName": "Castelton_002.ply",
+      "fileName": "Castelton_003_orient.ply",
       "displayName": "Castleton Tower (Gaussian Splat)",
       "renderType": "gaussian-splat",
       "defaultPointSize": 0.003,
