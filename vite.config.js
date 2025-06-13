@@ -1,10 +1,8 @@
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // Base path for GitHub Pages - matches your repository name
-  // For username.github.io: base: '/'
-  // For username.github.io/repo-name: base: '/repo-name/'
-  base: '/web_lukekantola/',
+  // Base path for Netlify deployment - use root path
+  base: '/',
   
   build: {
     // Use esbuild for minification (default, faster than terser)
