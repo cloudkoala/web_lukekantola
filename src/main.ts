@@ -2260,8 +2260,11 @@ async function switchToModel(modelKey: string) {
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
   
-  // Clear current scene
-  if (currentRenderObject) {
+  // Clear current scene - but preserve point cloud when upgrading to high quality
+  const isUpgradingToHighQuality = isQualitySwitching && currentQuality === 'high' && 
+                                   currentRenderObject instanceof THREE.Points
+  
+  if (currentRenderObject && !isUpgradingToHighQuality) {
     // Check if it's a Gaussian splat viewer
     if ((currentRenderObject as any).dispose && typeof (currentRenderObject as any).dispose === 'function') {
       console.log('Disposing Gaussian splat viewer')
@@ -2296,12 +2299,14 @@ async function switchToModel(modelKey: string) {
     currentRenderObject = null
   }
   
-  // Also clear any existing point clouds or other objects
-  const existingObjects = scene.children.filter(child => 
-    child instanceof THREE.Points || 
-    (child.type === 'Mesh' && child.userData?.isSplatMesh)
-  )
-  existingObjects.forEach(obj => scene.remove(obj))
+  // Clear any existing point clouds or other objects (except when upgrading to high quality)
+  if (!isUpgradingToHighQuality) {
+    const existingObjects = scene.children.filter(child => 
+      child instanceof THREE.Points || 
+      (child.type === 'Mesh' && child.userData?.isSplatMesh)
+    )
+    existingObjects.forEach(obj => scene.remove(obj))
+  }
   
   // Clear camera system references
   orbitalCamera.setCurrentRenderObject(new THREE.Object3D()) // Clear reference
@@ -2337,16 +2342,24 @@ function loadModelByFileName(fileName: string) {
 function loadPointCloudByFileName(fileName: string) {
   const loader = new PLYLoader()
   
+  // Hide loading screen immediately for streaming effect
+  progressEl.style.display = 'none'
+  
   try {
     loader.load(
       `${import.meta.env.BASE_URL}${fileName}`,
       onLoad,
-      onProgress,
+      onStreamingProgress,
       onError
     )
   } catch (error) {
     console.error('Failed to load point cloud:', error)
+    // Show error briefly, then hide
+    progressEl.style.display = 'flex'
     progressEl.querySelector('p')!.textContent = 'Failed to load point cloud'
+    setTimeout(() => {
+      progressEl.style.display = 'none'
+    }, 2000)
   }
 }
 
@@ -2390,6 +2403,16 @@ async function loadGaussianSplat(fileName: string) {
     // Remove our custom canvas since we're using the main canvas
     if (splatCanvas.parentNode) {
       splatCanvas.parentNode.removeChild(splatCanvas)
+    }
+    
+    // Remove preserved point cloud before starting Gaussian splat viewer
+    // since they can't render simultaneously
+    if (isQualitySwitching && currentQuality === 'high') {
+      const existingPointClouds = scene.children.filter(child => child instanceof THREE.Points)
+      existingPointClouds.forEach(obj => {
+        console.log('Removing point cloud before starting Gaussian splat viewer')
+        scene.remove(obj)
+      })
     }
     
     // Start the viewer first
@@ -2638,9 +2661,6 @@ function onLoad(geometry: THREE.BufferGeometry) {
   // Update point size to current setting (important for model switching)
   orbitalCamera.updatePointSize()
   
-  // Hide loading screen
-  progressEl.style.display = 'none'
-  
   // Calculate bounding box for model info
   console.log('=== LOW QUALITY POINT CLOUD BOUNDING BOX ===')
   geometry.computeBoundingBox()
@@ -2689,6 +2709,14 @@ function onProgress(progress: ProgressEvent) {
     const percentComplete = (progress.loaded / progress.total) * 100
     progressFill.style.width = `${percentComplete}%`
     console.log('Loading progress:', Math.round(percentComplete) + '%')
+  }
+}
+
+function onStreamingProgress(progress: ProgressEvent) {
+  // For streaming mode, just log progress without showing loading bar
+  if (progress.lengthComputable) {
+    const percentComplete = (progress.loaded / progress.total) * 100
+    console.log('Streaming progress:', Math.round(percentComplete) + '%')
   }
 }
 
