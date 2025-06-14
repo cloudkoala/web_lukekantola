@@ -60,7 +60,7 @@ body, html {
 }
 
 .title-header h1 {
-  color: #A9A9A9;
+  color: white;
   font-size: 1.45rem;
   font-weight: 700;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
@@ -68,6 +68,11 @@ body, html {
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
   text-transform: uppercase;
+}
+
+/* On subpages, make kantola/luke grey */
+.title-header:has(#current-section:not(:empty)) h1 #home-path {
+  color: #A9A9A9;
 }
 
 .title-header .green-text {
@@ -106,9 +111,8 @@ body, html {
   color: white;
   font-size: 0.7rem;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  padding: 8px 16px;
+  padding: 6px;
   outline: none;
-  min-width: 150px;
   text-shadow: none;
   transition: all 0.3s ease;
 }
@@ -141,9 +145,9 @@ body, html {
   color: white;
   font-size: 0.7rem;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  padding: 8px 16px;
+  padding: 6px;
   outline: none;
-  min-width: 120px;
+  min-width: 95px;
   text-shadow: none;
   transition: all 0.3s ease;
 }
@@ -192,9 +196,9 @@ body, html {
 
 .point-size-control input[type="range"] {
   width: 100px;
-  height: 4px;
+  height: 2px;
   background: rgba(0, 128, 0, 0.6);
-  border-radius: 2px;
+  border-radius: 1px;
   outline: none;
   appearance: none;
 }
@@ -203,15 +207,17 @@ body, html {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: #00ff00;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
 }
 
 .point-size-control input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.5);
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
 }
 
 .point-size-control span {
@@ -834,21 +840,56 @@ body, html {
 }
 
 #home-path:hover {
-  color: white;
+  color: white !important;
   opacity: 1;
+}
+
+/* When hovering home path, change subpage text color */
+#home-path:hover ~ #current-section .white-text {
+  color: #A9A9A9;
+}
+
+#home-path:hover ~ #current-section .project-name-text {
+  color: #A9A9A9;
+}
+
+#home-path:hover ~ #current-section .projects-text {
+  color: #A9A9A9;
 }
 
 #current-section {
   cursor: default;
 }
 
-.clickable-path {
-  cursor: pointer;
-  transition: opacity 0.2s ease;
+/* Projects text styling - smoke grey by default */
+.projects-text {
+  color: #A9A9A9;
+  transition: color 0.3s ease;
 }
 
-.clickable-path:hover {
-  opacity: 0.8;
+/* Project name styling - white by default */
+.project-name-text {
+  color: white;
+  transition: color 0.3s ease;
+}
+
+/* When hovering projects link, change both projects and kantola/luke to white */
+#projects-link:hover {
+  color: white !important;
+}
+
+.title-header:has(#projects-link:hover) #home-path {
+  color: white !important;
+}
+
+/* When hovering projects, make project title smoke grey */
+.title-header:has(#projects-link:hover) #current-section .project-name-text {
+  color: #A9A9A9 !important;
+}
+
+.clickable-path {
+  cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 /* Hamburger Menu Styles */

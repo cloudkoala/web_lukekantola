@@ -1472,9 +1472,9 @@ class OrbitalCameraSystem {
     if (mode === InterfaceMode.HOME) {
       currentSection.innerHTML = ''
     } else if (mode === InterfaceMode.PROJECT_DETAIL && currentProjectId) {
-      currentSection.innerHTML = `<span class="green-text">/</span><span id="projects-link" class="clickable-path">projects</span><span class="green-text">/</span>${currentProjectId}`
+      currentSection.innerHTML = `<span class="green-text">/</span><span id="projects-link" class="clickable-path projects-text">projects</span><span class="green-text">/</span><span class="project-name-text">${currentProjectId}</span>`
     } else {
-      currentSection.innerHTML = `<span class="green-text">/</span>${mode}`
+      currentSection.innerHTML = `<span class="green-text">/</span><span class="white-text">${mode}</span>`
     }
     
     // Re-setup click handlers after updating the content
