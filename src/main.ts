@@ -1045,7 +1045,7 @@ class OrbitalCameraSystem {
     if (cameraInfo) cameraInfo.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
-      contentArea.classList.remove('fade-in', 'has-scroll')
+      contentArea.classList.remove('fade-in', 'has-scroll', 'reel-mode')
     }
     if (modelSelectorContainer) modelSelectorContainer.style.display = 'flex'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
@@ -1091,6 +1091,12 @@ class OrbitalCameraSystem {
     if (modelSelectorContainer) modelSelectorContainer.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
+      // Add reel-mode class for full-screen video
+      if (mode === InterfaceMode.REEL) {
+        contentArea.classList.add('reel-mode')
+      } else {
+        contentArea.classList.remove('reel-mode')
+      }
       this.updateContentArea(mode)
       // Add fade-in effect
       setTimeout(() => {
@@ -1137,21 +1143,40 @@ class OrbitalCameraSystem {
     switch (mode) {
       case InterfaceMode.REEL:
         content = `
-          <div class="terminal-section">
-            <h3>$ ./play_motion_reel.sh</h3>
+          <div class="terminal-section reel-section">
+            <h3><span class="green-text">$ ./</span><span class="white-text">play_motion_reel.sh</span></h3>
             <div class="video-container">
               <video 
-                controls 
                 preload="metadata"
                 poster="${import.meta.env.BASE_URL}images/reel-poster.jpg"
                 class="motion-reel-video"
-                controlslist="nodownload"
+                id="motion-reel-video"
               >
                 <source src="${import.meta.env.BASE_URL}videos/motion-reel.mp4" type="video/mp4">
                 <p class="video-fallback">
                   Your browser doesn't support HTML5 video.
                 </p>
               </video>
+              
+              <!-- Custom Play Controls -->
+              <div class="custom-video-controls" id="custom-video-controls">
+                <div class="play-controls-container">
+                  <button class="play-button fullscreen-play" id="fullscreen-play-btn">
+                    <span class="fullscreen-box">
+                      <span class="corner-top-left">⌜</span>
+                      <span class="corner-top-right">⌝</span>
+                      <span class="play-arrow">▶</span>
+                      <span class="corner-bottom-left">⌞</span>
+                      <span class="corner-bottom-right">⌟</span>
+                    </span>
+                    <span class="tooltip-text">Play Fullscreen</span>
+                  </button>
+                  <button class="play-button normal-play" id="normal-play-btn">
+                    <span class="play-arrow">▶</span>
+                    <span class="tooltip-text">Play in Page</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         `
@@ -1168,12 +1193,15 @@ class OrbitalCameraSystem {
       case InterfaceMode.ABOUT:
         content = `
           <div class="terminal-section">
-            <h3>$ whoami</h3>
-            <p>luke@kantola:~$ Motion-Design artist specializing in GIS mapping and 3D computer vision, photogrammetry, and real-time rendering systems.</p>
+            <div class="headshot-container">
+              <img src="${import.meta.env.BASE_URL}images/about/headshot.jpg" alt="Luke Kantola" class="headshot-image">
+            </div>
+            <h3>Meet Luke</h3>
+            <p>A Motion-Design artist specializing in GIS mapping, spatial-data visualization, and 3D photogrammetry for film and televison productions as well as realtime applications.</p>
           </div>
           
           <div class="terminal-section">
-            <h3>$ cat ~/bio.txt</h3>
+            <h3>Background</h3>
             <p>Background in computational photography and computer vision with focus on 3D scene reconstruction techniques. Experience developing interactive visualization tools for complex spatial data, including point clouds, neural radiance fields, and Gaussian splats.</p>
             
             <p>Currently exploring the intersection of traditional photogrammetry with modern neural rendering techniques, particularly in applications for cultural heritage documentation and environmental monitoring.</p>
@@ -1209,41 +1237,41 @@ class OrbitalCameraSystem {
       case InterfaceMode.CONTACT:
         content = `
           <div class="terminal-section">
-            <h3>$ ./availability_status.sh</h3>
+            <h3>$ Availability Status</h3>
             <p><span class="status-indicator">●</span> <strong>Currently:</strong> Available for new projects</p>
-            <p><span class="status-indicator">●</span> <strong>Response Time:</strong> Usually within 24 hours</p>
+            <p><span class="status-indicator">●</span> <strong>Response Time:</strong> Usually within 48 hours</p>
             <p><span class="status-indicator">●</span> <strong>Timezone:</strong> Mountain Time (MST/MDT)</p>
           </div>
           
           <div class="terminal-section">
-            <h3>$ ./contact_form.sh</h3>
+            <h3>$ Contact Form</h3>
             <form class="terminal-form" action="https://formspree.io/f/xgvykakv" method="POST">
               <div class="form-field">
-                <label for="name">$ enter name:</label>
+                <label for="name">Enter Name:</label>
                 <input type="text" id="name" name="name" required>
               </div>
               
               <div class="form-field">
-                <label for="subject">$ enter subject:</label>
+                <label for="subject">Enter Subject:</label>
                 <input type="text" id="subject" name="subject" required>
               </div>
               
               <div class="form-field">
-                <label for="email">$ enter email:</label>
+                <label for="email">Enter Email:</label>
                 <input type="email" id="email" name="email" required>
               </div>
               
               <div class="form-field">
-                <label for="phone">$ enter phone:</label>
+                <label for="phone">Enter Phone:</label>
                 <input type="tel" id="phone" name="phone">
               </div>
               
               <div class="form-field">
-                <label for="content">$ enter message:</label>
+                <label for="content">Enter Message:</label>
                 <textarea id="content" name="content" rows="4" required></textarea>
               </div>
               
-              <button type="submit" class="terminal-submit">./send_message.sh</button>
+              <button type="submit" class="terminal-submit">Send Message</button>
             </form>
           </div>
         `
@@ -1260,6 +1288,10 @@ class OrbitalCameraSystem {
     // Ensure all navigation elements have event listeners (with small delay for DOM updates)
     setTimeout(() => {
       this.setupPageNavigation()
+      // Initialize video controls if we're on the reel page
+      if (mode === InterfaceMode.REEL) {
+        this.initializeVideoControls()
+      }
     }, 10)
   }
   
@@ -1276,20 +1308,20 @@ class OrbitalCameraSystem {
     const prevLink = prevMode 
       ? `<div class="nav-indicator" data-mode="${prevMode}">
            <span class="nav-key">&lt;</span>
-           <span class="nav-label">../${prevMode}</span>
+           <span class="nav-label"><span class="green-text">../</span><span class="white-text">${prevMode}</span></span>
          </div>`
       : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">
            <span class="nav-key">&lt;</span>
-           <span class="nav-label">$HOME</span>
+           <span class="nav-label"><span class="green-text">$</span><span class="white-text">HOME</span></span>
          </div>`
       
     const nextLink = nextMode
       ? `<div class="nav-indicator" data-mode="${nextMode}">
-           <span class="nav-label">../${nextMode}</span>
+           <span class="nav-label"><span class="green-text">../</span><span class="white-text">${nextMode}</span></span>
            <span class="nav-key">&gt;</span>
          </div>`
       : `<div class="nav-indicator" data-mode="${InterfaceMode.HOME}">
-           <span class="nav-label">$HOME</span>
+           <span class="nav-label"><span class="green-text">$</span><span class="white-text">HOME</span></span>
            <span class="nav-key">&gt;</span>
          </div>`
     
@@ -1831,7 +1863,10 @@ class OrbitalCameraSystem {
       '.project-card-description',
       '.project-read-more',
       '.projects-grid',
-      '.projects-blog-layout'
+      '.projects-blog-layout',
+      '.custom-video-controls',
+      '.play-button',
+      '.video-container'
     ]
     
     // Check if the target or any of its parents match green element selectors
@@ -2000,6 +2035,70 @@ class OrbitalCameraSystem {
           this.transitionToMode(InterfaceMode.PROJECT_DETAIL)
         }
       })
+    })
+  }
+
+  private initializeVideoControls() {
+    const video = document.getElementById('motion-reel-video') as HTMLVideoElement
+    const controls = document.getElementById('custom-video-controls') as HTMLElement
+    const fullscreenBtn = document.getElementById('fullscreen-play-btn') as HTMLButtonElement
+    const normalPlayBtn = document.getElementById('normal-play-btn') as HTMLButtonElement
+
+    if (!video || !controls || !fullscreenBtn || !normalPlayBtn) return
+
+    // Handle fullscreen play button
+    fullscreenBtn.addEventListener('click', async () => {
+      try {
+        // Hide custom controls
+        controls.classList.add('hidden')
+        
+        // Start playing the video
+        await video.play()
+        
+        // Request fullscreen
+        if (video.requestFullscreen) {
+          await video.requestFullscreen()
+        }
+        
+        // Show native controls
+        video.setAttribute('controls', 'true')
+      } catch (error) {
+        console.error('Error playing video in fullscreen:', error)
+        // Show controls again if there was an error
+        controls.classList.remove('hidden')
+      }
+    })
+
+    // Handle normal play button
+    normalPlayBtn.addEventListener('click', async () => {
+      try {
+        // Hide custom controls
+        controls.classList.add('hidden')
+        
+        // Start playing the video
+        await video.play()
+        
+        // Show native controls
+        video.setAttribute('controls', 'true')
+      } catch (error) {
+        console.error('Error playing video:', error)
+        // Show controls again if there was an error
+        controls.classList.remove('hidden')
+      }
+    })
+
+    // Handle video ended - show custom controls again
+    video.addEventListener('ended', () => {
+      video.removeAttribute('controls')
+      controls.classList.remove('hidden')
+    })
+
+    // Handle fullscreen exit - keep native controls but allow custom controls to return
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && video.paused) {
+        video.removeAttribute('controls')
+        controls.classList.remove('hidden')
+      }
     })
   }
   

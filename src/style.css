@@ -46,7 +46,7 @@ body, html {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 20px;
+  padding: 10px 20px;
   background: transparent;
   z-index: 999;
   pointer-events: none;
@@ -73,6 +73,10 @@ body, html {
 .title-header .green-text {
   color: #00ff00;
   text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.white-text {
+  color: white;
 }
 
 .model-selector-container {
@@ -656,6 +660,20 @@ body, html {
   transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 
+/* Override content area for reel page to allow full-screen video */
+#content-area.reel-mode {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  padding: 0;
+  transform: none;
+  z-index: 300;
+}
+
 
 /* Top fade overlay element - always visible on subpages */
 .content-fade-overlay-top {
@@ -756,6 +774,39 @@ body, html {
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 30px;
+}
+
+/* Full-width terminal section for reel page */
+.terminal-section.reel-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 300;
+}
+
+.terminal-section.reel-section h3 {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  padding: 20px 40px;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+  z-index: 5;
 }
 
 /* Split title functionality */
@@ -877,6 +928,29 @@ body, html {
   border: 1px solid rgba(0, 255, 0, 0.2);
   border-radius: 6px;
   padding: 20px;
+}
+
+/* Headshot styling */
+.headshot-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.headshot-image {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 255, 0, 0.4);
+  object-fit: cover;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.headshot-image:hover {
+  border-color: rgba(0, 255, 0, 0.7);
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.4);
+  transform: scale(1.02);
 }
 
 .terminal-section h3 {
@@ -1104,14 +1178,16 @@ body, html {
 /* Video container styles */
 .video-container {
   position: relative;
-  width: 100%;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
-  height: 0;
+  width: 100vw;
+  max-width: 100vw;
+  height: 56.25vw; /* 16:9 aspect ratio based on viewport width */
+  max-height: 100vh;
   overflow: hidden;
-  margin-top: 15px;
-  border-radius: 4px;
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  background: rgba(0, 20, 0, 0.8);
+  border: none;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .video-container iframe {
@@ -1135,7 +1211,158 @@ body, html {
   outline: none;
 }
 
-/* Removed custom video control styling to use default browser controls */
+/* Custom Video Controls */
+.custom-video-controls {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.play-controls-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.play-button {
+  background: transparent;
+  border: none;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+  outline: none;
+  position: relative;
+}
+
+.play-button:hover {
+  text-shadow: 0 0 15px rgba(0, 255, 0, 1);
+  transform: scale(1.05);
+}
+
+.play-button:active {
+  transform: scale(0.95);
+}
+
+/* Normal play button - hidden by default, slides in on hover */
+.normal-play {
+  opacity: 0;
+  transform: translateY(-20px);
+  pointer-events: none;
+  transition: all 0.6s ease;
+  width: 60px;
+  height: 60px;
+}
+
+.normal-play .play-arrow {
+  font-size: 1.6rem;
+  margin-left: 2px;
+}
+
+/* Show normal play button when hovering over container */
+.play-controls-container:hover .normal-play {
+  opacity: 0.8;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.fullscreen-box {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.corner-top-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.corner-top-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.corner-bottom-left {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.corner-bottom-right {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.fullscreen-box .play-arrow {
+  font-size: 1.8rem;
+  position: relative;
+  z-index: 1;
+  margin-left: 3px; /* Slight offset for visual centering */
+}
+
+
+/* Hide controls when video is playing */
+.custom-video-controls.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Tooltip styling for buttons */
+.tooltip-text {
+  position: absolute;
+  left: calc(100% + 15px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 20, 0, 0.95);
+  color: #00ff00;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  z-index: 20;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+  backdrop-filter: blur(5px);
+  opacity: 0;
+  transform: translateY(-50%) translateX(-10px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.play-button:hover .tooltip-text {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
 
 .video-fallback {
   position: absolute;
@@ -1472,7 +1699,7 @@ body, html {
 }
 
 .form-field label {
-  color: #00ff00;
+  color: white;
   font-size: 0.9rem;
   font-weight: 400;
   letter-spacing: 1px;
@@ -1513,7 +1740,7 @@ body, html {
   border: 2px solid rgba(0, 255, 0, 0.4);
   border-radius: 6px;
   padding: 15px 30px;
-  color: #00ff00;
+  color: whitesmoke;
   font-family: 'Space Mono', monospace;
   font-size: 1rem;
   font-weight: 700;
@@ -1744,6 +1971,54 @@ body, html {
   .project-read-more {
     padding: 8px 16px;
     font-size: 0.8rem;
+  }
+  
+  /* Custom video controls mobile adjustments */
+  .play-button {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .fullscreen-box {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .corner-top-left,
+  .corner-top-right,
+  .corner-bottom-left,
+  .corner-bottom-right {
+    font-size: 1rem;
+  }
+  
+  .fullscreen-box .play-arrow {
+    font-size: 1.4rem;
+  }
+  
+  .normal-play {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .normal-play .play-arrow {
+    font-size: 1.3rem;
+  }
+  
+  .tooltip-text {
+    font-size: 0.7rem;
+    padding: 6px 10px;
+    left: calc(100% + 10px);
+  }
+  
+  .terminal-section.reel-section h3 {
+    top: 60px;
+    padding: 15px 20px;
+    font-size: 0.9rem;
+  }
+  
+  .headshot-image {
+    width: 160px;
+    height: 160px;
   }
 }
 
