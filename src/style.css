@@ -81,7 +81,7 @@ body, html {
 
 .model-selector-container {
   position: fixed;
-  top: 120px;
+  top: 90px;
   left: 20px;
   z-index: 998;
   pointer-events: none;
@@ -168,7 +168,7 @@ body, html {
 /* Point Size Control */
 .point-size-control {
   position: fixed;
-  top: 175px;
+  top: 135px;
   left: 20px;
   z-index: 998;
   background: transparent;
@@ -2075,11 +2075,16 @@ body, html {
   }
   
   .model-selector-container {
-    top: 100px;
+    top: 70px;
   }
   
   .point-size-control {
-    top: 170px;
+    top: 110px;
+  }
+  
+  .point-size-control input[type="range"]::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
   }
   
   .form-field {
