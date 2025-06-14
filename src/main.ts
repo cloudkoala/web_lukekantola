@@ -70,7 +70,7 @@ type InterfaceMode = typeof InterfaceMode[keyof typeof InterfaceMode]
 
 let currentInterfaceMode: InterfaceMode = InterfaceMode.HOME
 let currentProjectId: string | null = null
-let currentProjectIndex: number = 0
+// let currentProjectIndex: number = 0
 
 // Projects data interface
 interface ProjectData {
@@ -1826,6 +1826,7 @@ class OrbitalCameraSystem {
     return nearestPoint
   }
   
+  // @ts-ignore
   private isClickOnGreenElement(target: HTMLElement): boolean {
     // List of green element selectors based on the CSS classes and IDs
     const greenElementSelectors = [
