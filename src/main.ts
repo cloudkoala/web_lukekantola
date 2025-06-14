@@ -2177,16 +2177,23 @@ function setupQualityDropdown() {
 // Update quality dropdown availability
 function updateQualityDropdown() {
   const dropdown = document.querySelector('#quality-dropdown') as HTMLSelectElement
-  if (!dropdown) return
+  const qualitySelector = document.querySelector('.quality-selector') as HTMLElement
+  if (!dropdown || !qualitySelector) return
   
   const currentModel = modelsConfig.models[modelsConfig.currentModel]
   const hasGaussianSplat = currentModel && currentModel.gaussianSplatFile
   
-  dropdown.disabled = !hasGaussianSplat
-  
-  if (!hasGaussianSplat && currentQuality === 'high') {
-    currentQuality = 'low'
-    dropdown.value = 'low'
+  // Hide entire quality selector if no high quality available
+  if (hasGaussianSplat) {
+    qualitySelector.style.display = 'block'
+    dropdown.disabled = false
+  } else {
+    qualitySelector.style.display = 'none'
+    // Switch to low quality if we were on high
+    if (currentQuality === 'high') {
+      currentQuality = 'low'
+      dropdown.value = 'low'
+    }
   }
 }
 
