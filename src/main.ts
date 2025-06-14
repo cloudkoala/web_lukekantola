@@ -52,6 +52,7 @@ interface ModelsConfig {
 // Global models configuration
 let modelsConfig: ModelsConfig
 let isModelSwitching: boolean = false
+let isQualitySwitching: boolean = false
 let currentRenderObject: THREE.Points | THREE.Object3D | null = null
 let currentQuality: 'low' | 'high' = 'low'
 
@@ -60,6 +61,7 @@ const InterfaceMode = {
   HOME: 'home',
   REEL: 'reel',
   PROJECTS: 'projects',
+  PROJECT_DETAIL: 'project-detail',
   ABOUT: 'about',
   CONTACT: 'contact'
 } as const
@@ -67,6 +69,25 @@ const InterfaceMode = {
 type InterfaceMode = typeof InterfaceMode[keyof typeof InterfaceMode]
 
 let currentInterfaceMode: InterfaceMode = InterfaceMode.HOME
+let currentProjectId: string | null = null
+let currentProjectIndex: number = 0
+
+// Projects data interface
+interface ProjectData {
+  title: string
+  description: string
+  image: string
+  content: string
+  tech: string[]
+  year: string
+  status: string
+}
+
+interface ProjectsConfig {
+  projects: { [key: string]: ProjectData }
+}
+
+let projectsConfig: ProjectsConfig | null = null
 
 // Create circular texture for points
 function createCircularTexture() {
@@ -1010,11 +1031,11 @@ class OrbitalCameraSystem {
   
   
   private showHomeInterface() {
-    // Show point size control, camera info, model selector, hide content area
+    // Show point size control, camera info, model selector container, hide content area
     const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
-    const modelSelector = document.querySelector('.model-selector') as HTMLElement
+    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
@@ -1026,7 +1047,7 @@ class OrbitalCameraSystem {
       contentArea.style.display = 'none'
       contentArea.classList.remove('fade-in', 'has-scroll')
     }
-    if (modelSelector) modelSelector.style.display = 'block'
+    if (modelSelectorContainer) modelSelectorContainer.style.display = 'flex'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
     if (navigationHelp) navigationHelp.style.display = 'flex'
     if (topFadeOverlay) topFadeOverlay.classList.remove('visible')
@@ -1055,17 +1076,19 @@ class OrbitalCameraSystem {
   }
   
   private showContentInterface(mode: InterfaceMode) {
-    // Hide point size control, camera info, show content area
+    // Hide point size control, camera info, model selector container, show content area
     const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
+    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'none'
     if (cameraInfo) cameraInfo.style.display = 'none'
     if (navigationHelp) navigationHelp.style.display = 'none'
+    if (modelSelectorContainer) modelSelectorContainer.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       this.updateContentArea(mode)
@@ -1116,56 +1139,30 @@ class OrbitalCameraSystem {
         content = `
           <div class="terminal-section">
             <h3>$ ./play_motion_reel.sh</h3>
-            <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/661829952?badge=0&autopause=0&player_id=0&app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Luke Kantola 2021 Motion Design Reel"></iframe></div>
+            <div class="video-container">
+              <video 
+                controls 
+                preload="metadata"
+                poster="${import.meta.env.BASE_URL}images/reel-poster.jpg"
+                class="motion-reel-video"
+                controlslist="nodownload"
+              >
+                <source src="${import.meta.env.BASE_URL}videos/motion-reel.mp4" type="video/mp4">
+                <p class="video-fallback">
+                  Your browser doesn't support HTML5 video.
+                </p>
+              </video>
+            </div>
           </div>
         `
         break
         
       case InterfaceMode.PROJECTS:
-        content = `
-          <div class="terminal-section">
-            <h3>$ ls -la ~/projects/</h3>
-            <div class="project-listing">
-              <div class="project-item">
-                <span class="project-type">drwxr-xr-x</span>
-                <span class="project-name">gsplat-showcase/</span>
-                <span class="project-desc">Interactive 3D point cloud viewer</span>
-              </div>
-              <div class="project-item">
-                <span class="project-type">drwxr-xr-x</span>
-                <span class="project-name">neural-radiance/</span>
-                <span class="project-desc">NeRF implementation for scene reconstruction</span>
-              </div>
-              <div class="project-item">
-                <span class="project-type">drwxr-xr-x</span>
-                <span class="project-name">photogrammetry-tools/</span>
-                <span class="project-desc">Computer vision pipeline for 3D reconstruction</span>
-              </div>
-              <div class="project-item">
-                <span class="project-type">drwxr-xr-x</span>
-                <span class="project-name">lidar-processing/</span>
-                <span class="project-desc">Real-time LiDAR data visualization</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="terminal-section">
-            <h3>$ cat ~/projects/README.md</h3>
-            <p>Specializing in 3D computer vision, real-time rendering, and spatial computing applications. Current focus on Gaussian splatting techniques for photorealistic scene reconstruction and visualization.</p>
-            
-            <p><strong>Tech Stack:</strong><br>
-            • TypeScript/JavaScript, Three.js, WebGL<br>
-            • Python, PyTorch, OpenCV<br>
-            • C++, CUDA for performance-critical applications<br>
-            • Point cloud processing (PLY, LAS, XYZ formats)</p>
-            
-            <p><strong>Recent Work:</strong><br>
-            • Interactive Gaussian splat viewer with advanced camera controls<br>
-            • Real-time point cloud streaming and visualization<br>
-            • 3D scene reconstruction from drone imagery<br>
-            • Neural radiance field implementations</p>
-          </div>
-        `
+        content = this.generateProjectsListingContent()
+        break
+        
+      case InterfaceMode.PROJECT_DETAIL:
+        content = this.generateProjectDetailContent()
         break
         
       case InterfaceMode.ABOUT:
@@ -1345,6 +1342,29 @@ class OrbitalCameraSystem {
         }
       })
     })
+    
+    // Add project link event listeners (for old terminal style)
+    const projectLinks = document.querySelectorAll('.project-name-link[data-project-id]')
+    projectLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        const projectId = (e.target as HTMLElement).getAttribute('data-project-id')
+        if (projectId) {
+          console.log('Project link clicked:', projectId)
+          currentProjectId = projectId
+          this.transitionToMode(InterfaceMode.PROJECT_DETAIL)
+        }
+      })
+    })
+    
+    // Initialize Glide.js carousel if we're in projects mode
+    if (currentInterfaceMode === InterfaceMode.PROJECTS) {
+      setTimeout(() => {
+        this.initializeProjectCards()
+      }, 50)
+    }
   }
   
   private updateNavigationText(newMode: InterfaceMode) {
@@ -1419,8 +1439,24 @@ class OrbitalCameraSystem {
     
     if (mode === InterfaceMode.HOME) {
       currentSection.innerHTML = ''
+    } else if (mode === InterfaceMode.PROJECT_DETAIL && currentProjectId) {
+      currentSection.innerHTML = `<span class="green-text">/</span><span id="projects-link" class="clickable-path">projects</span><span class="green-text">/</span>${currentProjectId}`
     } else {
       currentSection.innerHTML = `<span class="green-text">/</span>${mode}`
+    }
+    
+    // Re-setup click handlers after updating the content
+    this.setupCurrentSectionClick()
+  }
+  
+  private setupCurrentSectionClick() {
+    // Handle /projects link when in project detail
+    const projectsLink = document.querySelector('#projects-link') as HTMLElement
+    if (projectsLink) {
+      projectsLink.addEventListener('click', (e) => {
+        e.stopPropagation()
+        this.transitionToMode(InterfaceMode.PROJECTS)
+      })
     }
   }
   
@@ -1468,31 +1504,14 @@ class OrbitalCameraSystem {
       this.transitionToMode(InterfaceMode.HOME)
     })
     
+    // Make current section clickable for navigation
+    this.setupCurrentSectionClick()
+    
     // Setup hamburger menu toggle
     this.setupHamburgerMenu()
     
-    // Click outside green elements to return home
-    document.addEventListener('click', (e) => {
-      // Only on subpages
-      if (currentInterfaceMode === InterfaceMode.HOME) return
-      
-      // Check if click is inside any green element
-      const greenSelectors = [
-        '.terminal-section',
-        '.nav-indicator', 
-        '.subpage-navigation',
-        '.terminal-form',
-        '.hamburger-menu'
-      ]
-      
-      const isInsideGreen = greenSelectors.some(selector => 
-        (e.target as Element).closest(selector)
-      )
-      
-      if (!isInsideGreen) {
-        this.transitionToMode(InterfaceMode.HOME)
-      }
-    })
+    // Removed: Click outside green elements to return home
+    // Users now navigate intentionally via navigation elements only
     
     // Escape key to return home, arrow keys for navigation
     document.addEventListener('keydown', (e) => {
@@ -1504,15 +1523,15 @@ class OrbitalCameraSystem {
       
       // Arrow key navigation
       if (currentInterfaceMode === InterfaceMode.HOME) {
-        // From home page, go to first/last page and hide controls immediately
+        // From home page, go to reel (left) or projects (right)
         if (e.key === 'ArrowLeft') {
           this.hideControlsImmediately()
-          this.showDestinationNavigation(InterfaceMode.CONTACT)
-          this.transitionToMode(InterfaceMode.CONTACT) // Go to last page
+          this.showDestinationNavigation(InterfaceMode.REEL)
+          this.transitionToMode(InterfaceMode.REEL)
         } else if (e.key === 'ArrowRight') {
           this.hideControlsImmediately()
-          this.showDestinationNavigation(InterfaceMode.REEL)
-          this.transitionToMode(InterfaceMode.REEL) // Go to first page
+          this.showDestinationNavigation(InterfaceMode.PROJECTS)
+          this.transitionToMode(InterfaceMode.PROJECTS)
         }
       } else {
         // Navigation when in subpages
@@ -1539,20 +1558,27 @@ class OrbitalCameraSystem {
     })
     
     // Click outside green elements to return home
+    // COMMENTED OUT: Interfering with project card clicks
+    /*
     document.addEventListener('click', (e) => {
       // Only trigger when not on home page
       if (currentInterfaceMode === InterfaceMode.HOME) return
       
       const target = e.target as HTMLElement
+      console.log('Document click detected on:', target.tagName, target.className, target)
       
       // Check if click is on or inside a green element
       const isGreenElement = this.isClickOnGreenElement(target)
+      console.log('Is green element?', isGreenElement)
       
       if (!isGreenElement) {
         console.log('Click detected outside green elements, returning to home')
         this.transitionToMode(InterfaceMode.HOME)
+      } else {
+        console.log('Click on green element, staying in current mode')
       }
     })
+    */
   }
   
   private setupHamburgerMenu() {
@@ -1614,7 +1640,7 @@ class OrbitalCameraSystem {
   private hideControlsImmediately() {
     const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
-    const modelSelector = document.querySelector('.model-selector') as HTMLElement
+    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     
     if (pointSizeControl) {
@@ -1623,8 +1649,8 @@ class OrbitalCameraSystem {
     if (cameraInfo) {
       cameraInfo.style.display = 'none'
     }
-    if (modelSelector) {
-      modelSelector.style.display = 'none'
+    if (modelSelectorContainer) {
+      modelSelectorContainer.style.display = 'none'
     }
     if (navigationHelp) {
       navigationHelp.style.display = 'none'
@@ -1632,10 +1658,10 @@ class OrbitalCameraSystem {
   }
   
   private showNavigationAnimation(mode: InterfaceMode) {
-    // Hide model selector
-    const modelSelector = document.querySelector('.model-selector') as HTMLElement
-    if (modelSelector) {
-      modelSelector.style.display = 'none'
+    // Hide model selector container
+    const selectorContainer = document.querySelector('.model-selector-container') as HTMLElement
+    if (selectorContainer) {
+      selectorContainer.style.display = 'none'
     }
     
     // Create navigation animation in the same position as model selector
@@ -1659,9 +1685,9 @@ class OrbitalCameraSystem {
     animationElement.innerHTML = `<span class="typewriter" style="width: 0; overflow: hidden;">${text}</span>`
     
     // Insert into the model selector container
-    const modelSelectorContainer = document.querySelector('.model-selector-container')
-    if (modelSelectorContainer) {
-      modelSelectorContainer.appendChild(animationElement)
+    const animationContainer = document.querySelector('.model-selector-container')
+    if (animationContainer) {
+      animationContainer.appendChild(animationElement)
       
       // Start animation immediately
       setTimeout(() => {
@@ -1778,6 +1804,12 @@ class OrbitalCameraSystem {
       '.terminal-section h3',
       '.project-type',
       '.project-name',
+      '.project-name-link',
+      '.project-carousel',
+      '.carousel-indicator',
+      '.project-card',
+      '.project-info',
+      '.tech-tag',
       '.status-indicator',
       '.form-field',
       '.form-field label',
@@ -1792,13 +1824,21 @@ class OrbitalCameraSystem {
       '.typewriter',
       '.navigation-command',
       '.subpage-navigation',
-      '.home-navigation'
+      '.home-navigation',
+      '.project-card',
+      '.project-card-content',
+      '.project-card-title',
+      '.project-card-description',
+      '.project-read-more',
+      '.projects-grid',
+      '.projects-blog-layout'
     ]
     
     // Check if the target or any of its parents match green element selectors
     let currentElement: HTMLElement | null = target
     
     while (currentElement && currentElement !== document.body) {
+      
       // Check if current element matches any green selector
       for (const selector of greenElementSelectors) {
         if (currentElement.matches && currentElement.matches(selector)) {
@@ -1840,6 +1880,129 @@ class OrbitalCameraSystem {
     return false
   }
   
+  private generateProjectsListingContent(): string {
+    if (!projectsConfig) {
+      return `
+        <div class="projects-error">
+          <p>Error: Projects configuration not loaded</p>
+        </div>
+      `
+    }
+    
+    const projectEntries = Object.entries(projectsConfig.projects)
+    
+    if (projectEntries.length === 0) {
+      return `
+        <div class="projects-error">
+          <p>No projects found</p>
+        </div>
+      `
+    }
+    
+    // Generate card-style blog layout
+    const projectCards = projectEntries.map(([projectId, projectData]) => {
+      return `
+        <article class="project-card" data-project-id="${projectId}">
+          <div class="project-card-image" style="background-image: url('${import.meta.env.BASE_URL}images/projects/default.png');">
+            <span>Project Image</span>
+          </div>
+          <div class="project-card-content">
+            <div class="project-card-meta">
+              <span class="project-year">${projectData.year}</span>
+              <span class="project-status">${projectData.status}</span>
+            </div>
+            <h3 class="project-card-title">${projectData.title}</h3>
+            <p class="project-card-description">${projectData.description}</p>
+            <div class="project-card-tech">
+              ${projectData.tech.map(tech => `<span class="tech-tag">${tech}</span>`).join('')}
+            </div>
+            <div class="project-card-actions">
+              <button class="project-read-more" data-project-id="${projectId}">
+                Read More <span class="arrow">→</span>
+              </button>
+            </div>
+          </div>
+        </article>
+      `
+    }).join('')
+    
+    return `
+      <div class="projects-blog-layout">
+        <div class="projects-grid">
+          ${projectCards}
+        </div>
+      </div>
+    `
+  }
+  
+  private generateProjectDetailContent(): string {
+    if (!projectsConfig || !currentProjectId || !projectsConfig.projects[currentProjectId]) {
+      return `
+        <div class="terminal-section">
+          <h3>$ cat ~/projects/error.log</h3>
+          <p>Error: Project not found</p>
+        </div>
+      `
+    }
+    
+    const project = projectsConfig.projects[currentProjectId]
+    const techList = project.tech.map(tech => `• ${tech}`).join('<br>')
+    
+    return `
+      <div class="terminal-section project-detail-header">
+        <h3>$ cd ~/projects/${currentProjectId}/</h3>
+        <div class="project-detail-meta">
+          <span class="project-year">${project.year}</span>
+          <span class="project-status">${project.status}</span>
+        </div>
+      </div>
+      
+      <div class="terminal-section">
+        <h3>$ cat README.md</h3>
+        <h2 class="project-detail-title">${project.title}</h2>
+        <div class="project-detail-content">
+          ${project.content.split('\n\n').map(paragraph => `<p>${paragraph}</p>`).join('')}
+        </div>
+      </div>
+      
+      <div class="terminal-section">
+        <h3>$ cat tech-stack.txt</h3>
+        <div class="project-tech-stack">
+          ${techList}
+        </div>
+      </div>
+    `
+  }
+  
+  private initializeProjectCards() {
+    // Add click handlers for project cards and read more buttons
+    const projectCards = document.querySelectorAll('.project-card[data-project-id]')
+    const readMoreButtons = document.querySelectorAll('.project-read-more[data-project-id]')
+    
+    // Handle card clicks (entire card clickable)
+    projectCards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        const projectId = (e.currentTarget as HTMLElement).getAttribute('data-project-id')
+        if (projectId) {
+          currentProjectId = projectId
+          this.transitionToMode(InterfaceMode.PROJECT_DETAIL)
+        }
+      })
+    })
+    
+    // Handle read more button clicks
+    readMoreButtons.forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent card click from firing
+        const projectId = (e.currentTarget as HTMLElement).getAttribute('data-project-id')
+        if (projectId) {
+          currentProjectId = projectId
+          this.transitionToMode(InterfaceMode.PROJECT_DETAIL)
+        }
+      })
+    })
+  }
+  
 }
 
 // Load models configuration
@@ -1858,6 +2021,17 @@ async function loadModelsConfig() {
     } else {
       console.error('No models configuration available')
     }
+  }
+}
+
+// Load projects configuration
+async function loadProjectsConfig() {
+  try {
+    const response = await fetch(`${import.meta.env.BASE_URL}projects.json`)
+    projectsConfig = await response.json()
+    console.log('Projects configuration loaded:', projectsConfig)
+  } catch (error) {
+    console.error('Failed to load projects configuration:', error)
   }
 }
 
@@ -1927,7 +2101,25 @@ function switchToQuality(quality: 'low' | 'high') {
     return
   }
   
+  // If switching from high to low, revert the Z scaling on animation config
+  if (currentQuality === 'high' && quality === 'low') {
+    if (currentModel && currentModel.loadingAnimation) {
+      const scaledEndZ = currentModel.loadingAnimation.endPosition.z
+      const originalEndZ = scaledEndZ / 10
+      currentModel.loadingAnimation.endPosition.z = originalEndZ
+      console.log('Reverted loading animation end Z position from 10x scaling:', scaledEndZ, '->', originalEndZ)
+    }
+    
+    // Also scale down current camera Z position
+    const scaledCameraZ = camera.position.z
+    const originalCameraZ = scaledCameraZ / 10
+    camera.position.z = originalCameraZ
+    controls.update()
+    console.log('Reverted camera Z position from 10x scaling:', scaledCameraZ, '->', originalCameraZ)
+  }
+  
   currentQuality = quality
+  isQualitySwitching = true
   
   // Reload the current model with new quality
   switchToModel(modelsConfig.currentModel)
@@ -2106,31 +2298,35 @@ async function loadGaussianSplat(fileName: string) {
     console.log('Viewer object:', viewer)
     console.log('Splat mesh:', (viewer as any).splatMesh)
     
-    // Try to get scene bounds and camera info
+    // Log splat info for debugging
     const splat = (viewer as any).splatMesh
     if (splat && splat.geometry) {
+      console.log('=== HIGH QUALITY GAUSSIAN SPLAT BOUNDING BOX ===')
       console.log('Splat geometry:', splat.geometry)
       splat.geometry.computeBoundingBox()
       if (splat.geometry.boundingBox) {
         const box = splat.geometry.boundingBox
-        console.log('Splat bounding box:', box)
         const size = box.getSize(new THREE.Vector3())
         const center = box.getCenter(new THREE.Vector3())
-        console.log('Splat size:', size, 'center:', center)
+        const maxDimension = Math.max(size.x, size.y, size.z)
         
-        // Position camera to see the whole splat
-        const maxDim = Math.max(size.x, size.y, size.z)
-        const distance = Math.max(maxDim * 3, 5) // At least 5 units away
-        
-        camera.position.set(center.x, center.y, center.z + distance)
-        controls.target.copy(center)
-        controls.update()
-        
-        console.log('Positioned camera to see splat - distance:', distance)
+        console.log('Bounding box min:', box.min)
+        console.log('Bounding box max:', box.max)
+        console.log('Size (width, height, depth):', size)
+        console.log('Center:', center)
+        console.log('Max dimension:', maxDimension)
+        console.log('Point count:', splat.geometry.attributes.position?.count || 'Unknown')
+        console.log('=== END HIGH QUALITY INFO ===')
       }
     }
     
-    // Since we're using Three.js integration, our camera should work
+    // Scale Z position for Gaussian splat by factor of 10
+    const originalZ = camera.position.z
+    camera.position.z = camera.position.z * 10
+    controls.update()
+    
+    console.log('Scaled camera Z position for Gaussian splat by 10x')
+    console.log('Original Z:', originalZ, '-> Scaled Z:', camera.position.z)
     console.log('Our camera position:', camera.position)
     console.log('Our camera target:', controls.target)
     
@@ -2143,9 +2339,24 @@ async function loadGaussianSplat(fileName: string) {
     // Hide loading screen
     progressEl.style.display = 'none'
     
-    // Trigger loading animation if switching models
+    // Trigger loading animation if switching models (but not quality)
+    if (isModelSwitching && !isQualitySwitching) {
+      // For high quality models, scale the landing Z position by 10
+      if (currentQuality === 'high') {
+        const currentModel = modelsConfig.models[modelsConfig.currentModel]
+        if (currentModel && currentModel.loadingAnimation) {
+          const originalEndZ = currentModel.loadingAnimation.endPosition.z
+          currentModel.loadingAnimation.endPosition.z = originalEndZ * 10
+          console.log('Scaled loading animation end Z position by 10x:', originalEndZ, '->', currentModel.loadingAnimation.endPosition.z)
+        }
+      }
+      orbitalCamera.startLoadingAnimation()
+    }
     if (isModelSwitching) {
       isModelSwitching = false
+    }
+    if (isQualitySwitching) {
+      isQualitySwitching = false
     }
     
   } catch (error) {
@@ -2235,11 +2446,21 @@ function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
   progressEl.style.display = 'none'
   
   // Calculate bounding box for model info
+  console.log('=== HIGH QUALITY GAUSSIAN SPLAT (PLY FALLBACK) BOUNDING BOX ===')
   geometry.computeBoundingBox()
   if (geometry.boundingBox) {
-    const size = geometry.boundingBox.getSize(new THREE.Vector3())
-    const center = geometry.boundingBox.getCenter(new THREE.Vector3())
+    const box = geometry.boundingBox
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
+    
+    console.log('Bounding box min:', box.min)
+    console.log('Bounding box max:', box.max)
+    console.log('Size (width, height, depth):', size)
+    console.log('Center:', center)
+    console.log('Max dimension:', maxDimension)
+    console.log('Point count:', geometry.attributes.position.count)
+    console.log('=== END HIGH QUALITY PLY FALLBACK INFO ===')
     
     console.log('Gaussian splat info - Size:', size, 'Center:', center, 'Max dimension:', maxDimension)
     
@@ -2251,10 +2472,15 @@ function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
     }
   }
   
-  // Trigger loading animation if switching models
-  if (isModelSwitching) {
+  // Trigger loading animation if switching models (but not quality)
+  if (isModelSwitching && !isQualitySwitching) {
     orbitalCamera.startLoadingAnimation()
+  }
+  if (isModelSwitching) {
     isModelSwitching = false
+  }
+  if (isQualitySwitching) {
+    isQualitySwitching = false
   }
   
   console.log('Gaussian splat PLY loaded successfully as enhanced point cloud')
@@ -2309,11 +2535,21 @@ function onLoad(geometry: THREE.BufferGeometry) {
   progressEl.style.display = 'none'
   
   // Calculate bounding box for model info
+  console.log('=== LOW QUALITY POINT CLOUD BOUNDING BOX ===')
   geometry.computeBoundingBox()
   if (geometry.boundingBox) {
-    const size = geometry.boundingBox.getSize(new THREE.Vector3())
-    const center = geometry.boundingBox.getCenter(new THREE.Vector3())
+    const box = geometry.boundingBox
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
+    
+    console.log('Bounding box min:', box.min)
+    console.log('Bounding box max:', box.max)
+    console.log('Size (width, height, depth):', size)
+    console.log('Center:', center)
+    console.log('Max dimension:', maxDimension)
+    console.log('Point count:', geometry.attributes.position.count)
+    console.log('=== END LOW QUALITY INFO ===')
     
     console.log('Model info - Size:', size, 'Center:', center, 'Max dimension:', maxDimension)
     
@@ -2327,10 +2563,15 @@ function onLoad(geometry: THREE.BufferGeometry) {
     // Camera position is already set by loading animation or saved position
   }
   
-  // Trigger loading animation if switching models
-  if (isModelSwitching) {
+  // Trigger loading animation if switching models (but not quality)
+  if (isModelSwitching && !isQualitySwitching) {
     orbitalCamera.startLoadingAnimation()
+  }
+  if (isModelSwitching) {
     isModelSwitching = false
+  }
+  if (isQualitySwitching) {
+    isQualitySwitching = false
   }
   
   console.log('PLY file loaded successfully:', geometry.attributes.position.count, 'points')
@@ -2424,6 +2665,7 @@ window.addEventListener('resize', handleResize)
 // Initialize application
 async function initialize() {
   await loadModelsConfig()
+  await loadProjectsConfig()
   setupModelDropdown()
   setupQualityDropdown()
   orbitalCamera.updateDisplayNameField()

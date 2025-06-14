@@ -1,0 +1,40 @@
+{
+  "projects": {
+    "gsplat-showcase": {
+      "title": "Gaussian Splat Showcase",
+      "description": "Interactive 3D point cloud viewer with advanced camera controls",
+      "image": "gsplat-showcase.jpg",
+      "content": "A sophisticated Three.js-based point cloud viewer built specifically for showcasing Gaussian splat models. Features quaternion-based camera animations with smooth interpolation, orbital controls, and automated orbital camera movement around selected points.\n\nKey technical achievements include migration from gsplat.js to Three.js for better camera control, implementation of a 5-second cinematic intro sequence, and a retro terminal-style UI with Space Mono font. The system supports both point cloud PLY files and Gaussian splat models with automatic scaling and centering.\n\nThe viewer includes real-time controls for point size adjustment, rotation speed, camera presets (Top, Front, Side views), and localStorage persistence for user preferences. Advanced features include collision detection for point cloud interaction and smooth camera transitions.",
+      "tech": ["Three.js", "TypeScript", "Vite", "WebGL", "PLYLoader"],
+      "year": "2024",
+      "status": "Active Development"
+    },
+    "neural-radiance": {
+      "title": "Neural Radiance Fields",
+      "description": "NeRF implementation for scene reconstruction from imagery",
+      "image": "neural-radiance.jpg",
+      "content": "Implementation of Neural Radiance Fields (NeRF) for photorealistic novel view synthesis from sparse input images. This project explores the intersection of computer vision and neural rendering techniques for 3D scene reconstruction.\n\nThe system processes multiple 2D images of a scene to learn an implicit 3D representation that can generate novel viewpoints with high fidelity. Key challenges included optimizing the volumetric rendering pipeline, implementing proper camera pose estimation, and handling multi-view consistency.\n\nApplications include cultural heritage documentation, real estate visualization, and content creation for VR/AR experiences. The implementation focuses on efficiency improvements and quality enhancements over the original NeRF paper.",
+      "tech": ["Python", "PyTorch", "CUDA", "OpenCV", "NumPy"],
+      "year": "2023",
+      "status": "Research Phase"
+    },
+    "photogrammetry-tools": {
+      "title": "Photogrammetry Pipeline",
+      "description": "Computer vision pipeline for 3D reconstruction from drone imagery",
+      "image": "photogrammetry-tools.jpg",
+      "content": "Comprehensive photogrammetry pipeline for processing drone-captured imagery into high-quality 3D models. The system handles everything from image preprocessing and feature matching to dense point cloud generation and mesh reconstruction.\n\nBuilt for processing large datasets from DJI drones, the pipeline includes automatic image quality assessment, GPS coordinate integration, and multi-scale processing capabilities. Advanced features include ground control point integration, automatic tie point detection, and quality metrics for reconstruction validation.\n\nThe tools have been used for mapping archaeological sites, monitoring environmental changes, and creating detailed topographic surveys. Output formats include point clouds, textured meshes, and orthomosaic imagery.",
+      "tech": ["Python", "OpenCV", "COLMAP", "CloudCompare", "GDAL"],
+      "year": "2023",
+      "status": "Production Use"
+    },
+    "lidar-processing": {
+      "title": "LiDAR Visualization",
+      "description": "Real-time LiDAR data visualization and processing tools",
+      "image": "lidar-processing.jpg",
+      "content": "Real-time visualization and processing system for LiDAR point cloud data with focus on environmental monitoring and change detection. The system processes large-scale terrestrial and airborne LiDAR datasets for analysis and visualization.\n\nCore features include real-time point cloud streaming, multi-temporal change detection, vegetation analysis, and terrain modeling. The visualization engine supports billions of points with level-of-detail rendering and interactive exploration capabilities.\n\nApplications span forestry management, urban planning, and geological surveys. The system integrates with existing GIS workflows and supports standard LAS/LAZ file formats with custom processing algorithms for noise reduction and classification.",
+      "tech": ["C++", "PCL", "OpenGL", "PDAL", "Qt"],
+      "year": "2022",
+      "status": "Deployed"
+    }
+  }
+}
