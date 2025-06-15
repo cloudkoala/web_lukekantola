@@ -29,6 +29,7 @@ class Vertex:
     r: int = 255
     g: int = 255
     b: int = 255
+    full_data: list = None  # Store full line data for complex PLY files
 
 @dataclass
 class ChunkInfo:
@@ -107,6 +108,7 @@ class PLYChunker:
                     line = f.readline().decode('ascii').strip()
                     values = line.split()
                     
+                    # Store the entire line for reconstruction
                     vertex = Vertex(
                         x=float(values[0]),
                         y=float(values[1]),
@@ -115,6 +117,8 @@ class PLYChunker:
                         g=int(values[4]) if len(values) > 4 else 255,
                         b=int(values[5]) if len(values) > 5 else 255
                     )
+                    # Store full line data for later reconstruction
+                    vertex.full_data = values
                     vertices.append(vertex)
             
             elif header.format_type == 'binary_little_endian':
@@ -202,48 +206,33 @@ class PLYChunker:
             chunk_vertices.extend(anchor_points)
             print(f"  Added {len(anchor_points)} anchor points for consistent bounding box")
         
-        # Write PLY file preserving original format
-        if original_header.format_type == 'ascii':
-            # Write ASCII format
-            with open(output_path, 'w') as f:
-                # Write PLY header
-                f.write("ply\n")
-                f.write(f"format ascii 1.0\n")
-                f.write(f"element vertex {len(chunk_vertices)}\n")
-                
-                # Write properties based on original header
-                for prop in original_header.properties:
-                    f.write(f"{prop}\n")
-                
-                f.write("end_header\n")
-                
-                # Write vertex data
-                for vertex in chunk_vertices:
-                    f.write(f"{vertex.x} {vertex.y} {vertex.z} {vertex.r} {vertex.g} {vertex.b}\n")
-        else:
-            # Write binary format
-            with open(output_path, 'wb') as f:
-                # Write PLY header as text
-                header_text = "ply\n"
-                header_text += f"format {original_header.format_type} 1.0\n"
-                header_text += f"element vertex {len(chunk_vertices)}\n"
-                
-                # Write properties based on original header
-                for prop in original_header.properties:
-                    header_text += f"{prop}\n"
-                
-                header_text += "end_header\n"
-                
-                # Write header as bytes
-                f.write(header_text.encode('ascii'))
-                
-                # Write vertex data in binary format
-                for vertex in chunk_vertices:
-                    # Pack as little endian: 3 floats (x,y,z) + 3 unsigned chars (r,g,b)
-                    vertex_data = struct.pack('<fffBBB', 
-                        vertex.x, vertex.y, vertex.z,
-                        vertex.r, vertex.g, vertex.b)
-                    f.write(vertex_data)
+        # Always write binary format for better performance and smaller size
+        with open(output_path, 'wb') as f:
+            # Write PLY header as text
+            header_text = "ply\n"
+            header_text += "format binary_little_endian 1.0\n"
+            header_text += f"element vertex {len(chunk_vertices)}\n"
+            
+            # Write only basic properties for compatibility
+            header_text += "property float x\n"
+            header_text += "property float y\n"
+            header_text += "property float z\n"
+            header_text += "property uchar red\n"
+            header_text += "property uchar green\n"
+            header_text += "property uchar blue\n"
+            
+            header_text += "end_header\n"
+            
+            # Write header as bytes
+            f.write(header_text.encode('ascii'))
+            
+            # Write vertex data in binary format
+            for vertex in chunk_vertices:
+                # Pack as little endian: 3 floats (x,y,z) + 3 unsigned chars (r,g,b)
+                vertex_data = struct.pack('<fffBBB', 
+                    vertex.x, vertex.y, vertex.z,
+                    vertex.r, vertex.g, vertex.b)
+                f.write(vertex_data)
         
         # Return file size
         return os.path.getsize(output_path)
@@ -255,8 +244,12 @@ class PLYChunker:
         Returns:
             Dictionary with chunking results and manifest data
         """
-        # Create output directory
-        os.makedirs(output_dir, exist_ok=True)
+        # Create model-specific subdirectory
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        model_output_dir = os.path.join(output_dir, base_name)
+        os.makedirs(model_output_dir, exist_ok=True)
+        
+        print(f"Creating chunks in: {model_output_dir}")
         
         # Analyze input file
         header = self.analyze_ply_file(input_path)
@@ -302,12 +295,11 @@ class PLYChunker:
         vertex_chunks = self.chunk_vertices_sequential(vertices)
         
         # Write chunks and collect metadata
-        base_name = os.path.splitext(os.path.basename(input_path))[0]
         chunk_infos = []
         
         for i, chunk_vertices in enumerate(vertex_chunks):
             chunk_filename = f"{base_name}_chunk_{i:03d}.ply"
-            chunk_path = os.path.join(output_dir, chunk_filename)
+            chunk_path = os.path.join(model_output_dir, chunk_filename)
             
             print(f"Writing chunk {i+1}/{len(vertex_chunks)}: {chunk_filename}")
             file_size = self.write_ply_chunk(chunk_vertices, chunk_path, header, overall_bbox)
@@ -345,7 +337,7 @@ class PLYChunker:
         }
         
         # Write manifest file
-        manifest_path = os.path.join(output_dir, f"{base_name}_manifest.json")
+        manifest_path = os.path.join(model_output_dir, f"{base_name}_manifest.json")
         with open(manifest_path, 'w') as f:
             json.dump(manifest, f, indent=2)
         

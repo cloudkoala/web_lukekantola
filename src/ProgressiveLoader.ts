@@ -45,7 +45,8 @@ export class ProgressiveLoader {
   private pointSize: number = 0.001
   private onChunkLoaded?: (chunkIndex: number, totalChunks: number) => void
   private onLoadComplete?: () => void
-  private combinedPointCloud: THREE.Points | null = null
+  private loadedPointClouds: THREE.Points[] = []
+  private modelRotation: { x: number, y: number, z: number } | null = null
   
   constructor(scene: THREE.Scene, basePath: string = '') {
     this.scene = scene
@@ -72,14 +73,21 @@ export class ProgressiveLoader {
   public setPointSize(size: number) {
     this.pointSize = size
     
-    // Update all loaded chunks
-    this.chunks.forEach(chunk => {
-      if (chunk.loaded && chunk.pointCloud.material) {
-        const material = chunk.pointCloud.material as THREE.PointsMaterial
+    // Update all loaded point clouds
+    this.loadedPointClouds.forEach(pointCloud => {
+      if (pointCloud.material) {
+        const material = pointCloud.material as THREE.PointsMaterial
         material.size = size
         material.needsUpdate = true
       }
     })
+  }
+  
+  /**
+   * Set model rotation to apply to each chunk as it loads
+   */
+  public setModelRotation(rotation: { x: number, y: number, z: number } | null) {
+    this.modelRotation = rotation
   }
   
   /**
@@ -133,36 +141,37 @@ export class ProgressiveLoader {
     this.isLoading = true
     console.log(`🚀 Starting progressive loading of ${this.loadingQueue.length} chunks`)
     
-    // Load chunks one by one with small delays
-    for (let i = 0; i < this.loadingQueue.length; i++) {
-      const chunkInfo = this.loadingQueue[i]
-      console.log(`📦 Loading chunk ${i + 1}/${this.loadingQueue.length}: ${chunkInfo.filename}`)
+    // Load chunks in small batches for better performance
+    const batchSize = 3
+    for (let i = 0; i < this.loadingQueue.length; i += batchSize) {
+      const batch = this.loadingQueue.slice(i, i + batchSize)
+      console.log(`📦 Loading batch ${Math.floor(i/batchSize) + 1}: chunks ${i + 1}-${Math.min(i + batchSize, this.loadingQueue.length)}`)
       
-      try {
-        await this.loadChunk(chunkInfo)
-        console.log(`✅ Successfully loaded chunk ${i + 1}/${this.loadingQueue.length}`)
-        
-        // Notify progress
-        if (this.onChunkLoaded) {
-          this.onChunkLoaded(i + 1, this.loadingQueue.length)
+      // Load batch in parallel
+      const batchPromises = batch.map(async (chunkInfo, batchIndex) => {
+        try {
+          await this.loadChunk(chunkInfo)
+          console.log(`✅ Successfully loaded chunk: ${chunkInfo.filename}`)
+          
+          // Notify progress
+          if (this.onChunkLoaded) {
+            this.onChunkLoaded(i + batchIndex + 1, this.loadingQueue.length)
+          }
+        } catch (error) {
+          console.error(`❌ Failed to load chunk ${chunkInfo.filename}:`, error)
         }
-        
-        // Small delay to prevent blocking the main thread
-        if (i < this.loadingQueue.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-        }
-        
-      } catch (error) {
-        console.error(`❌ Failed to load chunk ${chunkInfo.filename}:`, error)
-        // Continue loading other chunks even if one fails
+      })
+      
+      await Promise.all(batchPromises)
+      
+      // Small delay between batches
+      if (i + batchSize < this.loadingQueue.length) {
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
     }
     
     this.isLoading = false
-    console.log('Progressive loading complete')
-    
-    // Compute bounding box and apply any necessary transformations
-    this.finalizeCombinedPointCloud()
+    console.log(`🎉 Progressive loading complete! ${this.loadedPointClouds.length} chunks loaded`)
     
     if (this.onLoadComplete) {
       this.onLoadComplete()
@@ -175,7 +184,9 @@ export class ProgressiveLoader {
   private async loadChunk(chunkInfo: ChunkInfo): Promise<void> {
     return new Promise((resolve, reject) => {
       const loader = new PLYLoader()
-      const chunkPath = `${this.basePath}models/chunks/${chunkInfo.filename}?t=${Date.now()}`
+      // Extract model name from manifest path to build correct chunk path
+      const manifestPathParts = this.manifest?.original_file.replace('.ply', '') || 'unknown'
+      const chunkPath = `${this.basePath}models/chunks/${manifestPathParts}/${chunkInfo.filename}`
       
       console.log(`Loading chunk: ${chunkInfo.filename} (${chunkInfo.vertex_count} vertices)`)
       console.log(`Full chunk path: ${chunkPath}`)
@@ -201,117 +212,42 @@ export class ProgressiveLoader {
    * Handle loaded chunk geometry
    */
   private onChunkGeometryLoaded(chunkInfo: ChunkInfo, geometry: THREE.BufferGeometry) {
-    console.log(`Chunk ${chunkInfo.filename} loaded with attributes:`, Object.keys(geometry.attributes))
-    console.log(`Vertex count: ${geometry.attributes.position.count}`)
+    console.log(`✨ Chunk ${chunkInfo.filename} loaded with ${geometry.attributes.position.count} vertices`)
     
-    if (geometry.attributes.color) {
-      console.log('✓ Color attribute found!')
-    } else {
-      console.log('✗ No color attribute found')
+    // Create material for this chunk
+    const material = new THREE.PointsMaterial({
+      size: this.pointSize,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      map: this.createCircularTexture(),
+      alphaTest: 0.1
+    })
+    
+    // Create individual point cloud for this chunk
+    const pointCloud = new THREE.Points(geometry, material)
+    
+    // Apply model rotation immediately if set
+    if (this.modelRotation) {
+      pointCloud.rotateX((this.modelRotation.x * Math.PI) / 180)
+      pointCloud.rotateY((this.modelRotation.y * Math.PI) / 180)
+      pointCloud.rotateZ((this.modelRotation.z * Math.PI) / 180)
     }
     
-    // Update chunk info
+    // Add to scene immediately for streaming effect
+    this.scene.add(pointCloud)
+    this.loadedPointClouds.push(pointCloud)
+    
+    // Update chunk tracking
     const chunkIndex = this.chunks.findIndex(chunk => chunk.info.filename === chunkInfo.filename)
     if (chunkIndex !== -1) {
-      this.chunks[chunkIndex].pointCloud = new THREE.Points(geometry) // Temporary, we'll combine later
+      this.chunks[chunkIndex].pointCloud = pointCloud
       this.chunks[chunkIndex].loaded = true
     }
     
-    // If this is the first chunk, create the combined point cloud
-    if (!this.combinedPointCloud) {
-      const material = new THREE.PointsMaterial({
-        size: this.pointSize,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.9,
-        map: this.createCircularTexture(),
-        alphaTest: 0.1
-      })
-      
-      this.combinedPointCloud = new THREE.Points(geometry.clone(), material)
-      this.scene.add(this.combinedPointCloud)
-      console.log(`Created combined point cloud with first chunk: ${chunkInfo.filename}`)
-      console.log('  Scene children count:', this.scene.children.length)
-      console.log('  Point cloud vertex count:', this.combinedPointCloud.geometry.attributes.position.count)
-      console.log('  Point cloud visible:', this.combinedPointCloud.visible)
-      console.log('  Point cloud position:', this.combinedPointCloud.position)
-    } else {
-      // Merge this geometry with the combined point cloud
-      this.mergeGeometryIntoPointCloud(geometry)
-      console.log(`Merged chunk into combined point cloud: ${chunkInfo.filename}`)
-    }
+    console.log(`🎯 Chunk ${chunkInfo.filename} added to scene (${this.loadedPointClouds.length} total chunks visible)`)
   }
   
-  /**
-   * Merge a new geometry into the existing combined point cloud
-   */
-  private mergeGeometryIntoPointCloud(newGeometry: THREE.BufferGeometry) {
-    if (!this.combinedPointCloud) return
-    
-    const existingGeometry = this.combinedPointCloud.geometry
-    const existingPositions = existingGeometry.attributes.position.array
-    const existingColors = existingGeometry.attributes.color?.array
-    const newPositions = newGeometry.attributes.position.array
-    const newColors = newGeometry.attributes.color?.array
-    
-    // Create new combined arrays
-    const combinedPositions = new Float32Array(existingPositions.length + newPositions.length)
-    const combinedColors = new Float32Array((existingColors?.length || 0) + (newColors?.length || 0))
-    
-    // Copy existing data
-    combinedPositions.set(existingPositions, 0)
-    if (existingColors && newColors) {
-      combinedColors.set(existingColors, 0)
-      combinedColors.set(newColors, existingColors.length)
-    }
-    
-    // Copy new data
-    combinedPositions.set(newPositions, existingPositions.length)
-    
-    // Update geometry attributes
-    existingGeometry.setAttribute('position', new THREE.BufferAttribute(combinedPositions, 3))
-    if (combinedColors.length > 0) {
-      existingGeometry.setAttribute('color', new THREE.BufferAttribute(combinedColors, 3))
-    }
-    
-    // Mark attributes as needing update
-    existingGeometry.attributes.position.needsUpdate = true
-    if (existingGeometry.attributes.color) {
-      existingGeometry.attributes.color.needsUpdate = true
-    }
-  }
-  
-  /**
-   * Finalize the combined point cloud after all chunks are loaded
-   */
-  private finalizeCombinedPointCloud() {
-    if (!this.combinedPointCloud) return
-    
-    console.log('Finalizing combined point cloud...')
-    
-    // Compute bounding box
-    this.combinedPointCloud.geometry.computeBoundingBox()
-    
-    if (this.combinedPointCloud.geometry.boundingBox) {
-      const box = this.combinedPointCloud.geometry.boundingBox
-      const size = box.getSize(new THREE.Vector3())
-      const center = box.getCenter(new THREE.Vector3())
-      const maxDimension = Math.max(size.x, size.y, size.z)
-      
-      console.log('Progressive loading - Combined point cloud bounding box:')
-      console.log('  Min:', box.min.x.toFixed(2), box.min.y.toFixed(2), box.min.z.toFixed(2))
-      console.log('  Max:', box.max.x.toFixed(2), box.max.y.toFixed(2), box.max.z.toFixed(2))
-      console.log('  Size:', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2))
-      console.log('  Center:', center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2))
-      console.log('  Max dimension:', maxDimension.toFixed(2))
-      console.log('  Total vertex count:', this.combinedPointCloud.geometry.attributes.position.count)
-      
-      // The chunks should already be pre-scaled, but log if something seems off
-      if (maxDimension > 50) {
-        console.log('  WARNING: Large combined model detected - chunks may not be properly pre-scaled')
-      }
-    }
-  }
   
   /**
    * Create circular texture for points
@@ -377,11 +313,12 @@ export class ProgressiveLoader {
    * Clear all loaded chunks from scene
    */
   public clear() {
-    if (this.combinedPointCloud) {
-      this.scene.remove(this.combinedPointCloud)
-      this.combinedPointCloud = null
-    }
+    // Remove all individual point clouds from scene
+    this.loadedPointClouds.forEach(pointCloud => {
+      this.scene.remove(pointCloud)
+    })
     
+    this.loadedPointClouds = []
     this.chunks = []
     this.loadingQueue = []
     this.manifest = null
@@ -392,6 +329,6 @@ export class ProgressiveLoader {
    * Get all loaded point clouds (for camera interaction)
    */
   public getLoadedPointClouds(): THREE.Points[] {
-    return this.combinedPointCloud ? [this.combinedPointCloud] : []
+    return this.loadedPointClouds
   }
 }

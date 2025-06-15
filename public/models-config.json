@@ -1,4 +1,8 @@
 {
+  "basePaths": {
+    "pointcloud": "models/base/pointcloud/",
+    "gsplat": "models/base/gsplat/"
+  },
   "models": {
     "castleton": {
       "fileName": "Castleton_001.ply",

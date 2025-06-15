@@ -46,6 +46,10 @@ interface ModelConfig {
 }
 
 interface ModelsConfig {
+  basePaths: {
+    pointcloud: string
+    gsplat: string
+  }
   models: { [key: string]: ModelConfig }
   currentModel: string
 }
@@ -2119,6 +2123,17 @@ class OrbitalCameraSystem {
   
 }
 
+// Helper function to get full model path
+function getModelPath(fileName: string, isGaussianSplat: boolean = false): string {
+  if (!modelsConfig?.basePaths) {
+    // Fallback to old behavior if basePaths not available
+    return fileName
+  }
+  
+  const basePath = isGaussianSplat ? modelsConfig.basePaths.gsplat : modelsConfig.basePaths.pointcloud
+  return basePath + fileName
+}
+
 // Load models configuration
 async function loadModelsConfig() {
   try {
@@ -2365,9 +2380,77 @@ async function loadPointCloudByFileName(fileName: string) {
   
   
   
-  // Load single file directly (chunked loading disabled)
-  console.log('Loading single file directly:', fileName)
-  loadSinglePointCloud(fileName)
+  // Check if chunked version exists by looking for manifest file in model subfolder
+  const baseFileName = fileName.replace('.ply', '')
+  const manifestPath = `models/chunks/${baseFileName}/${baseFileName}_manifest.json`
+  
+  console.log('Checking for chunked version at:', manifestPath)
+  
+  try {
+    // Try to load the manifest file first
+    const manifestResponse = await fetch(`${import.meta.env.BASE_URL}${manifestPath}`)
+    
+    if (manifestResponse.ok) {
+      console.log('Found chunked version, loading progressively...')
+      
+      // Hide loading screen immediately for streaming effect
+      progressEl.style.display = 'none'
+      
+      // Clear any existing point clouds
+      const existingPointClouds = scene.children.filter(child => child instanceof THREE.Points)
+      existingPointClouds.forEach(obj => scene.remove(obj))
+      
+      // Set model rotation before loading chunks
+      const currentModel = modelsConfig.models[modelsConfig.currentModel]
+      if (currentModel && currentModel.rotation) {
+        progressiveLoader.setModelRotation(currentModel.rotation)
+      } else {
+        progressiveLoader.setModelRotation(null)
+      }
+      
+      // Start loading animation immediately before chunks appear
+      if (isModelSwitching && !isQualitySwitching) {
+        orbitalCamera.startLoadingAnimation()
+      }
+      
+      // Setup progressive loader callbacks
+      progressiveLoader.setOnChunkLoaded((loaded, total) => {
+        console.log(`Progressive loading: ${loaded}/${total} chunks loaded`)
+        // Update point size for all loaded chunks to match orbital camera setting
+        progressiveLoader.setPointSize(orbitalCamera.pointSize)
+      })
+      
+      progressiveLoader.setOnLoadComplete(() => {
+        console.log('Progressive loading complete!')
+        
+        // Register the first chunk with orbital camera system for interactions
+        const loadedPointClouds = progressiveLoader.getLoadedPointClouds()
+        if (loadedPointClouds.length > 0) {
+          orbitalCamera.setCurrentPointCloud(loadedPointClouds[0])
+        }
+        
+        // Reset switching flags
+        if (isModelSwitching) {
+          isModelSwitching = false
+        }
+        if (isQualitySwitching) {
+          isQualitySwitching = false
+        }
+      })
+      
+      // Start progressive loading
+      await progressiveLoader.loadChunkedModel(manifestPath)
+      
+    } else {
+      // No chunked version found, fall back to regular loading
+      console.log('No chunked version found, loading single file...')
+      loadSinglePointCloud(fileName)
+    }
+    
+  } catch (error) {
+    console.log('Error checking for chunked version, falling back to single file loading:', error)
+    loadSinglePointCloud(fileName)
+  }
 }
 
 function loadSinglePointCloud(fileName: string) {
@@ -2376,8 +2459,9 @@ function loadSinglePointCloud(fileName: string) {
   console.log('Loading single point cloud file:', fileName)
   
   try {
+    const fullPath = getModelPath(fileName)
     loader.load(
-      `${import.meta.env.BASE_URL}${fileName}`,
+      `${import.meta.env.BASE_URL}${fullPath}`,
       onLoad,
       onStreamingProgress,
       onError
@@ -2450,7 +2534,8 @@ async function loadGaussianSplat(fileName: string) {
     await viewer.start()
     
     // Add the splat scene
-    await viewer.addSplatScene(`${import.meta.env.BASE_URL}${fileName}`, {
+    const fullPath = getModelPath(fileName, true)
+    await viewer.addSplatScene(`${import.meta.env.BASE_URL}${fullPath}`, {
       'showLoadingUI': false,
       'progressiveLoad': true
     })
@@ -2542,8 +2627,9 @@ function loadGaussianSplatAsPLY(fileName: string) {
   const loader = new PLYLoader()
   
   try {
+    const fullPath = getModelPath(fileName, true)
     loader.load(
-      `${import.meta.env.BASE_URL}${fileName}`,
+      `${import.meta.env.BASE_URL}${fullPath}`,
       onGaussianSplatPLYLoad,
       onProgress,
       onError
@@ -2707,7 +2793,7 @@ function onLoad(geometry: THREE.BufferGeometry) {
   if (geometry.boundingBox) {
     const box = geometry.boundingBox
     const size = box.getSize(new THREE.Vector3())
-    const center = box.getCenter(new THREE.Vector3())
+    // const center = box.getCenter(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
     
     console.log('Computed bounding box:')
