@@ -299,13 +299,20 @@ export class ProgressiveLoader {
 
     console.log(`✨ Chunk ${chunkInfo.filename} loaded with ${geometry.attributes.position.count} vertices`)
     
+    // Calculate density-aware point size for this chunk
+    const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
+    
+    // Calculate opacity based on point size to prevent overexposure
+    const adjustedOpacity = this.calculateOpacityForPointSize(adjustedSize)
+    
     // Create material for this chunk
     const material = new THREE.PointsMaterial({
-      size: this.pointSize,
+      size: adjustedSize,
       vertexColors: true,
       transparent: true,
-      opacity: 0.9,
-      map: this.createCircularTexture(),
+      map: this.createSquareTexture(),
+      blending: THREE.NormalBlending,
+      depthWrite: true,
       alphaTest: 0.1
     })
     
@@ -335,24 +342,79 @@ export class ProgressiveLoader {
   
   
   /**
-   * Create circular texture for points
+   * Calculate density-aware point size based on geometry
    */
-  private createCircularTexture(): THREE.Texture {
+  private calculateDensityAwarePointSize(geometry: THREE.BufferGeometry, baseSize: number): number {
+    // Get vertex count and bounding box
+    const vertexCount = geometry.attributes.position.count
+    geometry.computeBoundingBox()
+    
+    if (!geometry.boundingBox) return baseSize
+    
+    const box = geometry.boundingBox
+    const size = box.getSize(new THREE.Vector3())
+    const volume = size.x * size.y * size.z
+    
+    // Calculate point density (points per cubic unit)
+    const density = vertexCount / Math.max(volume, 0.001) // Avoid division by zero
+    
+    // Adjust point size based on density
+    // Higher density = smaller points to reduce overlap
+    let densityFactor = 1.0
+    if (density > 50000) {
+      densityFactor = 0.3  // Very dense - much smaller points
+    } else if (density > 10000) {
+      densityFactor = 0.5  // Dense - smaller points
+    } else if (density > 5000) {
+      densityFactor = 0.7  // Medium density - slightly smaller
+    } else if (density < 1000) {
+      densityFactor = 1.3  // Sparse - larger points
+    }
+    
+    return baseSize * densityFactor
+  }
+
+  /**
+   * Calculate opacity based on point size to prevent overexposure
+   */
+  private calculateOpacityForPointSize(pointSize: number): number {
+    // Base opacity that works well for small points
+    const baseOpacity = 0.6
+    
+    // Scale opacity inversely with point size to prevent overexposure
+    // Larger points = lower opacity to compensate for more overlap
+    const sizeScale = Math.max(0.001, pointSize) // Avoid division by zero
+    const opacityFactor = Math.pow(0.001 / sizeScale, 0.3) // Power curve for smooth scaling
+    
+    // Clamp opacity between reasonable bounds
+    return Math.max(0.1, Math.min(baseOpacity * opacityFactor, 0.8))
+  }
+
+  /**
+   * Create square texture for points
+   */
+  private createSquareTexture(): THREE.Texture {
     const canvas = document.createElement('canvas')
     canvas.width = 64
     canvas.height = 64
     
     const context = canvas.getContext('2d')!
-    const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32)
-    gradient.addColorStop(0, 'rgba(255,255,255,1)')
-    gradient.addColorStop(0.2, 'rgba(255,255,255,1)')
-    gradient.addColorStop(0.4, 'rgba(255,255,255,0.8)')
-    gradient.addColorStop(1, 'rgba(255,255,255,0)')
+    // Clear canvas to transparent background
+    context.clearRect(0, 0, 64, 64)
     
-    context.fillStyle = gradient
-    context.fillRect(0, 0, 64, 64)
+    // Disable antialiasing for sharp edges
+    context.imageSmoothingEnabled = false
+    
+    // Create solid white square with transparent background
+    const squareSize = 62 // Slightly smaller to avoid edge artifacts
+    const offset = 1 // Center the square
+    
+    context.fillStyle = 'rgba(255, 255, 255, 1)'
+    context.fillRect(offset, offset, squareSize, squareSize)
     
     const texture = new THREE.Texture(canvas)
+    texture.magFilter = THREE.NearestFilter
+    texture.minFilter = THREE.NearestFilter
     texture.needsUpdate = true
     return texture
   }

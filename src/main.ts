@@ -94,8 +94,8 @@ interface ProjectsConfig {
 
 let projectsConfig: ProjectsConfig | null = null
 
-// Create circular texture for points
-function createCircularTexture() {
+// Create square texture for points
+function createSquareTexture() {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')!
   const size = 64
@@ -103,22 +103,22 @@ function createCircularTexture() {
   canvas.width = size
   canvas.height = size
   
-  // Clear canvas
+  // Clear canvas to transparent
   context.clearRect(0, 0, size, size)
   
-  // Create circular gradient
-  const center = size / 2
-  const radius = size / 2
+  // Disable antialiasing for sharp edges
+  context.imageSmoothingEnabled = false
   
-  const gradient = context.createRadialGradient(center, center, 0, center, center, radius)
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
-  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 1)')
-  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+  // Create solid white square with transparent background
+  const squareSize = size - 2 // Slightly smaller to avoid edge artifacts
+  const offset = 1 // Center the square
   
-  context.fillStyle = gradient
-  context.fillRect(0, 0, size, size)
+  context.fillStyle = 'rgba(255, 255, 255, 1)'
+  context.fillRect(offset, offset, squareSize, squareSize)
   
   const texture = new THREE.CanvasTexture(canvas)
+  texture.magFilter = THREE.NearestFilter
+  texture.minFilter = THREE.NearestFilter
   texture.needsUpdate = true
   
   return texture
@@ -390,10 +390,12 @@ class OrbitalCameraSystem {
     const rotationSpeedSlider = document.querySelector('#rotation-speed') as HTMLInputElement
     const rotationRadiusSlider = document.querySelector('#rotation-radius') as HTMLInputElement
     const pointSizeSlider = document.querySelector('#point-size') as HTMLInputElement
+    const focalLengthSlider = document.querySelector('#focal-length') as HTMLInputElement
     
     const rotationSpeedValue = document.querySelector('#rotation-speed-value') as HTMLSpanElement
     const rotationRadiusValue = document.querySelector('#rotation-radius-value') as HTMLSpanElement
     const pointSizeValue = document.querySelector('#point-size-value') as HTMLSpanElement
+    const focalLengthValue = document.querySelector('#focal-length-value') as HTMLSpanElement
     
     modeSelect?.addEventListener('change', (e) => {
       this.interactionMode = (e.target as HTMLSelectElement).value
@@ -413,6 +415,12 @@ class OrbitalCameraSystem {
       this.pointSize = parseFloat((e.target as HTMLInputElement).value)
       pointSizeValue.textContent = this.pointSize.toFixed(3)
       this.updatePointSize()
+    })
+    
+    focalLengthSlider?.addEventListener('input', (e) => {
+      const focalLength = parseFloat((e.target as HTMLInputElement).value)
+      focalLengthValue.textContent = focalLength.toString()
+      this.updateFocalLength(focalLength)
     })
     
     // Set default point size button
@@ -803,7 +811,11 @@ class OrbitalCameraSystem {
     scene.children.forEach(child => {
       if (child instanceof THREE.Points && child.material) {
         const material = child.material as THREE.PointsMaterial
-        material.size = this.pointSize
+        const geometry = child.geometry as THREE.BufferGeometry
+        
+        // Calculate density-aware point size
+        const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
+        material.size = adjustedSize
         material.needsUpdate = true
       }
     })
@@ -814,6 +826,64 @@ class OrbitalCameraSystem {
     console.log('Point size updated to:', this.pointSize, 'for all point clouds')
     // Note: Gaussian splats don't use point size in the same way
     // Point size control may not apply to Gaussian splat rendering
+  }
+
+  public updateFocalLength(focalLength: number) {
+    // Convert focal length (mm) to field of view (degrees)
+    // Using standard 35mm film sensor width (36mm)
+    // FOV = 2 * arctan(sensor_width / (2 * focal_length))
+    const sensorWidth = 36 // mm
+    const fovRadians = 2 * Math.atan(sensorWidth / (2 * focalLength))
+    const fovDegrees = fovRadians * (180 / Math.PI)
+    
+    // Update camera field of view
+    this.camera.fov = fovDegrees
+    this.camera.updateProjectionMatrix()
+    
+    console.log(`Focal length updated to: ${focalLength}mm, FOV: ${fovDegrees.toFixed(1)}°`)
+  }
+
+  private calculateDensityAwarePointSize(geometry: THREE.BufferGeometry, baseSize: number): number {
+    // Get vertex count and bounding box
+    const vertexCount = geometry.attributes.position.count
+    geometry.computeBoundingBox()
+    
+    if (!geometry.boundingBox) return baseSize
+    
+    const box = geometry.boundingBox
+    const size = box.getSize(new THREE.Vector3())
+    const volume = size.x * size.y * size.z
+    
+    // Calculate point density (points per cubic unit)
+    const density = vertexCount / Math.max(volume, 0.001) // Avoid division by zero
+    
+    // Adjust point size based on density
+    // Higher density = smaller points to reduce overlap
+    let densityFactor = 1.0
+    if (density > 50000) {
+      densityFactor = 0.3  // Very dense - much smaller points
+    } else if (density > 10000) {
+      densityFactor = 0.5  // Dense - smaller points
+    } else if (density > 5000) {
+      densityFactor = 0.7  // Medium density - slightly smaller
+    } else if (density < 1000) {
+      densityFactor = 1.3  // Sparse - larger points
+    }
+    
+    return baseSize * densityFactor
+  }
+
+  private calculateOpacityForPointSize(pointSize: number): number {
+    // Base opacity that works well for small points
+    const baseOpacity = 0.6
+    
+    // Scale opacity inversely with point size to prevent overexposure
+    // Larger points = lower opacity to compensate for more overlap
+    const sizeScale = Math.max(0.001, pointSize) // Avoid division by zero
+    const opacityFactor = Math.pow(0.001 / sizeScale, 0.3) // Power curve for smooth scaling
+    
+    // Clamp opacity between reasonable bounds
+    return Math.max(0.1, Math.min(baseOpacity * opacityFactor, 0.8))
   }
   
   private saveStartPosition() {
@@ -1875,7 +1945,7 @@ class OrbitalCameraSystem {
       '.typewriter',
       '.navigation-command',
       '.subpage-navigation',
-      '.home-navigation',
+      '#home-navigation',
       '.project-card',
       '.project-card-content',
       '.project-card-title',
@@ -2315,13 +2385,19 @@ async function switchToModel(modelKey: string) {
       const elementsToRestore = [
         '.point-size-control',
         '.camera-info', 
-        '.home-navigation',
+        '#home-navigation',
         '.navigation-help'
       ]
       elementsToRestore.forEach(selector => {
         const element = document.querySelector(selector) as HTMLElement
         if (element) {
-          element.style.display = ''
+          if (selector === '#home-navigation') {
+            // Home navigation needs explicit flex display and visibility
+            element.style.display = 'flex'
+            element.style.visibility = 'visible'
+          } else {
+            element.style.display = ''
+          }
         }
       })
     } else {
@@ -2667,8 +2743,9 @@ function onLoad(geometry: THREE.BufferGeometry) {
     size: orbitalCamera.pointSize,
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
-    map: createCircularTexture(),
+    map: createSquareTexture(),
+    blending: THREE.NormalBlending,
+    depthWrite: true,
     alphaTest: 0.1
   })
   
@@ -2790,8 +2867,9 @@ function createDemoPointCloud() {
     size: 0.001,
     vertexColors: true,
     transparent: true,
-    opacity: 0.8,
-    map: createCircularTexture(),
+    map: createSquareTexture(),
+    blending: THREE.NormalBlending,
+    depthWrite: true,
     alphaTest: 0.1
   })
   
