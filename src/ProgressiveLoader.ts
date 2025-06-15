@@ -47,6 +47,7 @@ export class ProgressiveLoader {
   private onLoadComplete?: () => void
   private loadedPointClouds: THREE.Points[] = []
   private modelRotation: { x: number, y: number, z: number } | null = null
+  private abortController: AbortController | null = null
   
   constructor(scene: THREE.Scene, basePath: string = '') {
     this.scene = scene
@@ -89,6 +90,45 @@ export class ProgressiveLoader {
   public setModelRotation(rotation: { x: number, y: number, z: number } | null) {
     this.modelRotation = rotation
   }
+
+  /**
+   * Cancel current loading and clean up resources
+   */
+  public cancelLoading() {
+    console.log('🛑 ProgressiveLoader: Cancelling current loading operation')
+    
+    // Abort any ongoing requests
+    if (this.abortController) {
+      this.abortController.abort()
+      this.abortController = null
+    }
+    
+    // Clear loading state
+    this.isLoading = false
+    this.loadingQueue = []
+    
+    // Remove all loaded point clouds from scene
+    this.loadedPointClouds.forEach(pointCloud => {
+      this.scene.remove(pointCloud)
+      if (pointCloud.material) {
+        if (Array.isArray(pointCloud.material)) {
+          pointCloud.material.forEach(material => material.dispose())
+        } else {
+          pointCloud.material.dispose()
+        }
+      }
+      if (pointCloud.geometry) {
+        pointCloud.geometry.dispose()
+      }
+    })
+    
+    // Clear arrays
+    this.loadedPointClouds = []
+    this.chunks = []
+    this.manifest = null
+    
+    console.log('✅ ProgressiveLoader: Cleanup complete')
+  }
   
   /**
    * Load a chunked PLY model progressively
@@ -96,9 +136,17 @@ export class ProgressiveLoader {
   public async loadChunkedModel(manifestPath: string): Promise<void> {
     console.log('🌟 ProgressiveLoader: Loading chunked model from manifest:', manifestPath)
     
+    // Cancel any existing loading operation
+    this.cancelLoading()
+    
+    // Set up new abort controller for this loading operation
+    this.abortController = new AbortController()
+    
     try {
       // Load manifest
-      const response = await fetch(`${this.basePath}${manifestPath}`)
+      const response = await fetch(`${this.basePath}${manifestPath}`, {
+        signal: this.abortController.signal
+      })
       if (!response.ok) {
         throw new Error(`Failed to load manifest: ${response.statusText}`)
       }
@@ -164,6 +212,13 @@ export class ProgressiveLoader {
       
       await Promise.all(batchPromises)
       
+      // Check if loading was cancelled between batches
+      if (this.abortController?.signal.aborted) {
+        console.log('🛑 Progressive loading cancelled between batches')
+        this.isLoading = false
+        return
+      }
+      
       // Small delay between batches
       if (i + batchSize < this.loadingQueue.length) {
         await new Promise(resolve => setTimeout(resolve, 100))
@@ -173,7 +228,8 @@ export class ProgressiveLoader {
     this.isLoading = false
     console.log(`🎉 Progressive loading complete! ${this.loadedPointClouds.length} chunks loaded`)
     
-    if (this.onLoadComplete) {
+    // Only call completion callback if not cancelled
+    if (!this.abortController?.signal.aborted && this.onLoadComplete) {
       this.onLoadComplete()
     }
   }
@@ -183,6 +239,13 @@ export class ProgressiveLoader {
    */
   private async loadChunk(chunkInfo: ChunkInfo): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Check if loading has been cancelled
+      if (this.abortController?.signal.aborted) {
+        console.log(`🛑 Chunk loading cancelled: ${chunkInfo.filename}`)
+        reject(new Error('Loading cancelled'))
+        return
+      }
+
       const loader = new PLYLoader()
       // Extract model name from manifest path to build correct chunk path
       const manifestPathParts = this.manifest?.original_file.replace('.ply', '') || 'unknown'
@@ -191,9 +254,24 @@ export class ProgressiveLoader {
       console.log(`Loading chunk: ${chunkInfo.filename} (${chunkInfo.vertex_count} vertices)`)
       console.log(`Full chunk path: ${chunkPath}`)
       
+      // Set up abort signal listener
+      const abortListener = () => {
+        console.log(`🛑 Aborting chunk load: ${chunkInfo.filename}`)
+        reject(new Error('Loading cancelled'))
+      }
+      
+      this.abortController?.signal.addEventListener('abort', abortListener)
+      
       loader.load(
         chunkPath,
         (geometry) => {
+          // Check if loading was cancelled before processing
+          if (this.abortController?.signal.aborted) {
+            console.log(`🛑 Chunk loaded but cancelled: ${chunkInfo.filename}`)
+            reject(new Error('Loading cancelled'))
+            return
+          }
+          
           this.onChunkGeometryLoaded(chunkInfo, geometry)
           resolve()
         },
@@ -212,6 +290,13 @@ export class ProgressiveLoader {
    * Handle loaded chunk geometry
    */
   private onChunkGeometryLoaded(chunkInfo: ChunkInfo, geometry: THREE.BufferGeometry) {
+    // Double-check if loading was cancelled before adding to scene
+    if (this.abortController?.signal.aborted) {
+      console.log(`🛑 Chunk processed but cancelled, not adding to scene: ${chunkInfo.filename}`)
+      geometry.dispose()
+      return
+    }
+
     console.log(`✨ Chunk ${chunkInfo.filename} loaded with ${geometry.attributes.position.count} vertices`)
     
     // Create material for this chunk

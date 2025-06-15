@@ -2283,6 +2283,9 @@ async function switchToModel(modelKey: string) {
   const model = modelsConfig.models[modelKey]
   isModelSwitching = true
   
+  // Cancel any ongoing progressive loading from previous model
+  progressiveLoader.cancelLoading()
+  
   console.log('Switching to model:', model.displayName)
   
   // Update display name field and load default point size
@@ -2444,11 +2447,15 @@ async function loadPointCloudByFileName(fileName: string) {
     } else {
       // No chunked version found, fall back to regular loading
       console.log('No chunked version found, loading single file...')
+      // Cancel any ongoing progressive loading
+      progressiveLoader.cancelLoading()
       loadSinglePointCloud(fileName)
     }
     
   } catch (error) {
     console.log('Error checking for chunked version, falling back to single file loading:', error)
+    // Cancel any ongoing progressive loading
+    progressiveLoader.cancelLoading()
     loadSinglePointCloud(fileName)
   }
 }
@@ -2607,7 +2614,7 @@ async function loadGaussianSplat(fileName: string) {
     
   } catch (error) {
     console.error('Failed to load real Gaussian splat:', error)
-    console.log('Falling back to enhanced point cloud rendering...')
+    console.error('Gaussian Splat loading failed - no fallback enabled')
     
     // Restore main canvas
     canvas.style.display = 'block'
@@ -2618,120 +2625,14 @@ async function loadGaussianSplat(fileName: string) {
       splatCanvas.remove()
     }
     
-    // Fallback to enhanced point cloud
-    loadGaussianSplatAsPLY(fileName)
+    // Show error message instead of fallback
+    progressEl.style.display = 'flex'
+    progressEl.querySelector('p')!.textContent = 'Gaussian Splat loading failed'
   }
 }
 
-function loadGaussianSplatAsPLY(fileName: string) {
-  const loader = new PLYLoader()
-  
-  try {
-    const fullPath = getModelPath(fileName, true)
-    loader.load(
-      `${import.meta.env.BASE_URL}${fullPath}`,
-      onGaussianSplatPLYLoad,
-      onProgress,
-      onError
-    )
-  } catch (error) {
-    console.error('Failed to load Gaussian splat PLY:', error)
-    progressEl.querySelector('p')!.textContent = 'Failed to load Gaussian splat'
-    onError(error)
-  }
-}
 
-function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
-  console.log('Processing Gaussian splat PLY with', geometry.attributes.position.count, 'points')
-  
-  // Create enhanced material for Gaussian splat visualization
-  const material = new THREE.PointsMaterial({
-    size: orbitalCamera.pointSize * 2, // Slightly larger for Gaussian splats
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.8, // Slightly more transparent
-    map: createCircularTexture(),
-    alphaTest: 0.1,
-    blending: THREE.AdditiveBlending // Use additive blending for better Gaussian appearance
-  })
-  
-  // Check if the PLY has opacity information (typical for Gaussian splats)
-  if (geometry.attributes.opacity) {
-    console.log('Found opacity attribute in Gaussian splat PLY')
-    // We could use this for more advanced rendering
-  }
-  
-  // Check for spherical harmonic coefficients
-  if (geometry.attributes.f_dc_0) {
-    console.log('Found spherical harmonic coefficients - this is definitely a Gaussian splat')
-  }
-  
-  const pointCloud = new THREE.Points(geometry, material)
-  
-  // Apply per-model rotation from configuration (use Gaussian splat rotation if available)
-  const currentModel = modelsConfig.models[modelsConfig.currentModel]
-  if (currentModel) {
-    const rotation = currentModel.gaussianSplatRotation || currentModel.rotation
-    if (rotation) {
-      // Convert degrees to radians and apply rotation
-      pointCloud.rotateX((rotation.x * Math.PI) / 180)
-      pointCloud.rotateY((rotation.y * Math.PI) / 180)
-      pointCloud.rotateZ((rotation.z * Math.PI) / 180)
-    }
-  }
-  
-  scene.add(pointCloud)
-  
-  // Register with orbital camera system
-  orbitalCamera.setCurrentPointCloud(pointCloud)
-  currentRenderObject = pointCloud
-  
-  // Update point size to current setting
-  orbitalCamera.updatePointSize()
-  
-  // Hide loading screen
-  progressEl.style.display = 'none'
-  
-  // Calculate bounding box for model info
-  console.log('=== HIGH QUALITY GAUSSIAN SPLAT (PLY FALLBACK) BOUNDING BOX ===')
-  geometry.computeBoundingBox()
-  if (geometry.boundingBox) {
-    const box = geometry.boundingBox
-    const size = box.getSize(new THREE.Vector3())
-    const center = box.getCenter(new THREE.Vector3())
-    const maxDimension = Math.max(size.x, size.y, size.z)
-    
-    console.log('Bounding box min:', box.min)
-    console.log('Bounding box max:', box.max)
-    console.log('Size (width, height, depth):', size)
-    console.log('Center:', center)
-    console.log('Max dimension:', maxDimension)
-    console.log('Point count:', geometry.attributes.position.count)
-    console.log('=== END HIGH QUALITY PLY FALLBACK INFO ===')
-    
-    console.log('Gaussian splat info - Size:', size, 'Center:', center, 'Max dimension:', maxDimension)
-    
-    // Auto-scale very large models to reasonable size
-    if (maxDimension > 50) {
-      const scale = 20 / maxDimension  // Scale to max 20 units
-      pointCloud.scale.setScalar(scale)
-      console.log('Gaussian splat auto-scaled by factor:', scale)
-    }
-  }
-  
-  // Trigger loading animation if switching models (but not quality)
-  if (isModelSwitching && !isQualitySwitching) {
-    orbitalCamera.startLoadingAnimation()
-  }
-  if (isModelSwitching) {
-    isModelSwitching = false
-  }
-  if (isQualitySwitching) {
-    isQualitySwitching = false
-  }
-  
-  console.log('Gaussian splat PLY loaded successfully as enhanced point cloud')
-}
+// Removed Gaussian splat PLY fallback functions - no fallback enabled
 
 async function loadPointCloud() {
   console.log('loadPointCloud() called')
@@ -2832,13 +2733,7 @@ function onLoad(geometry: THREE.BufferGeometry) {
   console.log('PLY file loaded successfully:', geometry.attributes.position.count, 'points')
 }
 
-function onProgress(progress: ProgressEvent) {
-  if (progress.lengthComputable) {
-    const percentComplete = (progress.loaded / progress.total) * 100
-    progressFill.style.width = `${percentComplete}%`
-    console.log('Loading progress:', Math.round(percentComplete) + '%')
-  }
-}
+// Removed onProgress function - no longer needed without fallback
 
 function onStreamingProgress(progress: ProgressEvent) {
   // For streaming mode, just log progress without showing loading bar
