@@ -39,6 +39,7 @@
     },
     "corona_arch": {
       "fileName": "Corona_Arch_001_hd02.ply",
+      "gaussianSplatFile": "Corona_001_rdnc_04.ply",
       "displayName": "Corona Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.009,
@@ -92,7 +93,7 @@
       }
     },
     "fisher": {
-      "fileName": "Fisher_001_3.ply",
+      "fileName": "Fisher_001_5.ply",
       "displayName": "Fisher Towers",
       "renderType": "point-cloud",
       "defaultPointSize": 0.005,
