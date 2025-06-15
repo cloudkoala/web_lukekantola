@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { Viewer as GaussianSplatViewer } from '@mkkellogg/gaussian-splats-3d'
+import { ProgressiveLoader } from './ProgressiveLoader.js'
 
 
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -140,6 +141,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
 controls.dampingFactor = 0.05
+
+// Progressive loader for chunked PLY files
+const progressiveLoader = new ProgressiveLoader(scene, `${import.meta.env.BASE_URL}`)
 
 class OrbitalCameraSystem {
   private currentMousePos = { x: 0, y: 0 }
@@ -791,12 +795,19 @@ class OrbitalCameraSystem {
   
   
   public updatePointSize() {
-    if (this.currentPointCloud && this.currentPointCloud.material) {
-      const material = this.currentPointCloud.material as THREE.PointsMaterial
-      material.size = this.pointSize
-      material.needsUpdate = true
-      console.log('Point size updated to:', this.pointSize)
-    }
+    // Update point size for ALL point clouds in the scene
+    scene.children.forEach(child => {
+      if (child instanceof THREE.Points && child.material) {
+        const material = child.material as THREE.PointsMaterial
+        material.size = this.pointSize
+        material.needsUpdate = true
+      }
+    })
+    
+    // Also update progressive loader if it has loaded chunks
+    progressiveLoader.setPointSize(this.pointSize)
+    
+    console.log('Point size updated to:', this.pointSize, 'for all point clouds')
     // Note: Gaussian splats don't use point size in the same way
     // Point size control may not apply to Gaussian splat rendering
   }
@@ -1796,32 +1807,35 @@ class OrbitalCameraSystem {
   }
   
   private findNearestPointToRay(raycaster: THREE.Raycaster): THREE.Vector3 | null {
-    if (!this.currentPointCloud || !this.currentPointCloud.geometry) return null
-    
-    const geometry = this.currentPointCloud.geometry
-    const positions = geometry.attributes.position
-    if (!positions) return null
-    
     const clickRadius = 0.5 // Maximum distance from ray to consider a point
     let nearestPoint: THREE.Vector3 | null = null
     let nearestDistance = Infinity
     
-    // Check points in batches for performance
-    const tempPoint = new THREE.Vector3()
-    const worldMatrix = this.currentPointCloud.matrixWorld
-    
-    for (let i = 0; i < positions.count; i += 10) { // Sample every 10th point for performance
-      tempPoint.fromBufferAttribute(positions, i)
-      tempPoint.applyMatrix4(worldMatrix) // Transform to world coordinates
-      
-      // Calculate distance from point to ray
-      const distanceToRay = raycaster.ray.distanceToPoint(tempPoint)
-      
-      if (distanceToRay < clickRadius && distanceToRay < nearestDistance) {
-        nearestDistance = distanceToRay
-        nearestPoint = tempPoint.clone()
+    // Check all point clouds in the scene
+    scene.children.forEach(child => {
+      if (child instanceof THREE.Points && child.geometry) {
+        const geometry = child.geometry
+        const positions = geometry.attributes.position
+        if (!positions) return
+        
+        const tempPoint = new THREE.Vector3()
+        const worldMatrix = child.matrixWorld
+        
+        // Sample points and find the nearest one to the ray
+        for (let i = 0; i < positions.count; i += 10) { // Sample every 10th point for performance
+          tempPoint.fromBufferAttribute(positions, i)
+          tempPoint.applyMatrix4(worldMatrix) // Transform to world coordinates
+          
+          // Calculate distance from point to ray
+          const distanceToRay = raycaster.ray.distanceToPoint(tempPoint)
+          
+          if (distanceToRay < clickRadius && distanceToRay < nearestDistance) {
+            nearestDistance = distanceToRay
+            nearestPoint = tempPoint.clone()
+          }
+        }
       }
-    }
+    })
     
     return nearestPoint
   }
@@ -2311,19 +2325,25 @@ async function switchToModel(modelKey: string) {
   // Clear camera system references
   orbitalCamera.setCurrentRenderObject(new THREE.Object3D()) // Clear reference
   
-  // Show loading screen
-  progressEl.style.display = 'flex'
-  progressFill.style.width = '0%'
-  progressEl.querySelector('p')!.textContent = `Loading ${model.displayName}...`
+  // Only show loading screen for high quality Gaussian splats
+  const willLoadGaussianSplat = currentQuality === 'high' && model.gaussianSplatFile
+  if (willLoadGaussianSplat) {
+    progressEl.style.display = 'flex'
+    progressFill.style.width = '0%'
+    progressEl.querySelector('p')!.textContent = `Loading ${model.displayName}...`
+  } else {
+    // Ensure loading screen is hidden for point clouds
+    progressEl.style.display = 'none'
+  }
   
   // Load new model
-  loadModelByFileName(model.fileName)
+  await loadModelByFileName(model.fileName)
 }
 
 // Create orbital camera system
 const orbitalCamera = new OrbitalCameraSystem(camera, controls)
 
-function loadModelByFileName(fileName: string) {
+async function loadModelByFileName(fileName: string) {
   const currentModel = modelsConfig.models[modelsConfig.currentModel]
   if (!currentModel) {
     console.error('Current model not found in configuration')
@@ -2332,18 +2352,28 @@ function loadModelByFileName(fileName: string) {
   
   if (currentQuality === 'high' && currentModel.gaussianSplatFile) {
     // Load Gaussian splat version
-    loadGaussianSplat(currentModel.gaussianSplatFile)
+    await loadGaussianSplat(currentModel.gaussianSplatFile)
   } else {
     // Load point cloud version
-    loadPointCloudByFileName(fileName)
+    await loadPointCloudByFileName(fileName)
   }
 }
 
-function loadPointCloudByFileName(fileName: string) {
+async function loadPointCloudByFileName(fileName: string) {
+  console.log('=== LOAD POINT CLOUD START ===')
+  console.log('Loading point cloud:', fileName)
+  
+  
+  
+  // Load single file directly (chunked loading disabled)
+  console.log('Loading single file directly:', fileName)
+  loadSinglePointCloud(fileName)
+}
+
+function loadSinglePointCloud(fileName: string) {
   const loader = new PLYLoader()
   
-  // Hide loading screen immediately for streaming effect
-  progressEl.style.display = 'none'
+  console.log('Loading single point cloud file:', fileName)
   
   try {
     loader.load(
@@ -2362,6 +2392,7 @@ function loadPointCloudByFileName(fileName: string) {
     }, 2000)
   }
 }
+
 
 async function loadGaussianSplat(fileName: string) {
   try {
@@ -2617,10 +2648,14 @@ function onGaussianSplatPLYLoad(geometry: THREE.BufferGeometry) {
 }
 
 async function loadPointCloud() {
+  console.log('loadPointCloud() called')
+  
   if (!modelsConfig) {
     console.error('Models configuration not loaded')
     return
   }
+  
+  console.log('Models config loaded:', modelsConfig)
   
   const currentModel = modelsConfig.models[modelsConfig.currentModel]
   if (!currentModel) {
@@ -2628,8 +2663,13 @@ async function loadPointCloud() {
     return
   }
   
-  loadModelByFileName(currentModel.fileName)
+  console.log('Current model:', currentModel)
+  
+  // Load the normal model first
+  await loadModelByFileName(currentModel.fileName)
 }
+
+
 
 function onLoad(geometry: THREE.BufferGeometry) {
   // Configure material for the point cloud
@@ -2662,7 +2702,7 @@ function onLoad(geometry: THREE.BufferGeometry) {
   orbitalCamera.updatePointSize()
   
   // Calculate bounding box for model info
-  console.log('=== LOW QUALITY POINT CLOUD BOUNDING BOX ===')
+  console.log('=== BOUNDING BOX ANALYSIS ===')
   geometry.computeBoundingBox()
   if (geometry.boundingBox) {
     const box = geometry.boundingBox
@@ -2670,25 +2710,27 @@ function onLoad(geometry: THREE.BufferGeometry) {
     const center = box.getCenter(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
     
-    console.log('Bounding box min:', box.min)
-    console.log('Bounding box max:', box.max)
-    console.log('Size (width, height, depth):', size)
-    console.log('Center:', center)
-    console.log('Max dimension:', maxDimension)
-    console.log('Point count:', geometry.attributes.position.count)
-    console.log('=== END LOW QUALITY INFO ===')
-    
-    console.log('Model info - Size:', size, 'Center:', center, 'Max dimension:', maxDimension)
+    console.log('Computed bounding box:')
+    console.log('  Min:', box.min.x.toFixed(2), box.min.y.toFixed(2), box.min.z.toFixed(2))
+    console.log('  Max:', box.max.x.toFixed(2), box.max.y.toFixed(2), box.max.z.toFixed(2))
+    console.log('  Size:', size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2))
+    console.log('  Max dimension:', maxDimension.toFixed(2))
+    console.log('  Point count:', geometry.attributes.position.count)
     
     // Auto-scale very large models to reasonable size
     if (maxDimension > 50) {
       const scale = 20 / maxDimension  // Scale to max 20 units
       pointCloud.scale.setScalar(scale)
-      console.log('Model auto-scaled by factor:', scale)
+      console.log('Model auto-scaled by factor:', scale, '(', maxDimension.toFixed(2), '->', (maxDimension * scale).toFixed(2), ')')
+    } else {
+      console.log('  SCALING: Model is appropriately sized (max dimension <= 50)')
     }
-    
-    // Camera position is already set by loading animation or saved position
+  } else {
+    console.log('  ERROR: No bounding box computed!')
   }
+  console.log('=== END BOUNDING BOX ANALYSIS ===')
+  
+  // Camera position is already set by loading animation or saved position
   
   // Trigger loading animation if switching models (but not quality)
   if (isModelSwitching && !isQualitySwitching) {
@@ -2799,6 +2841,10 @@ window.addEventListener('resize', handleResize)
 
 // Initialize application
 async function initialize() {
+  console.log('Initialize() called')
+  // Hide loading screen immediately since we start with point clouds
+  progressEl.style.display = 'none'
+  
   await loadModelsConfig()
   await loadProjectsConfig()
   setupModelDropdown()
@@ -2822,7 +2868,7 @@ async function initialize() {
   // Start loading animation every time (regardless of caching)
   orbitalCamera.startLoadingAnimation()
   
-  loadPointCloud()
+  loadPointCloud().catch(console.error)
   animate()
 }
 
