@@ -27,6 +27,11 @@ interface ModelConfig {
     y: number
     z: number
   }
+  rotationCenter: {
+    x: number
+    y: number
+    z: number
+  }
   loadingAnimation: {
     startPosition: { x: number, y: number, z: number }
     endPosition: { x: number, y: number, z: number }
@@ -153,7 +158,8 @@ class OrbitalCameraSystem {
   private currentMousePos = { x: 0, y: 0 }
   private rotationAngle: number = 0
   private startTime: number = Date.now()
-  private clickedPoint: THREE.Vector3 | null = null
+  public clickedPoint: THREE.Vector3 | null = null
+  public lookAtTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0)
   
   // Configurable parameters
   public rotationSpeed: number = 0.1
@@ -240,8 +246,8 @@ class OrbitalCameraSystem {
       // Mouse left canvas
     })
     
-    // Add double-click handler for point cloud interaction
-    canvas.addEventListener('dblclick', (event) => {
+    // Add single-click handler for point cloud interaction
+    canvas.addEventListener('click', (event) => {
       this.handleCanvasClick(event)
       this.resetInteractionTimer()
     })
@@ -313,8 +319,7 @@ class OrbitalCameraSystem {
       // Direct position update (no smoothness needed)
       this.camera.position.copy(targetPosition)
       
-      // Always look at the clicked point
-      this.camera.lookAt(this.clickedPoint)
+      // Let OrbitControls handle camera orientation during orbital mode too
     }
   }
   
@@ -381,7 +386,7 @@ class OrbitalCameraSystem {
       
       // Apply new position
       this.camera.position.copy(target.add(offset))
-      this.camera.lookAt(this.controls.target)
+      // Let OrbitControls handle camera orientation naturally
     }
   }
   
@@ -549,8 +554,15 @@ class OrbitalCameraSystem {
     }
     
     if (targetDisplay) {
-      const target = this.controls.target
-      targetDisplay.textContent = `X: ${this.formatNumber(target.x)}, Y: ${this.formatNumber(target.y)}, Z: ${this.formatNumber(target.z)}`
+      // Calculate actual camera look-at direction dynamically
+      const cameraDirection = new THREE.Vector3()
+      this.camera.getWorldDirection(cameraDirection)
+      
+      // Project camera direction forward to find look-at point
+      const lookAtDistance = 5 // Distance to project forward
+      const actualLookAt = this.camera.position.clone().add(cameraDirection.multiplyScalar(lookAtDistance))
+      
+      targetDisplay.textContent = `X: ${this.formatNumber(actualLookAt.x)}, Y: ${this.formatNumber(actualLookAt.y)}, Z: ${this.formatNumber(actualLookAt.z)}`
     }
   }
   
@@ -561,7 +573,7 @@ class OrbitalCameraSystem {
   }
   
   private updateOrbitCenterDisplay() {
-    const display = document.querySelector('#orbit-center-display') as HTMLDivElement
+    const display = document.querySelector('#rotation-center-display') as HTMLDivElement
     if (display && this.clickedPoint) {
       display.textContent = `X: ${this.clickedPoint.x.toFixed(2)}, Y: ${this.clickedPoint.y.toFixed(2)}, Z: ${this.clickedPoint.z.toFixed(2)}`
     } else if (display) {
@@ -657,13 +669,14 @@ class OrbitalCameraSystem {
     
     const animConfig = currentModel.loadingAnimation
     
+    // Update orbit center and look-at target from model config first
+    this.clickedPoint = new THREE.Vector3(currentModel.rotationCenter.x, currentModel.rotationCenter.y, currentModel.rotationCenter.z)
+    this.lookAtTarget = new THREE.Vector3(animConfig.target.x, animConfig.target.y, animConfig.target.z)
+    
     // Set camera to loading start position without animation
     this.camera.position.set(animConfig.startPosition.x, animConfig.startPosition.y, animConfig.startPosition.z)
-    this.camera.lookAt(0, 0, 0)
-    this.controls.target.set(0, 0, 0)
-    
-    // Update orbit center to match target
-    this.clickedPoint = new THREE.Vector3(animConfig.target.x, animConfig.target.y, animConfig.target.z)
+    this.camera.lookAt(this.lookAtTarget.x, this.lookAtTarget.y, this.lookAtTarget.z)
+    this.controls.target.copy(this.lookAtTarget)
     
     // Animate to configured end position
     const endPosition = new THREE.Vector3(animConfig.endPosition.x, animConfig.endPosition.y, animConfig.endPosition.z)
@@ -1125,9 +1138,11 @@ class OrbitalCameraSystem {
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     const topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
+    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'flex'
     if (cameraInfo) cameraInfo.style.display = 'flex'
+    if (focalLengthControl) focalLengthControl.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
       contentArea.classList.remove('fade-in', 'has-scroll', 'reel-mode')
@@ -1169,9 +1184,11 @@ class OrbitalCameraSystem {
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
+    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
     if (pointSizeControl) pointSizeControl.style.display = 'none'
     if (cameraInfo) cameraInfo.style.display = 'none'
+    if (focalLengthControl) focalLengthControl.style.display = 'none'
     if (navigationHelp) navigationHelp.style.display = 'none'
     if (modelSelectorContainer) modelSelectorContainer.style.display = 'none'
     if (contentArea) {
@@ -1759,6 +1776,7 @@ class OrbitalCameraSystem {
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
+    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
     if (pointSizeControl) {
       pointSizeControl.style.display = 'none'
@@ -1771,6 +1789,9 @@ class OrbitalCameraSystem {
     }
     if (navigationHelp) {
       navigationHelp.style.display = 'none'
+    }
+    if (focalLengthControl) {
+      focalLengthControl.style.display = 'none'
     }
   }
   
@@ -1869,14 +1890,13 @@ class OrbitalCameraSystem {
     const nearestPoint = this.findNearestPointToRay(raycaster)
     
     if (nearestPoint) {
-      console.log('Double-clicked near point at:', nearestPoint)
+      console.log('Clicked near point at:', nearestPoint)
       
-      // Update look-at target and orbit center
+      // Update only the rotation center - keep controls.target for look-at
       this.clickedPoint = nearestPoint.clone()
-      this.controls.target.copy(nearestPoint)
-      this.controls.update()
+      // Don't update controls.target - let it handle look-at naturally
       
-      console.log('Updated look-at target to:', nearestPoint)
+      console.log('Updated rotation center to:', nearestPoint)
     }
   }
   
@@ -2886,7 +2906,33 @@ function createDemoPointCloud() {
 function animate() {
   requestAnimationFrame(animate)
   
+  // Store original camera position
+  const originalPosition = camera.position.clone()
+  const originalTarget = controls.target.clone()
+  
   controls.update()
+  
+  // If we have a custom rotation center, adjust the camera rotation
+  if (orbitalCamera.clickedPoint && !orbitalCamera.clickedPoint.equals(controls.target)) {
+    // Calculate rotation that OrbitControls applied around its target
+    const controlsOffset = originalPosition.clone().sub(originalTarget)
+    const newOffset = camera.position.clone().sub(controls.target)
+    
+    // Apply the same rotation around our custom rotation center
+    const customOffset = originalPosition.clone().sub(orbitalCamera.clickedPoint)
+    
+    // Calculate rotation quaternion from the change in OrbitControls
+    const oldDir = controlsOffset.normalize()
+    const newDir = newOffset.normalize()
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(oldDir, newDir)
+    
+    // Apply rotation to our custom offset
+    customOffset.applyQuaternion(quaternion)
+    
+    // Set camera position relative to custom rotation center
+    camera.position.copy(orbitalCamera.clickedPoint.clone().add(customOffset))
+  }
+  
   orbitalCamera.update()
   renderer.render(scene, camera)
 }

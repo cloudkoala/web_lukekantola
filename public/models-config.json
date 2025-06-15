@@ -20,6 +20,7 @@
         "y": 180,
         "z": 180
       },
+      "rotationCenter": { "x": -0.13, "y": 0.87, "z": -0.29 },
       "loadingAnimation": {
         "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
         "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
@@ -39,7 +40,7 @@
     },
     "corona_arch": {
       "fileName": "Corona_Arch_001_hd02.ply",
-      "gaussianSplatFile": "Corona_001_rdnc_04.ply",
+      "gaussianSplatFile": "Corona_001_rdnc_05.ply",
       "displayName": "Corona Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.009,
@@ -48,6 +49,7 @@
         "y": 0,
         "z": 0
       },
+      "rotationCenter": { "x": 0.36, "y": 0.36, "z": -0.22 },
       "loadingAnimation": {
         "startPosition": { "x": 0.33, "y": 4.00, "z": 5.05 },
         "endPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
@@ -66,7 +68,8 @@
       }
     },
     "delicate_arch": {
-      "fileName": "Delicate_Arch_001_hd02.ply",
+      "fileName": "Delicate_Arch_001_hd04.ply",
+      "gaussianSplatFile": "Delicate_001_rdnc.ply",
       "displayName": "Delicate Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.015,
@@ -75,6 +78,12 @@
         "y": 0,
         "z": 0
       },
+      "gaussianSplatRotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotationCenter": { "x": -0.02, "y": 0.13, "z": -0.05 },
       "loadingAnimation": {
         "startPosition": { "x": 1.0, "y": 2.92, "z": -2.37 },
         "endPosition": { "x": 2.70, "y": -0.21, "z": -0.05 },
@@ -93,7 +102,8 @@
       }
     },
     "fisher": {
-      "fileName": "Fisher_001_5.ply",
+      "fileName": "Fisher_001_6.ply",
+      "gaussianSplatFile": "Fisher_003rdnc_03.ply",
       "displayName": "Fisher Towers",
       "renderType": "point-cloud",
       "defaultPointSize": 0.005,
@@ -102,6 +112,12 @@
         "y": 0,
         "z": 0
       },
+      "gaussianSplatRotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotationCenter": { "x": 0.14, "y": 0.47, "z": 0.04 },
       "loadingAnimation": {
         "startPosition": { "x": 3.0, "y": 1.0, "z": 5.0 },
         "endPosition": { "x": -0.67, "y": 0.34, "z": 3.25 },

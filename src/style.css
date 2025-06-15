@@ -227,10 +227,68 @@ body, html {
   min-width: 40px;
 }
 
+/* Focal Length Control */
+.focal-length-control {
+  position: fixed;
+  top: 180px;
+  left: 20px;
+  z-index: 998;
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.focal-length-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.focal-length-control input[type="range"] {
+  width: 100px;
+  height: 2px;
+  background: rgba(0, 128, 0, 0.6);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.focal-length-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.focal-length-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
+}
+
+.focal-length-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 40px;
+}
+
 /* Camera Info Display */
 .camera-info {
   position: fixed;
-  bottom: 75px;
+  bottom: 80px;
   right: 20px;
   z-index: 998;
   background: transparent;
@@ -245,7 +303,8 @@ body, html {
 }
 
 .camera-position-info,
-.camera-target-info {
+.camera-target-info,
+.rotation-center-info {
   display: flex;
   flex-direction: column;
   gap: 0px;
@@ -253,16 +312,9 @@ body, html {
   margin: 0;
 }
 
-.camera-target-info {
-  margin-top: -10px;
-}
-
-.camera-target-info label {
-  margin-top: -5px;
-}
-
-#camera-target-display {
-  margin-top: -3px;
+.camera-target-info,
+.rotation-center-info {
+  margin-top: 2px;
 }
 
 .camera-info label {
@@ -291,6 +343,7 @@ body, html {
   text-transform: none;
   line-height: 1;
 }
+
 
 .controls-panel {
   position: fixed;
