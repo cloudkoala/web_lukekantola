@@ -163,6 +163,47 @@ class PLYChunker:
             "max": {"x": max_x, "y": max_y, "z": max_z}
         }
     
+    def chunk_vertices_radial(self, vertices: List[Vertex]) -> List[List[Vertex]]:
+        """Chunk vertices in radiating circles from origin for natural loading pattern."""
+        import math
+        
+        # Estimate bytes per vertex 
+        bytes_per_vertex = 20  # Conservative estimate including PLY overhead
+        vertices_per_chunk = max(1, self.target_chunk_size_bytes // bytes_per_vertex)
+        
+        print(f"Target chunk size: {self.target_chunk_size_mb}MB")
+        print(f"Estimated vertices per chunk: {vertices_per_chunk}")
+        print(f"Using radial chunking from origin...")
+        
+        # Calculate distance from origin for each vertex
+        vertex_distances = []
+        for i, vertex in enumerate(vertices):
+            distance = math.sqrt(vertex.x * vertex.x + vertex.y * vertex.y + vertex.z * vertex.z)
+            vertex_distances.append((distance, i, vertex))
+        
+        # Sort by distance from origin (closest first)
+        vertex_distances.sort(key=lambda x: x[0])
+        
+        # Group into chunks based on distance
+        chunks = []
+        current_chunk = []
+        
+        for distance, original_index, vertex in vertex_distances:
+            current_chunk.append(vertex)
+            
+            if len(current_chunk) >= vertices_per_chunk:
+                chunks.append(current_chunk)
+                first_distance = math.sqrt(current_chunk[0].x**2 + current_chunk[0].y**2 + current_chunk[0].z**2)
+                print(f"Chunk {len(chunks)}: {len(current_chunk)} vertices (distance range: {first_distance:.2f} to {distance:.2f})")
+                current_chunk = []
+        
+        # Add remaining vertices as final chunk
+        if current_chunk:
+            chunks.append(current_chunk)
+            print(f"Chunk {len(chunks)}: {len(current_chunk)} vertices (final chunk)")
+        
+        return chunks
+
     def chunk_vertices_sequential(self, vertices: List[Vertex]) -> List[List[Vertex]]:
         """Chunk vertices sequentially based on target chunk size."""
         # Estimate bytes per vertex (assuming float x,y,z + uchar r,g,b = 15 bytes + overhead)
@@ -291,8 +332,8 @@ class PLYChunker:
         overall_bbox = self.calculate_bounding_box(vertices)
         print(f"Scaled bounding box: {overall_bbox}")
         
-        # Chunk vertices
-        vertex_chunks = self.chunk_vertices_sequential(vertices)
+        # Chunk vertices using radial pattern
+        vertex_chunks = self.chunk_vertices_radial(vertices)
         
         # Write chunks and collect metadata
         chunk_infos = []
