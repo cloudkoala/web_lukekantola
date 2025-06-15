@@ -2368,8 +2368,11 @@ async function loadModelByFileName(fileName: string) {
     return
   }
   
-  if (currentQuality === 'high' && currentModel.gaussianSplatFile) {
-    // Load Gaussian splat version
+  if (currentModel.renderType === 'gaussian-splat') {
+    // Load with Gaussian splat viewer
+    await loadGaussianSplat(fileName)
+  } else if (currentQuality === 'high' && currentModel.gaussianSplatFile) {
+    // Load dedicated Gaussian splat file for high quality
     await loadGaussianSplat(currentModel.gaussianSplatFile)
   } else {
     // Load point cloud version

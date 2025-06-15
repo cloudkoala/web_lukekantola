@@ -67,7 +67,7 @@
     "delicate_arch": {
       "fileName": "Delicate_Arch_001_hd02.ply",
       "displayName": "Delicate Arch",
-      "renderType": "gaussian-splat",
+      "renderType": "point-cloud",
       "defaultPointSize": 0.015,
       "rotation": {
         "x": 0,
