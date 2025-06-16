@@ -186,7 +186,7 @@ class OrbitalCameraSystem {
   private lastInteractionTime: number = Date.now()
   private autoRotationEnabled: boolean = true
   private autoRotationIntensity: number = 0 // Starts at 0, eases up to 1
-  private readonly INACTIVITY_THRESHOLD: number = 2000 // 2 seconds
+  private readonly INACTIVITY_THRESHOLD: number = 0 // Start immediately
   private readonly EASE_IN_DURATION: number = 3000 // 3 seconds to reach full intensity
   
   
@@ -1129,25 +1129,21 @@ class OrbitalCameraSystem {
   
   
   private showHomeInterface() {
-    // Show point size control, camera info, model selector container, hide content area
-    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    // Show controls container, camera info, hide content area
+    const controlsContainer = document.querySelector('.controls-container') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
-    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     const topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
-    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
-    if (pointSizeControl) pointSizeControl.style.display = 'flex'
+    if (controlsContainer) controlsContainer.style.display = 'flex'
     if (cameraInfo) cameraInfo.style.display = 'flex'
-    if (focalLengthControl) focalLengthControl.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
       contentArea.classList.remove('fade-in', 'has-scroll', 'reel-mode')
     }
-    if (modelSelectorContainer) modelSelectorContainer.style.display = 'flex'
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
     if (navigationHelp) navigationHelp.style.display = 'flex'
     if (topFadeOverlay) topFadeOverlay.classList.remove('visible')
@@ -1176,21 +1172,17 @@ class OrbitalCameraSystem {
   }
   
   private showContentInterface(mode: InterfaceMode) {
-    // Hide point size control, camera info, model selector container, show content area
-    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    // Hide controls container, camera info, show content area
+    const controlsContainer = document.querySelector('.controls-container') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
     const contentArea = document.querySelector('#content-area') as HTMLElement
     const titleHeader = document.querySelector('.title-header') as HTMLElement
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
-    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
-    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
-    if (pointSizeControl) pointSizeControl.style.display = 'none'
+    if (controlsContainer) controlsContainer.style.display = 'none'
     if (cameraInfo) cameraInfo.style.display = 'none'
-    if (focalLengthControl) focalLengthControl.style.display = 'none'
     if (navigationHelp) navigationHelp.style.display = 'none'
-    if (modelSelectorContainer) modelSelectorContainer.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       // Add reel-mode class for full-screen video
@@ -1772,34 +1764,26 @@ class OrbitalCameraSystem {
   }
   
   private hideControlsImmediately() {
-    const pointSizeControl = document.querySelector('.point-size-control') as HTMLElement
+    const controlsContainer = document.querySelector('.controls-container') as HTMLElement
     const cameraInfo = document.querySelector('.camera-info') as HTMLElement
-    const modelSelectorContainer = document.querySelector('.model-selector-container') as HTMLElement
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
-    const focalLengthControl = document.querySelector('.focal-length-control') as HTMLElement
     
-    if (pointSizeControl) {
-      pointSizeControl.style.display = 'none'
+    if (controlsContainer) {
+      controlsContainer.style.display = 'none'
     }
     if (cameraInfo) {
       cameraInfo.style.display = 'none'
     }
-    if (modelSelectorContainer) {
-      modelSelectorContainer.style.display = 'none'
-    }
     if (navigationHelp) {
       navigationHelp.style.display = 'none'
-    }
-    if (focalLengthControl) {
-      focalLengthControl.style.display = 'none'
     }
   }
   
   private showNavigationAnimation(mode: InterfaceMode) {
-    // Hide model selector container
-    const selectorContainer = document.querySelector('.model-selector-container') as HTMLElement
-    if (selectorContainer) {
-      selectorContainer.style.display = 'none'
+    // Hide controls container
+    const controlsContainer = document.querySelector('.controls-container') as HTMLElement
+    if (controlsContainer) {
+      controlsContainer.style.display = 'none'
     }
     
     // Create navigation animation in the same position as model selector
@@ -1822,8 +1806,8 @@ class OrbitalCameraSystem {
     // Create typewriter element with proper initial state
     animationElement.innerHTML = `<span class="typewriter" style="width: 0; overflow: hidden;">${text}</span>`
     
-    // Insert into the model selector container
-    const animationContainer = document.querySelector('.model-selector-container')
+    // Insert into the controls container
+    const animationContainer = document.querySelector('.controls-container')
     if (animationContainer) {
       animationContainer.appendChild(animationElement)
       

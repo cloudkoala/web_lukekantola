@@ -34,7 +34,7 @@
         "duration": 1000
       },
       "idleRotation": {
-        "speed": 0.02,
+        "speed": 0.01,
         "direction": -1
       }
     },
@@ -63,7 +63,7 @@
         "duration": 1000
       },
       "idleRotation": {
-        "speed": 0.01,
+        "speed": 0.005,
         "direction": 1
       }
     },
@@ -97,7 +97,7 @@
         "duration": 1000
       },
       "idleRotation": {
-        "speed": 0.04,
+        "speed": 0.02,
         "direction": -1
       }
     },
@@ -131,10 +131,10 @@
         "duration":  1000
       },
       "idleRotation": {
-        "speed": 0.01,
+        "speed": 0.005,
         "direction": -1
       }
     }
   },
-  "currentModel": "castleton"
+  "currentModel": "delicate_arch"
 }
