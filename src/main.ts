@@ -886,19 +886,6 @@ class OrbitalCameraSystem {
     return baseSize * densityFactor
   }
 
-  private calculateOpacityForPointSize(pointSize: number): number {
-    // Base opacity that works well for small points
-    const baseOpacity = 0.6
-    
-    // Scale opacity inversely with point size to prevent overexposure
-    // Larger points = lower opacity to compensate for more overlap
-    const sizeScale = Math.max(0.001, pointSize) // Avoid division by zero
-    const opacityFactor = Math.pow(0.001 / sizeScale, 0.3) // Power curve for smooth scaling
-    
-    // Clamp opacity between reasonable bounds
-    return Math.max(0.1, Math.min(baseOpacity * opacityFactor, 0.8))
-  }
-  
   private saveStartPosition() {
     const currentModel = modelsConfig.models[modelsConfig.currentModel]
     if (!currentModel) return
