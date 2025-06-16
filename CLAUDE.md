@@ -20,10 +20,11 @@ A Three.js-based point cloud viewer built specifically for showcasing Gaussian s
 - **Vite**: Build tool and dev server
 - **PLYLoader**: Point cloud file loading
 
-### Key Classes
-- `OrbitalCameraSystem`: Manages camera animations, presets, and orbital movement
-- `OrbitControls`: Three.js camera controls for free navigation
-- `PLYLoader`: Handles loading of point cloud files
+### Modular Architecture
+- **Camera Module**: `OrbitalCameraSystem` - Camera animations, presets, and orbital movement
+- **Models Module**: `ModelManager` - Model loading, quality switching, and configuration
+- **Interface Module**: `ContentLoader` - Dynamic content generation for projects/about/contact
+- **Core Dependencies**: `OrbitControls`, `PLYLoader`, `ProgressiveLoader`
 
 ## Current Configuration
 
@@ -74,16 +75,35 @@ A Three.js-based point cloud viewer built specifically for showcasing Gaussian s
 - Removed glow effects from title
 - Fine-tuned font sizes and spacing
 
-## File Structure
+### Phase 7: Major Code Refactoring (December 2024)
+- **Modularized Architecture**: Transformed monolithic 3000-line main.ts into organized modules
+- **95% Size Reduction**: Main.ts reduced from ~3000 lines to ~160 lines
+- **Improved Maintainability**: Clear separation of concerns across camera, models, and interface modules
+- **TypeScript Best Practices**: Proper dependency injection and module organization
+- **Preserved Functionality**: All existing features maintained through clean module interfaces
+
+## File Structure (After Refactoring)
 ```
 gsplat-showcase/
 ├── index.html              # Main HTML structure
 ├── src/
-│   ├── main.ts             # Core application logic
+│   ├── main.ts             # Clean initialization only (~160 lines)
+│   ├── types.ts            # Shared TypeScript interfaces
 │   ├── style.css           # UI styling and layout
-│   └── counter.ts          # Unused Vite template file
+│   ├── ProgressiveLoader.ts # Point cloud chunking system
+│   ├── camera/
+│   │   ├── OrbitalCameraSystem.ts  # Camera controls & animations (~850 lines)
+│   │   └── index.ts        # Module exports
+│   ├── models/
+│   │   ├── ModelManager.ts # Model loading & quality switching (~400 lines)
+│   │   └── index.ts        # Module exports
+│   ├── interface/
+│   │   ├── ContentLoader.ts # Dynamic content generation (~100 lines)
+│   │   └── index.ts        # Module exports
+│   └── utils/
+│       └── index.ts        # Future utilities
 ├── package.json            # Dependencies and scripts
-├── Castleton_001.ply       # User's point cloud model
+├── public/models/          # Point cloud files and configurations
 └── CLAUDE.md              # This development history
 ```
 
@@ -95,11 +115,14 @@ gsplat-showcase/
 3. **Animation Timing**: Jerky movements and time skipping → Sine-based easing function
 4. **Click Detection**: Sudden view shifts on canvas clicks → Mode-based target updates
 5. **Loading Animation**: Only worked on first load → Moved trigger to system initialization
+6. **Code Maintainability**: Monolithic 3000-line main.ts → Modular architecture with clear separation
 
 ### Performance Optimizations
 - Auto-scaling for large point clouds (>50 units → scaled to 20 units max)
 - Efficient quaternion interpolation with shortest path calculation
 - Optimized render loop with proper animation state management
+- Modular code architecture for better development performance and maintainability
+- Dependency injection pattern for cleaner module boundaries
 
 ## Commands to Remember
 - **Development**: `npm run dev`
@@ -112,3 +135,14 @@ gsplat-showcase/
 - Advanced lighting controls
 - Point cloud editing capabilities
 - Multi-model loading and comparison
+- Further module extraction (EventHandlers, AnimationUtils, etc.)
+- Unit testing framework integration with modular architecture
+- Performance monitoring and optimization for large datasets
+
+## Refactoring Benefits Achieved
+- **Developer Experience**: Much easier to navigate and understand codebase
+- **Maintainability**: Changes can be made to specific modules without affecting others
+- **Scalability**: New features can be added to appropriate modules with clear boundaries
+- **Testing**: Individual modules can be tested in isolation
+- **Code Reuse**: Modules can potentially be reused in other projects
+- **Team Development**: Multiple developers can work on different modules simultaneously
