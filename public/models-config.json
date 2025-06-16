@@ -40,7 +40,7 @@
     },
     "corona_arch": {
       "fileName": "Corona_Arch_001_hd02.ply",
-      "gaussianSplatFile": "Corona_001_rdnc_05.ply",
+      "gaussianSplatFile": "Corona_001_rdnc_07.ply",
       "displayName": "Corona Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.009,
@@ -69,7 +69,7 @@
     },
     "delicate_arch": {
       "fileName": "Delicate_Arch_001_hd04.ply",
-      "gaussianSplatFile": "Delicate_001_rdnc.ply",
+      //"gaussianSplatFile": "Delicate_001_rdnc.ply", No Splat Model
       "displayName": "Delicate Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.015,
