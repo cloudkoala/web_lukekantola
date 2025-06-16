@@ -29,36 +29,34 @@
       </div>
     </header>
     
-    <!-- Model Selector Container (separate from title bar) -->
-    <div class="model-selector-container">
-      <div class="model-selector">
-        <select id="model-dropdown">
-          <option value="castleton">Castleton Heritage Site</option>
-          <option value="corona_arch">Corona Arch</option>
-          <option value="delicate_arch">Delicate Arch</option>
-          <option value="fisher">Fisher Towers</option>
-        </select>
+    <!-- Controls Container -->
+    <div class="controls-container">
+      <div class="dropdown-row">
+        <div class="model-selector">
+          <select id="model-dropdown">
+            <option value="castleton">Castleton Heritage Site</option>
+            <option value="corona_arch">Corona Arch</option>
+            <option value="delicate_arch">Delicate Arch</option>
+            <option value="fisher">Fisher Towers</option>
+          </select>
+        </div>
+        <div class="quality-selector">
+          <select id="quality-dropdown">
+            <option value="low">Low Quality</option>
+            <option value="high">High Quality</option>
+          </select>
+        </div>
       </div>
-      <div class="quality-selector">
-        <select id="quality-dropdown">
-          <option value="low">Low Quality</option>
-          <option value="high">High Quality</option>
-        </select>
+      <div class="point-size-control">
+        <label for="point-size">Point Size:</label>
+        <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
+        <span id="point-size-value">0.001</span>
       </div>
-    </div>
-    
-    <!-- Point Size Control -->
-    <div class="point-size-control">
-      <label for="point-size">Point Size:</label>
-      <input type="range" id="point-size" min="0.001" max="0.04" step="0.001" value="0.001">
-      <span id="point-size-value">0.001</span>
-    </div>
-    
-    <!-- Focal Length Control -->
-    <div class="focal-length-control">
-      <label for="focal-length">Focal Length:</label>
-      <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
-      <span id="focal-length-value">50</span>
+      <div class="focal-length-control">
+        <label for="focal-length">Focal Length:</label>
+        <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
+        <span id="focal-length-value">50</span>
+      </div>
     </div>
     
     <!-- Camera Info Display -->

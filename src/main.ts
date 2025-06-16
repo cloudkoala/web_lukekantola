@@ -575,9 +575,9 @@ class OrbitalCameraSystem {
   private updateOrbitCenterDisplay() {
     const display = document.querySelector('#rotation-center-display') as HTMLDivElement
     if (display && this.clickedPoint) {
-      display.textContent = `X: ${this.clickedPoint.x.toFixed(2)}, Y: ${this.clickedPoint.y.toFixed(2)}, Z: ${this.clickedPoint.z.toFixed(2)}`
+      display.textContent = `X: ${this.formatNumber(this.clickedPoint.x)}, Y: ${this.formatNumber(this.clickedPoint.y)}, Z: ${this.formatNumber(this.clickedPoint.z)}`
     } else if (display) {
-      display.textContent = 'X: 0.00, Y: 0.00, Z: 0.00'
+      display.textContent = `X: ${this.formatNumber(0)}, Y: ${this.formatNumber(0)}, Z: ${this.formatNumber(0)}`
     }
   }
   
