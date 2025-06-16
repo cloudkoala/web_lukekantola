@@ -17,6 +17,7 @@ interface ModelConfig {
   displayName: string
   renderType: 'point-cloud' | 'gaussian-splat'
   defaultPointSize: number
+  defaultFocalLength: number
   rotation: {
     x: number
     y: number
@@ -999,6 +1000,29 @@ class OrbitalCameraSystem {
     this.updatePointSize()
     
     console.log('Loaded default point size for', currentModel.displayName + ':', this.pointSize)
+  }
+  
+  public loadDefaultFocalLength() {
+    const currentModel = modelsConfig.models[modelsConfig.currentModel]
+    if (!currentModel) return
+    
+    const defaultFocalLength = currentModel.defaultFocalLength
+    
+    // Update UI controls
+    const focalLengthSlider = document.querySelector('#focal-length') as HTMLInputElement
+    const focalLengthValue = document.querySelector('#focal-length-value') as HTMLSpanElement
+    
+    if (focalLengthSlider) {
+      focalLengthSlider.value = defaultFocalLength.toString()
+    }
+    if (focalLengthValue) {
+      focalLengthValue.textContent = defaultFocalLength.toString()
+    }
+    
+    // Update the camera FOV
+    this.updateFocalLength(defaultFocalLength)
+    
+    console.log('Loaded default focal length for', currentModel.displayName + ':', defaultFocalLength)
   }
   
   
@@ -2349,9 +2373,10 @@ async function switchToModel(modelKey: string) {
   
   console.log('Switching to model:', model.displayName)
   
-  // Update display name field and load default point size
+  // Update display name field and load defaults
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
+  orbitalCamera.loadDefaultFocalLength()
   
   // Clear current scene - but preserve point cloud when upgrading to high quality
   const isUpgradingToHighQuality = isQualitySwitching && currentQuality === 'high' && 
@@ -2930,6 +2955,7 @@ async function initialize() {
   setupQualityDropdown()
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
+  orbitalCamera.loadDefaultFocalLength()
   
   // Show home navigation indicators on initial load
   const homeNavigation = document.querySelector('#home-navigation') as HTMLElement

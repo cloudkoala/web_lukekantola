@@ -10,6 +10,7 @@
       "displayName": "Castleton Tower",
       "renderType": "point-cloud",
       "defaultPointSize": 0.003,
+      "defaultFocalLength": 30,
       "rotation": {
         "x": -90,
         "y": 0,
@@ -44,6 +45,7 @@
       "displayName": "Corona Arch",
       "renderType": "point-cloud",
       "defaultPointSize": 0.009,
+      "defaultFocalLength": 85,
       "rotation": {
         "x": 0,
         "y": 0,
@@ -69,10 +71,10 @@
     },
     "delicate_arch": {
       "fileName": "Delicate_Arch_001_hd04.ply",
-      //"gaussianSplatFile": "Delicate_001_rdnc.ply", No Splat Model
       "displayName": "Delicate Arch",
       "renderType": "point-cloud",
-      "defaultPointSize": 0.015,
+      "defaultPointSize": 0.114,
+      "defaultFocalLength": 130,
       "rotation": {
         "x": 0,
         "y": 0,
@@ -83,11 +85,11 @@
         "y": 0,
         "z": 0
       },
-      "rotationCenter": { "x": -0.02, "y": 0.13, "z": -0.05 },
+      "rotationCenter": { "x": -0.02, "y": 1.5, "z": -0.05 },
       "loadingAnimation": {
-        "startPosition": { "x": 1.0, "y": 2.92, "z": -2.37 },
-        "endPosition": { "x": 2.70, "y": -0.21, "z": -0.05 },
-        "target": { "x": -0.02, "y": 0.13, "z": -0.05},
+        "startPosition": { "x": -3.0, "y": 13, "z": 4 },
+        "endPosition": { "x": -10, "y": 7, "z": 6},
+        "target": { "x": -0.02, "y": 1.5, "z": -0.05},
         "duration": 5000
       },
       "footerPosition": {
@@ -107,6 +109,7 @@
       "displayName": "Fisher Towers",
       "renderType": "point-cloud",
       "defaultPointSize": 0.005,
+      "defaultFocalLength": 75,
       "rotation": {
         "x": 0,
         "y": 0,
@@ -136,5 +139,5 @@
       }
     }
   },
-  "currentModel": "delicate_arch"
+  "currentModel": "castleton"
 }
