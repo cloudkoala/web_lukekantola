@@ -175,6 +175,16 @@ export class ModelManager {
       this.camera.position.z = originalCameraZ
       this.controls.update()
       console.log('Reverted camera Z position from 10x scaling:', scaledCameraZ, '->', originalCameraZ)
+      
+      // Restore solid background for point clouds
+      this.scene.background = new THREE.Color(0x151515)
+      console.log('Restored solid background for low quality mode')
+    }
+    
+    // If switching to high quality, set transparent background for Gaussian splats
+    if (this.currentQuality === 'low' && quality === 'high') {
+      this.scene.background = null
+      console.log('Set transparent background for high quality mode')
     }
     
     this.currentQuality = quality
@@ -200,9 +210,25 @@ export class ModelManager {
       return
     }
     
+    // Check if this is a model switch (not just a quality switch)
+    const isActualModelSwitch = this.modelsConfig.currentModel !== modelKey
+    
     this.modelsConfig.currentModel = modelKey
     const model = this.modelsConfig.models[modelKey]
     this.isModelSwitching = true
+    
+    // Default to low quality when switching between different models
+    if (isActualModelSwitch && !this.isQualitySwitching) {
+      this.currentQuality = 'low'
+      // Update quality dropdown to reflect the change
+      const qualityDropdown = document.querySelector('#quality-dropdown') as HTMLSelectElement
+      if (qualityDropdown) {
+        qualityDropdown.value = 'low'
+      }
+      // Update point size control visibility
+      this.updatePointSizeControlVisibility()
+      console.log('Defaulting to low quality for new model:', model.displayName)
+    }
     
     // Cancel any ongoing progressive loading from previous model
     this.progressiveLoader.cancelLoading()
@@ -418,6 +444,10 @@ export class ModelManager {
     try {
       console.log('Loading real Gaussian splat:', fileName)
       
+      // Set transparent background for Gaussian splat rendering
+      this.scene.background = null
+      console.log('Set scene background to transparent for Gaussian splat')
+      
       // Create a dedicated canvas for the Gaussian splat viewer
       const splatCanvas = document.createElement('canvas')
       splatCanvas.id = 'splat-canvas'
@@ -544,6 +574,10 @@ export class ModelManager {
     } catch (error) {
       console.error('Failed to load real Gaussian splat:', error)
       console.error('Gaussian Splat loading failed - no fallback enabled')
+      
+      // Restore solid background on error
+      this.scene.background = new THREE.Color(0x151515)
+      console.log('Restored solid background after Gaussian splat error')
       
       // Restore main canvas
       this.canvas.style.display = 'block'

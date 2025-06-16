@@ -18,7 +18,7 @@ let currentProjectId: string | null = null
 
 // Three.js setup
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x000000)
+scene.background = new THREE.Color(0x151515)
 
 const camera = new THREE.PerspectiveCamera(
   75, 
@@ -29,7 +29,8 @@ const camera = new THREE.PerspectiveCamera(
 
 const renderer = new THREE.WebGLRenderer({ 
   canvas: canvas,
-  antialias: true 
+  antialias: true,
+  alpha: true
 })
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
