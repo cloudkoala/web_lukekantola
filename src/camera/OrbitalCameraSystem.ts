@@ -88,6 +88,7 @@ export class OrbitalCameraSystem {
     this.setupControls()
     this.setupCollapsiblePanel()
     this.setupNavigation()
+    this.setupClickToCopy()
     
     // Initialize orbit center at target point
     this.clickedPoint = new THREE.Vector3(0.08, 0.80, -0.21)
@@ -460,6 +461,84 @@ export class OrbitalCameraSystem {
     } else if (display) {
       display.textContent = `X: ${this.formatNumber(0)}, Y: ${this.formatNumber(0)}, Z: ${this.formatNumber(0)}`
     }
+  }
+
+  private setupClickToCopy() {
+    const cameraPositionDisplay = document.querySelector('#camera-position-display') as HTMLDivElement
+    const cameraTargetDisplay = document.querySelector('#camera-target-display') as HTMLDivElement
+    const rotationCenterDisplay = document.querySelector('#rotation-center-display') as HTMLDivElement
+
+    const createClickHandler = (getValue: () => { x: number, y: number, z: number }, label: string) => {
+      return async () => {
+        const coords = getValue()
+        const configFormat = `{ "x": ${coords.x.toFixed(2)}, "y": ${coords.y.toFixed(2)}, "z": ${coords.z.toFixed(2)} }`
+        
+        try {
+          await navigator.clipboard.writeText(configFormat)
+          this.showCopyFeedback(label)
+        } catch (err) {
+          console.error('Failed to copy to clipboard:', err)
+        }
+      }
+    }
+
+    if (cameraPositionDisplay) {
+      cameraPositionDisplay.style.cursor = 'pointer'
+      cameraPositionDisplay.addEventListener('click', createClickHandler(
+        () => this.camera.position,
+        'Camera Position'
+      ))
+    }
+
+    if (cameraTargetDisplay) {
+      cameraTargetDisplay.style.cursor = 'pointer'
+      cameraTargetDisplay.addEventListener('click', createClickHandler(
+        () => {
+          const cameraDirection = new THREE.Vector3()
+          this.camera.getWorldDirection(cameraDirection)
+          const lookAtDistance = 5
+          return this.camera.position.clone().add(cameraDirection.multiplyScalar(lookAtDistance))
+        },
+        'Look At Target'
+      ))
+    }
+
+    if (rotationCenterDisplay) {
+      rotationCenterDisplay.style.cursor = 'pointer'
+      rotationCenterDisplay.addEventListener('click', createClickHandler(
+        () => this.clickedPoint || { x: 0, y: 0, z: 0 },
+        'Rotation Center'
+      ))
+    }
+  }
+
+  private showCopyFeedback(label: string) {
+    // Create temporary feedback element
+    const feedback = document.createElement('div')
+    feedback.textContent = `${label} copied!`
+    feedback.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      z-index: 10000;
+      pointer-events: none;
+    `
+    
+    document.body.appendChild(feedback)
+    
+    // Remove after 1 second
+    setTimeout(() => {
+      if (feedback.parentNode) {
+        feedback.parentNode.removeChild(feedback)
+      }
+    }, 1000)
   }
   
   private updateCameraAnimation() {

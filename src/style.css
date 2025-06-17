@@ -350,6 +350,19 @@ body, html {
   line-height: 1;
 }
 
+#camera-position-display,
+#camera-target-display,
+#rotation-center-display {
+  pointer-events: all;
+  transition: color 0.2s ease;
+}
+
+#camera-position-display:hover,
+#camera-target-display:hover,
+#rotation-center-display:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
 
 .controls-panel {
   position: fixed;

@@ -388,28 +388,87 @@ class PLYChunker:
         
         return manifest
 
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: python ply_chunker.py <input_ply_file> <output_directory> [chunk_size_mb]")
-        print("Example: python ply_chunker.py Castleton_001.ply ./chunks 1.0")
-        sys.exit(1)
+def auto_chunk_pointcloud_models():
+    """Automatically chunk all pointcloud models that don't have chunks yet."""
+    # Define paths
+    pointcloud_dir = "public/models/base/pointcloud"
+    chunks_dir = "public/models/chunks"
+    chunk_size_mb = 1.0
     
-    input_file = sys.argv[1]
-    output_dir = sys.argv[2]
-    chunk_size_mb = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
+    if not os.path.exists(pointcloud_dir):
+        print(f"Error: Pointcloud directory '{pointcloud_dir}' not found")
+        return
     
-    if not os.path.exists(input_file):
-        print(f"Error: Input file '{input_file}' not found")
-        sys.exit(1)
+    # Create chunks directory if it doesn't exist
+    os.makedirs(chunks_dir, exist_ok=True)
+    
+    # Get all PLY files in pointcloud directory
+    ply_files = [f for f in os.listdir(pointcloud_dir) if f.endswith('.ply')]
+    
+    if not ply_files:
+        print("No PLY files found in pointcloud directory")
+        return
+    
+    print(f"Found {len(ply_files)} PLY files in pointcloud directory")
     
     chunker = PLYChunker(target_chunk_size_mb=chunk_size_mb)
-    manifest = chunker.chunk_ply_file(input_file, output_dir)
+    processed_count = 0
     
-    print(f"\nSummary:")
-    print(f"Original file: {input_file}")
-    print(f"Total vertices: {manifest['total_vertices']}")
-    print(f"Generated chunks: {manifest['chunk_count']}")
-    print(f"Output directory: {output_dir}")
+    for ply_file in ply_files:
+        base_name = os.path.splitext(ply_file)[0]
+        chunk_dir = os.path.join(chunks_dir, base_name)
+        manifest_file = os.path.join(chunk_dir, f"{base_name}_manifest.json")
+        
+        # Check if chunks already exist
+        if os.path.exists(manifest_file):
+            print(f"✓ Chunks already exist for {ply_file}")
+            continue
+        
+        print(f"\n📦 Processing {ply_file}...")
+        input_path = os.path.join(pointcloud_dir, ply_file)
+        
+        try:
+            manifest = chunker.chunk_ply_file(input_path, chunks_dir)
+            print(f"✅ Successfully chunked {ply_file} into {manifest['chunk_count']} chunks")
+            processed_count += 1
+        except Exception as e:
+            print(f"❌ Error processing {ply_file}: {str(e)}")
+    
+    print(f"\n🎉 Processing complete!")
+    print(f"Processed {processed_count} new models")
+    print(f"Total PLY files: {len(ply_files)}")
+
+def main():
+    # Check if running in auto mode (no arguments) or manual mode
+    if len(sys.argv) == 1:
+        # Auto mode - chunk all pointcloud models that need chunking
+        auto_chunk_pointcloud_models()
+    elif len(sys.argv) >= 3:
+        # Manual mode - original functionality
+        input_file = sys.argv[1]
+        output_dir = sys.argv[2]
+        chunk_size_mb = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
+        
+        if not os.path.exists(input_file):
+            print(f"Error: Input file '{input_file}' not found")
+            sys.exit(1)
+        
+        chunker = PLYChunker(target_chunk_size_mb=chunk_size_mb)
+        manifest = chunker.chunk_ply_file(input_file, output_dir)
+        
+        print(f"\nSummary:")
+        print(f"Original file: {input_file}")
+        print(f"Total vertices: {manifest['total_vertices']}")
+        print(f"Generated chunks: {manifest['chunk_count']}")
+        print(f"Output directory: {output_dir}")
+    else:
+        print("Usage:")
+        print("  Auto mode: python ply_chunker.py")
+        print("  Manual mode: python ply_chunker.py <input_ply_file> <output_directory> [chunk_size_mb]")
+        print("Examples:")
+        print("  python ply_chunker.py")
+        print("  python ply_chunker.py Castleton_001.ply ./chunks 1.0")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
