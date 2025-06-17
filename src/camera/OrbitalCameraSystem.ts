@@ -457,15 +457,9 @@ export class OrbitalCameraSystem {
     }
     
     if (targetDisplay) {
-      // Calculate actual camera look-at direction dynamically
-      const cameraDirection = new THREE.Vector3()
-      this.camera.getWorldDirection(cameraDirection)
-      
-      // Project camera direction forward to find look-at point
-      const lookAtDistance = 5 // Distance to project forward
-      const actualLookAt = this.camera.position.clone().add(cameraDirection.multiplyScalar(lookAtDistance))
-      
-      targetDisplay.textContent = `X: ${this.formatNumber(actualLookAt.x)}, Y: ${this.formatNumber(actualLookAt.y)}, Z: ${this.formatNumber(actualLookAt.z)}`
+      // Show the unified target (both look-at and rotation center)
+      const target = this.controls.target
+      targetDisplay.textContent = `X: ${this.formatNumber(target.x)}, Y: ${this.formatNumber(target.y)}, Z: ${this.formatNumber(target.z)}`
     }
   }
   
@@ -487,7 +481,6 @@ export class OrbitalCameraSystem {
   private setupClickToCopy() {
     const cameraPositionDisplay = document.querySelector('#camera-position-display') as HTMLDivElement
     const cameraTargetDisplay = document.querySelector('#camera-target-display') as HTMLDivElement
-    const rotationCenterDisplay = document.querySelector('#rotation-center-display') as HTMLDivElement
 
     const createClickHandler = (getValue: () => { x: number, y: number, z: number }, label: string) => {
       return async () => {
@@ -514,23 +507,11 @@ export class OrbitalCameraSystem {
     if (cameraTargetDisplay) {
       cameraTargetDisplay.style.cursor = 'pointer'
       cameraTargetDisplay.addEventListener('click', createClickHandler(
-        () => {
-          const cameraDirection = new THREE.Vector3()
-          this.camera.getWorldDirection(cameraDirection)
-          const lookAtDistance = 5
-          return this.camera.position.clone().add(cameraDirection.multiplyScalar(lookAtDistance))
-        },
-        'Look At Target'
+        () => this.controls.target,
+        'Target'
       ))
     }
 
-    if (rotationCenterDisplay) {
-      rotationCenterDisplay.style.cursor = 'pointer'
-      rotationCenterDisplay.addEventListener('click', createClickHandler(
-        () => this.clickedPoint || { x: 0, y: 0, z: 0 },
-        'Rotation Center'
-      ))
-    }
   }
 
   private showCopyFeedback(label: string) {
@@ -672,8 +653,9 @@ export class OrbitalCameraSystem {
     const animConfig = currentModel.loadingAnimation
     
     // Update orbit center and look-at target from model config first
-    this.clickedPoint = new THREE.Vector3(currentModel.rotationCenter.x, currentModel.rotationCenter.y, currentModel.rotationCenter.z)
+    // Set unified target from animation config  
     this.lookAtTarget = new THREE.Vector3(animConfig.target.x, animConfig.target.y, animConfig.target.z)
+    this.clickedPoint = this.lookAtTarget.clone()
     
     // Set camera to loading start position without animation
     this.camera.position.set(animConfig.startPosition.x, animConfig.startPosition.y, animConfig.startPosition.z)
@@ -1953,6 +1935,13 @@ export class OrbitalCameraSystem {
   private handlePointCloudClick(x: number, y: number) {
     if (!this.currentPointCloud) return
     
+    const currentTime = Date.now()
+    const isDoubleClick = currentTime - this.lastClickTime < this.doubleClickDelay
+    this.lastClickTime = currentTime
+    
+    // Only process double clicks/taps
+    if (!isDoubleClick) return
+    
     // Convert screen coordinates to normalized device coordinates (-1 to 1)
     const mouse = new THREE.Vector2()
     mouse.x = (x / this.canvas.clientWidth) * 2 - 1
@@ -1966,7 +1955,7 @@ export class OrbitalCameraSystem {
     const nearestPoint = this.findNearestPointToRay(raycaster)
     
     if (nearestPoint) {
-      console.log('Clicked near point at:', nearestPoint)
+      console.log('Double-clicked near point at:', nearestPoint)
       
       // Animate camera to look at the clicked point over 1 second
       this.animateToPosition(this.camera.position.clone(), nearestPoint, 1000)

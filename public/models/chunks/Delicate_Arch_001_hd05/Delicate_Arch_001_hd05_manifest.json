@@ -1,0 +1,92 @@
+{
+  "original_file": "Delicate_Arch_001_hd05.ply",
+  "total_vertices": 203941,
+  "chunk_count": 4,
+  "overall_bounding_box": {
+    "min": {
+      "x": -5.36707115,
+      "y": -0.208159208,
+      "z": -6.10476637
+    },
+    "max": {
+      "x": 5.44526148,
+      "y": 4.61771488,
+      "z": 2.74394226
+    }
+  },
+  "target_chunk_size_mb": 1.0,
+  "chunks": [
+    {
+      "filename": "Delicate_Arch_001_hd05_chunk_000.ply",
+      "vertex_count": 52428,
+      "bounding_box": {
+        "min": {
+          "x": -2.23167682,
+          "y": 0.980879605,
+          "z": -3.17293859
+        },
+        "max": {
+          "x": 1.8563894,
+          "y": 3.4657433,
+          "z": 0.278726727
+        }
+      },
+      "priority": 0,
+      "file_size_bytes": 786719
+    },
+    {
+      "filename": "Delicate_Arch_001_hd05_chunk_001.ply",
+      "vertex_count": 52428,
+      "bounding_box": {
+        "min": {
+          "x": -2.49945617,
+          "y": 0.86929673,
+          "z": -3.45649886
+        },
+        "max": {
+          "x": 2.1886344,
+          "y": 3.72066092,
+          "z": 0.543024838
+        }
+      },
+      "priority": 1,
+      "file_size_bytes": 786719
+    },
+    {
+      "filename": "Delicate_Arch_001_hd05_chunk_002.ply",
+      "vertex_count": 52428,
+      "bounding_box": {
+        "min": {
+          "x": -2.96452022,
+          "y": 0.34597525,
+          "z": -3.69352221
+        },
+        "max": {
+          "x": 2.60152221,
+          "y": 4.10923576,
+          "z": 1.19798076
+        }
+      },
+      "priority": 2,
+      "file_size_bytes": 786719
+    },
+    {
+      "filename": "Delicate_Arch_001_hd05_chunk_003.ply",
+      "vertex_count": 46657,
+      "bounding_box": {
+        "min": {
+          "x": -5.36707115,
+          "y": -0.208159208,
+          "z": -6.10476637
+        },
+        "max": {
+          "x": 5.44526148,
+          "y": 4.61771488,
+          "z": 2.74394226
+        }
+      },
+      "priority": 3,
+      "file_size_bytes": 700154
+    }
+  ]
+}

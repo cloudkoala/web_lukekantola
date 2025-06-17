@@ -11,17 +11,6 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.005,
       "defaultFocalLength": 30,
-      "rotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "gaussianSplatRotation": {
-        "x": 180,
-        "y": 180,
-        "z": 180
-      },
-      "rotationCenter": { "x": -0.13, "y": 0.87, "z": -0.29 },
       "loadingAnimation": {
         "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
         "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
@@ -29,9 +18,8 @@
         "duration": 4000
       },
       "footerPosition": {
-        "cameraPosition": { "x": 2.90, "y": 2.68, "z": 1.30 },
-        "target": { "x": 0.12, "y": 3.13, "z": -1.22 },
-        "scale": 1,
+        "cameraPosition": { "x": 3.97, "y": 2.07, "z": 2.96 },
+        "target": { "x": 0.80, "y": 3.60, "z": -0.32 },
         "duration": 1000
       },
       "idleRotation": {
@@ -44,14 +32,8 @@
       "gaussianSplatFile": "Corona_001_rdnc_07.ply",
       "displayName": "Corona Arch",
       "renderType": "point-cloud",
-      "defaultPointSize": 0.009,
-      "defaultFocalLength": 85,
-      "rotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "rotationCenter": { "x": 0.36, "y": 0.36, "z": -0.22 },
+      "defaultPointSize": 0.002,
+      "defaultFocalLength": 30,
       "loadingAnimation": {
         "startPosition": { "x": 0.33, "y": 4.00, "z": 5.05 },
         "endPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
@@ -59,9 +41,8 @@
         "duration": 5000
       },
       "footerPosition": {
-        "cameraPosition": { "x": 9.91, "y": 2.84, "z": 1.59 },
-        "target": { "x": 1.23, "y": 5.71, "z": -0.87 },
-        "scale": 0.3,
+        "cameraPosition":{ "x": 3.26, "y": 4.66, "z": 7.04 },
+        "target": { "x": 0.96, "y": 4.26, "z": 0.44 },
         "duration": 1000
       },
       "idleRotation": {
@@ -70,32 +51,20 @@
       }
     },
     "delicate_arch": {
-      "fileName": "Delicate_Arch_001_hd04.ply",
+      "fileName": "Delicate_Arch_001_hd05.ply",
       "displayName": "Delicate Arch",
       "renderType": "point-cloud",
-      "defaultPointSize": 0.114,
-      "defaultFocalLength": 130,
-      "rotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "gaussianSplatRotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "rotationCenter": { "x": -0.02, "y": 1.5, "z": -0.05 },
+      "defaultPointSize": 0.046,
+      "defaultFocalLength": 200,
       "loadingAnimation": {
-        "startPosition": { "x": -3.0, "y": 13, "z": 4 },
-        "endPosition": { "x": -10, "y": 7, "z": 6},
-        "target": { "x": -0.02, "y": 1.5, "z": -0.05},
-        "duration": 5000
+        "startPosition": { "x": -1.82, "y": 11.52, "z": 1.11 },
+        "endPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
+        "target": { "x": -0.04, "y": 4.15, "z": -0.08 },
+        "duration": 3000
       },
       "footerPosition": {
-        "cameraPosition": { "x": 4.05, "y": 2.3, "z": 2.13 },
-        "target": { "x": 1.39, "y": 2.78, "z": -0.63 },
-        "scale": 1,
+        "cameraPosition": { "x": -34.78, "y": 12.62, "z": 13.41 },
+        "target": { "x": 0.17, "y": 6.95, "z": -0.75 },
         "duration": 1000
       },
       "idleRotation": {
@@ -110,28 +79,16 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.019,
       "defaultFocalLength": 152,
-      "rotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "gaussianSplatRotation": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "rotationCenter": { "x": -0.90, "y": 1.31, "z": -2.10 },
       "loadingAnimation": {
         "startPosition": { "x": 7.81, "y": 9.35, "z": 7.87 },
-        "endPosition": { "x": 8.80, "y": 2.37, "z": 10.00 },
-        "target": { "x": -0.90, "y": 1.31, "z": -2.10 },
+        "endPosition": { "x": 7.73, "y": 2.01, "z": 7.13 },
+        "target": { "x": 0.07, "y": 0.63, "z": -0.39 },
         "duration": 3000
       },
       "footerPosition": {
-        "cameraPosition": { "x": 17.56, "y": 4.83, "z": 24.45 },
-        "target":{ "x": 12.10, "y": 4.63, "z": 21.95 },
-        "scale": 0.3,
-        "duration":  1000
+        "cameraPosition": { "x": 8.5, "y": 3.2, "z": 9.8 },
+        "target": { "x": 0.35, "y": 2.1, "z": -0.65 },
+        "duration": 1000
       },
       "idleRotation": {
         "speed": 0.005,
