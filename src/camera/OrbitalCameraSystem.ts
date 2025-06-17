@@ -39,6 +39,7 @@ export class OrbitalCameraSystem {
   
   
   
+  
   // Navigation state management
   private pendingTransition: InterfaceMode | null = null
   
@@ -127,10 +128,16 @@ export class OrbitalCameraSystem {
       // Mouse left canvas
     })
     
-    // Add single-click handler for point cloud interaction
-    this.canvas.addEventListener('click', (event) => {
-      this.handleCanvasClick(event)
+    // Add mouse handlers for point cloud interaction
+    this.canvas.addEventListener('mousedown', (event) => {
+      this.handleCanvasMouseDown(event)
       this.resetInteractionTimer()
+    })
+    this.canvas.addEventListener('mousemove', (event) => {
+      this.handleCanvasMouseMove(event)
+    })
+    this.canvas.addEventListener('mouseup', (event) => {
+      this.handleCanvasMouseUp(event)
     })
     
     // Add touch handler for mobile devices (double-tap)
@@ -200,7 +207,8 @@ export class OrbitalCameraSystem {
       // Direct position update (no smoothness needed)
       this.camera.position.copy(targetPosition)
       
-      // Let OrbitControls handle camera orientation during orbital mode too
+      // Update OrbitControls to be aware of new camera position
+      this.controls.update()
     }
   }
   
@@ -257,8 +265,8 @@ export class OrbitalCameraSystem {
     if (this.autoRotationIntensity > 0) {
       const rotationAmount = currentModel.idleRotation.speed * currentModel.idleRotation.direction * this.autoRotationIntensity * 0.016 // Assuming ~60fps
       
-      // Get current camera position relative to target
-      const target = this.controls.target.clone()
+      // Use the synchronized rotation center (all three should be the same now)
+      const target = this.clickedPoint ? this.clickedPoint.clone() : this.controls.target.clone()
       const cameraPos = this.camera.position.clone()
       const offset = cameraPos.sub(target)
       
@@ -268,7 +276,9 @@ export class OrbitalCameraSystem {
       
       // Apply new position
       this.camera.position.copy(target.add(offset))
-      // Let OrbitControls handle camera orientation naturally
+      
+      // Update OrbitControls to be aware of new camera position
+      this.controls.update()
     }
   }
   
@@ -316,14 +326,25 @@ export class OrbitalCameraSystem {
       this.setDefaultPointSize()
     })
     
+    // Prevent canvas clicks when interacting with controls
+    const controlsPanel = document.querySelector('#controls')
+    controlsPanel?.addEventListener('mousedown', (e) => {
+      e.stopPropagation()
+    })
+    controlsPanel?.addEventListener('click', (e) => {
+      e.stopPropagation()
+    })
+    
     
     // Clear point button
     const clearButton = document.querySelector('#clear-point') as HTMLButtonElement
     clearButton?.addEventListener('click', () => {
-      this.clickedPoint = new THREE.Vector3(0, 0, 0)
-      this.controls.target.copy(this.clickedPoint)
+      const origin = new THREE.Vector3(0, 0, 0)
+      this.clickedPoint = origin.clone()
+      this.lookAtTarget.copy(origin)
+      this.controls.target.copy(origin)
       this.controls.update()
-      console.log('Orbit center reset to origin')
+      console.log('All rotation centers reset to origin')
     })
     
     // Camera position controls
@@ -542,6 +563,13 @@ export class OrbitalCameraSystem {
   }
   
   private updateCameraAnimation() {
+    // If user is dragging, interrupt the animation and let controls take over
+    if (this.isDragging) {
+      this.isAnimating = false
+      this.controls.update()
+      return
+    }
+    
     const currentTime = Date.now()
     const elapsed = currentTime - this.animationStartTime
     const progress = Math.min(elapsed / this.animationDuration, 1)
@@ -565,6 +593,10 @@ export class OrbitalCameraSystem {
       this.isAnimating = false
       // Reset animation duration to default
       this.animationDuration = 1000
+      
+      // Sync all target properties after animation completes
+      this.syncAllTargets(this.controls.target)
+      
       // Final update to ensure controls are in sync
       this.controls.update()
       console.log('Camera animation completed')
@@ -611,6 +643,15 @@ export class OrbitalCameraSystem {
     console.log('Start quaternion:', this.animationStartQuaternion)
     console.log('End quaternion:', this.animationEndQuaternion)
     console.log('Quaternion dot product:', this.animationStartQuaternion.dot(this.animationEndQuaternion))
+  }
+  
+  private syncAllTargets(newTarget: THREE.Vector3) {
+    // Unified system - rotation center and look-at are the same
+    this.clickedPoint = newTarget.clone()
+    this.lookAtTarget = newTarget.clone()
+    this.controls.target.copy(newTarget)
+    this.controls.update()
+    console.log('Synced all rotation targets to:', newTarget)
   }
   
   public startLoadingAnimation() {
@@ -708,7 +749,8 @@ export class OrbitalCameraSystem {
       distance = Math.max(maxDimension * 1.5, 15)
     }
     
-    targetTarget = new THREE.Vector3(0, 0, 0)
+    // Use current rotation center if available, otherwise default to origin
+    targetTarget = this.clickedPoint ? this.clickedPoint.clone() : new THREE.Vector3(0, 0, 0)
     
     switch (preset) {
       case 'top':
@@ -773,10 +815,12 @@ export class OrbitalCameraSystem {
   }
   
   clearClickedPoint() {
-    this.clickedPoint = new THREE.Vector3(0, 0, 0)
-    // Reset controls to origin
-    this.controls.target.set(0, 0, 0)
+    const origin = new THREE.Vector3(0, 0, 0)
+    this.clickedPoint = origin.clone()
+    this.lookAtTarget.copy(origin)
+    this.controls.target.copy(origin)
     this.controls.update()
+    console.log('All rotation systems cleared to origin')
   }
   
   
@@ -791,16 +835,33 @@ export class OrbitalCameraSystem {
         const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
         material.size = adjustedSize
         material.needsUpdate = true
+      } else if (child instanceof THREE.InstancedMesh && child.geometry instanceof THREE.SphereGeometry) {
+        // Handle new sphere-based instanced mesh point clouds
+        const currentRadius = child.geometry.parameters.radius
+        const targetRadius = this.pointSize
+        
+        // Only update if radius has changed significantly
+        if (Math.abs(currentRadius - targetRadius) > 0.0001) {
+          // Create new sphere geometry with updated radius
+          const newSphereGeometry = new THREE.SphereGeometry(targetRadius, 8, 6)
+          
+          // Replace the geometry
+          child.geometry.dispose() // Clean up old geometry
+          child.geometry = newSphereGeometry
+          
+          console.log('Updated InstancedMesh sphere radius from', currentRadius, 'to', targetRadius)
+        }
       }
     })
     
     // Also update progressive loader if it has loaded chunks
     this.progressiveLoader.setPointSize(this.pointSize)
     
-    console.log('Point size updated to:', this.pointSize, 'for all point clouds')
+    console.log('Point size updated to:', this.pointSize, 'for all point clouds and sphere instances')
     // Note: Gaussian splats don't use point size in the same way
     // Point size control may not apply to Gaussian splat rendering
   }
+  
 
   public updateFocalLength(focalLength: number) {
     // Convert focal length (mm) to field of view (degrees)
@@ -1830,15 +1891,49 @@ export class OrbitalCameraSystem {
     }
   }
   
-  private handleCanvasClick(event: MouseEvent) {
-    // Only handle clicks when on home page and canvas is interactive
+  private mouseDownPosition: { x: number, y: number } | null = null
+  private isDragging = false
+  private dragThreshold = 5 // pixels
+
+  private handleCanvasMouseDown(event: MouseEvent) {
+    // Only handle mousedown when on home page and canvas is interactive
     if (this.currentInterfaceMode() !== 'home') return
     
     const rect = this.canvas.getBoundingClientRect()
-    const clickX = event.clientX - rect.left
-    const clickY = event.clientY - rect.top
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
     
-    this.handlePointCloudClick(clickX, clickY)
+    // Store initial mouse position
+    this.mouseDownPosition = { x: mouseX, y: mouseY }
+    this.isDragging = false
+    
+    // Start look-at animation immediately - it will blend with any drag rotation
+    this.handlePointCloudClick(mouseX, mouseY)
+  }
+
+  private handleCanvasMouseMove(event: MouseEvent) {
+    if (!this.mouseDownPosition) return
+    
+    const rect = this.canvas.getBoundingClientRect()
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
+    
+    // Check if mouse has moved beyond drag threshold
+    const deltaX = mouseX - this.mouseDownPosition.x
+    const deltaY = mouseY - this.mouseDownPosition.y
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    
+    if (distance > this.dragThreshold) {
+      this.isDragging = true
+    }
+  }
+
+  private handleCanvasMouseUp(event: MouseEvent) {
+    if (!this.mouseDownPosition) return
+    
+    // Reset tracking variables (animation already started on mousedown)
+    this.mouseDownPosition = null
+    this.isDragging = false
   }
   
   private handleCanvasTouch(touch: Touch) {
@@ -1852,6 +1947,9 @@ export class OrbitalCameraSystem {
     this.handlePointCloudClick(touchX, touchY)
   }
   
+  private lastClickTime = 0
+  private doubleClickDelay = 300 // ms
+
   private handlePointCloudClick(x: number, y: number) {
     if (!this.currentPointCloud) return
     
@@ -1870,11 +1968,10 @@ export class OrbitalCameraSystem {
     if (nearestPoint) {
       console.log('Clicked near point at:', nearestPoint)
       
-      // Update only the rotation center - keep controls.target for look-at
-      this.clickedPoint = nearestPoint.clone()
-      // Don't update controls.target - let it handle look-at naturally
+      // Animate camera to look at the clicked point over 1 second
+      this.animateToPosition(this.camera.position.clone(), nearestPoint, 1000)
       
-      console.log('Updated rotation center to:', nearestPoint)
+      console.log('Animating to rotation/look-at center:', nearestPoint)
     }
   }
   

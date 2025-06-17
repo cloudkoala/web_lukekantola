@@ -298,6 +298,7 @@ export class ProgressiveLoader {
     }
 
     console.log(`✨ Chunk ${chunkInfo.filename} loaded with ${geometry.attributes.position.count} vertices`)
+    console.log('Chunk geometry attributes:', Object.keys(geometry.attributes))
     
     // Calculate density-aware point size for this chunk
     const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)

@@ -617,7 +617,10 @@ export class ModelManager {
   }
 
   private onLoad(geometry: THREE.BufferGeometry) {
-    // Configure material for the point cloud
+    console.log('PLY file loaded successfully!')
+    console.log('Geometry attributes:', Object.keys(geometry.attributes))
+    
+    // Create material for the point cloud
     const material = new THREE.PointsMaterial({
       size: this.orbitalCamera.pointSize,
       vertexColors: true,
@@ -704,60 +707,10 @@ export class ModelManager {
     console.error('Error loading PLY file:', error)
     this.progressEl.querySelector('p')!.textContent = 'Failed to load PLY file'
     
-    // Fallback to demo point cloud if PLY fails to load
-    console.log('Falling back to demo point cloud...')
-    this.createDemoPointCloud()
+    console.log('Failed to load point cloud - no fallback demo available')
     this.progressEl.style.display = 'none'
   }
 
-  private createDemoPointCloud() {
-    const geometry = new THREE.BufferGeometry()
-    const pointCount = 10000
-    
-    const positions = new Float32Array(pointCount * 3)
-    const colors = new Float32Array(pointCount * 3)
-    
-    // Create a bonsai-like point cloud structure
-    for (let i = 0; i < pointCount; i++) {
-      const i3 = i * 3
-      
-      // Create branching tree structure
-      const angle = Math.random() * Math.PI * 2
-      const height = Math.random() * 4 - 2
-      const radius = Math.max(0.1, 2 - Math.abs(height) * 0.5) * (0.5 + Math.random() * 0.5)
-      
-      positions[i3] = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.5
-      positions[i3 + 1] = height + (Math.random() - 0.5) * 0.2
-      positions[i3 + 2] = Math.sin(angle) * radius + (Math.random() - 0.5) * 0.5
-      
-      // Green to brown gradient based on height
-      const greenness = Math.max(0, (height + 2) / 4)
-      colors[i3] = 0.4 + greenness * 0.2      // R
-      colors[i3 + 1] = 0.2 + greenness * 0.6  // G  
-      colors[i3 + 2] = 0.1                    // B
-    }
-    
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    
-    const material = new THREE.PointsMaterial({
-      size: 0.001,
-      vertexColors: true,
-      transparent: true,
-      map: this.createSquareTexture(),
-      blending: THREE.NormalBlending,
-      depthWrite: true,
-      alphaTest: 0.1
-    })
-    
-    const pointCloud = new THREE.Points(geometry, material)
-    this.scene.add(pointCloud)
-    
-    // Register with orbital camera system
-    this.orbitalCamera.setCurrentPointCloud(pointCloud)
-    
-    console.log('Demo point cloud created with', pointCount, 'points')
-  }
 
   private getModelPath(fileName: string, isGaussianSplat: boolean = false): string {
     if (!this.modelsConfig?.basePaths) {
