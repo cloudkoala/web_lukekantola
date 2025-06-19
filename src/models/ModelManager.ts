@@ -207,8 +207,13 @@ export class ModelManager {
       console.log('Defaulting to low quality for new model:', model.displayName)
     }
     
-    // Cancel any ongoing progressive loading from previous model
-    this.progressiveLoader.cancelLoading()
+    // Cancel any ongoing progressive loading only for actual model switches
+    if (isActualModelSwitch) {
+      console.log('Model switch: cancelling progressive loading')
+      this.progressiveLoader.cancelLoading()
+    } else {
+      console.log('Quality switch: keeping progressive loading intact')
+    }
     
     console.log('Switching to model:', model.displayName)
     
@@ -217,45 +222,56 @@ export class ModelManager {
     this.orbitalCamera.loadDefaultPointSize()
     this.orbitalCamera.loadDefaultFocalLength()
     
-    // Clear current scene
-    if (this.currentRenderObject) {
-      if (this.currentRenderObject instanceof SplatMesh) {
-        console.log('Removing previous SplatMesh')
-        this.scene.remove(this.currentRenderObject)
-      } else if (this.currentRenderObject instanceof THREE.Points) {
-        console.log('Removing previous point cloud')
-        this.scene.remove(this.currentRenderObject)
+    // Clear scene differently based on whether this is a model switch or quality switch
+    if (isActualModelSwitch) {
+      // Full clear for model switches
+      console.log('Model switch: clearing all objects from scene')
+      if (this.currentRenderObject) {
+        if (this.currentRenderObject instanceof SplatMesh) {
+          console.log('Removing previous SplatMesh')
+          this.scene.remove(this.currentRenderObject)
+        } else if (this.currentRenderObject instanceof THREE.Points) {
+          console.log('Removing previous point cloud')
+          this.scene.remove(this.currentRenderObject)
+        }
+        this.currentRenderObject = null
       }
-      this.currentRenderObject = null
+      
+      // Clear any remaining objects in scene for model switches
+      const existingObjects = this.scene.children.filter(child => 
+        child instanceof THREE.Points || 
+        child instanceof SplatMesh ||
+        (child.type === 'Mesh' && child.userData?.isSplatMesh)
+      )
+      existingObjects.forEach(obj => this.scene.remove(obj))
+    } else if (this.isQualitySwitching) {
+      // For quality switches, only remove splats (keep point clouds for comparison)
+      console.log('Quality switch: keeping point clouds, only clearing splats')
+      if (this.currentRenderObject instanceof SplatMesh) {
+        console.log('Removing previous SplatMesh for quality switch')
+        this.scene.remove(this.currentRenderObject)
+        this.currentRenderObject = null
+      }
+      
+      // Only remove SplatMesh objects, keep point clouds
+      const existingSplats = this.scene.children.filter(child => 
+        child instanceof SplatMesh ||
+        (child.type === 'Mesh' && child.userData?.isSplatMesh)
+      )
+      existingSplats.forEach(obj => this.scene.remove(obj))
     }
-    
-    // Clear any remaining objects in scene
-    const existingObjects = this.scene.children.filter(child => 
-      child instanceof THREE.Points || 
-      child instanceof SplatMesh ||
-      (child.type === 'Mesh' && child.userData?.isSplatMesh)
-    )
-    existingObjects.forEach(obj => this.scene.remove(obj))
     
     // Clear camera system references
     this.orbitalCamera.setCurrentRenderObject(new THREE.Object3D()) // Clear reference
     
-    // Only show loading screen for high quality Gaussian splats
-    const willLoadGaussianSplat = this.currentQuality === 'high' && model.gaussianSplatFile
-    if (willLoadGaussianSplat) {
-      this.progressEl.style.display = 'flex'
-      this.progressFill.style.width = '0%'
-      this.progressEl.querySelector('p')!.textContent = `Loading ${model.displayName}...`
-    } else {
-      // Ensure loading screen is hidden for point clouds
-      this.progressEl.style.display = 'none'
-    }
+    // Hide loading screen for all model switches (splats load quickly)
+    this.progressEl.style.display = 'none'
     
     // Load new model
-    await this.loadModelByFileName(model.fileName)
+    await this.loadModelByFileName(model.fileName, isActualModelSwitch)
   }
 
-  async loadModelByFileName(fileName: string) {
+  async loadModelByFileName(fileName: string, isActualModelSwitch: boolean = true) {
     if (!this.modelsConfig) return
     
     const currentModel = this.modelsConfig.models[this.modelsConfig.currentModel]
@@ -268,12 +284,30 @@ export class ModelManager {
     if (this.currentQuality === 'high' && currentModel.gaussianSplatFile) {
       // Load Gaussian splat for high quality
       await this.loadSplatMesh(currentModel.gaussianSplatFile)
-      // ALSO load the point cloud for comparison
-      console.log('Loading point cloud alongside Gaussian splat for comparison')
-      await this.loadPointCloudByFileName(fileName, true) // Pass flag to indicate it's a comparison load
+      
+      // Check if we already have point clouds in scene (from quality switching)
+      const existingPointClouds = this.scene.children.filter(child => child instanceof THREE.Points)
+      if (existingPointClouds.length === 0 || isActualModelSwitch) {
+        // ALSO load the point cloud for comparison
+        console.log('Loading point cloud alongside Gaussian splat for comparison')
+        await this.loadPointCloudByFileName(fileName, true) // Pass flag to indicate it's a comparison load
+      } else {
+        console.log('Point clouds already present, keeping them for comparison with Gaussian splat')
+      }
     } else {
-      // Load point cloud for low quality or when no splat file available
-      await this.loadPointCloudByFileName(fileName)
+      // For low quality, check if we already have point clouds
+      const existingPointClouds = this.scene.children.filter(child => child instanceof THREE.Points)
+      if (existingPointClouds.length === 0 || isActualModelSwitch) {
+        // Load point cloud for low quality or when no splat file available
+        await this.loadPointCloudByFileName(fileName)
+      } else {
+        console.log('Point clouds already present, keeping them for low quality view')
+        // Update point size and register with camera system
+        this.orbitalCamera.updatePointSize()
+        if (existingPointClouds.length > 0) {
+          this.orbitalCamera.setCurrentPointCloud(existingPointClouds[0] as THREE.Points)
+        }
+      }
     }
   }
 
@@ -465,9 +499,6 @@ export class ModelManager {
       
       // Register with orbital camera system  
       this.orbitalCamera.setCurrentRenderObject(splatMesh)
-      
-      // Hide loading screen
-      this.progressEl.style.display = 'none'
       
       // Trigger loading animation if switching models (but not quality)
       if (this.isModelSwitching && !this.isQualitySwitching) {
