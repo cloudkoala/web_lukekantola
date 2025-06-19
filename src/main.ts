@@ -25,17 +25,21 @@ scene.background = new THREE.Color(0x151515)
 const camera = new THREE.PerspectiveCamera(
   75, 
   window.innerWidth / window.innerHeight, 
-  0.1, 
-  1000
+  0.01,  // Closer near plane for better close-up detail
+  500    // Reduced far plane for better depth precision
 )
 
 const renderer = new THREE.WebGLRenderer({ 
   canvas: canvas,
   antialias: true,
-  alpha: true
+  alpha: true,
+  logarithmicDepthBuffer: true  // Better depth precision
 })
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+// Improve depth testing and culling
+renderer.sortObjects = true
 
 // Enable HDR tone mapping and environment lighting
 renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -115,8 +119,9 @@ const orbitalCamera = new OrbitalCameraSystem(
   (object: THREE.Points | import('@sparkjsdev/spark').SplatMesh | null) => modelManager.setCurrentRenderObject(object)
 )
 
-// Set orbital camera reference in model manager
+// Set mutual references between model manager and orbital camera
 ;(modelManager as any).orbitalCamera = orbitalCamera
+;(orbitalCamera as any).modelManager = modelManager
 
 // Main render loop
 function animate() {
@@ -157,7 +162,14 @@ function animate() {
   // Check if we actually have effects to apply and if post-processing is enabled
   const effectsChain = postProcessingPass.getEffectsChain()
   const hasActiveEffects = postProcessingPass.enabled && (
-    effectsChain.some(effect => effect.enabled && (effect.parameters.intensity || 0) > 0) || 
+    effectsChain.some(effect => effect.enabled && (
+      effect.type === 'background' || // Background effects are always active when enabled
+      effect.type === 'drawrange' ||  // DrawRange effects are always active when enabled
+      effect.type === 'pointnetwork' || // Point network effects are always active when enabled
+      effect.type === 'material' ||   // Material effects are always active when enabled
+      effect.type === 'topographic' || // Topographic effects are always active when enabled
+      (effect.parameters.intensity || 0) > 0 // Other effects need intensity > 0
+    )) || 
     ((postProcessingPass as any).effectType !== 'none' && postProcessingPass.intensity > 0)
   )
   
@@ -233,6 +245,47 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
 
+// Settings button functionality
+function setupSettingsButton() {
+  console.log('Setting up settings button...')
+  const settingsButton = document.getElementById('settings-button') as HTMLButtonElement
+  const settingsButtonContainer = document.querySelector('.settings-button-container') as HTMLElement
+  const settingsPanel = document.getElementById('settings-panel') as HTMLElement
+  const settingsCloseButton = document.getElementById('settings-close') as HTMLButtonElement
+  
+  console.log('Settings button:', settingsButton)
+  console.log('Settings panel:', settingsPanel)
+  console.log('Settings close button:', settingsCloseButton)
+  
+  if (!settingsButton || !settingsPanel || !settingsButtonContainer || !settingsCloseButton) {
+    console.warn('Settings elements not found', { settingsButton, settingsPanel, settingsButtonContainer, settingsCloseButton })
+    return
+  }
+  
+  // Open settings - hide button, show panel
+  settingsButton.addEventListener('click', () => {
+    settingsButtonContainer.style.display = 'none'
+    settingsPanel.style.setProperty('display', 'flex', 'important')
+  })
+  
+  // Close settings - hide panel, show button
+  settingsCloseButton.addEventListener('click', (e) => {
+    console.log('Close button clicked!')
+    e.stopPropagation() // Prevent event bubbling
+    settingsPanel.style.setProperty('display', 'none', 'important')
+    settingsButtonContainer.style.display = 'block'
+  })
+  
+  // Close settings panel when clicking outside
+  document.addEventListener('click', (event) => {
+    const target = event.target as Element
+    if (!settingsPanel.contains(target) && !settingsButtonContainer.contains(target)) {
+      settingsPanel.style.setProperty('display', 'none', 'important')
+      settingsButtonContainer.style.display = 'block'
+    }
+  })
+}
+
 // Initialize application
 async function initialize() {
   console.log('Initialize() called')
@@ -246,6 +299,9 @@ async function initialize() {
   orbitalCamera.updateDisplayNameField()
   orbitalCamera.loadDefaultPointSize()
   orbitalCamera.loadDefaultFocalLength()
+  
+  // Setup settings button
+  setupSettingsButton()
   
   // Show home navigation indicators on initial load
   const homeNavigation = document.querySelector('#home-navigation') as HTMLElement

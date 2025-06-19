@@ -100,7 +100,7 @@ body, html {
 .controls-container .dropdown-row {
   display: flex;
   flex-direction: row;
-  gap: 15px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -162,7 +162,7 @@ body, html {
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   padding: 6px;
   outline: none;
-  min-width: 95px;
+  min-width: 60px;
   text-shadow: none;
   transition: all 0.3s ease;
 }
@@ -182,6 +182,81 @@ body, html {
 .quality-selector select:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Settings Button */
+.settings-button-container {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+}
+
+.settings-button {
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.7rem;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  padding: 6px 12px;
+  outline: none;
+  text-shadow: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.settings-button:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+}
+
+.settings-button.active {
+  background: rgba(0, 255, 0, 0.3);
+  border-color: rgba(0, 255, 0, 0.7);
+  text-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+}
+
+/* Settings Panel */
+.settings-panel {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  padding: 15px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+}
+
+/* Settings Close Button */
+.settings-close-button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.settings-close-button:hover {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  transform: scale(1.2);
 }
 
 /* Point Size Control */
@@ -290,6 +365,109 @@ body, html {
   font-size: 0.6rem;
   font-family: monospace;
   min-width: 40px;
+}
+
+/* Sphere Controls */
+.sphere-controls {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sphere-toggle-control,
+.sphere-radius-control,
+.sphere-detail-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sphere-controls label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  min-width: 70px;
+}
+
+.sphere-toggle-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.sphere-toggle-checkbox:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.sphere-toggle-checkbox:checked {
+  background: rgba(0, 255, 0, 0.3);
+  border-color: rgba(0, 255, 0, 0.7);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.sphere-toggle-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #00ff00;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+}
+
+.sphere-radius-control input[type="range"],
+.sphere-detail-control input[type="range"] {
+  width: 100px;
+  height: 2px;
+  background: rgba(0, 128, 0, 0.6);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb,
+.sphere-detail-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb:hover,
+.sphere-detail-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
+}
+
+.sphere-radius-control span,
+.sphere-detail-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 60px;
 }
 
 /* Model Hue Control */
@@ -2848,14 +3026,15 @@ body, html {
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-width: 400px;
+  gap: 4px;
+  max-width: 260px;
+  position: relative;
 }
 
 .effects-panel-header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   padding: 0;
   margin: 0;
 }
@@ -2867,7 +3046,7 @@ body, html {
 .effects-panel-title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .effects-panel-title-row label {
@@ -2886,7 +3065,7 @@ body, html {
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   padding: 6px;
   outline: none;
-  min-width: 120px;
+  min-width: 40px;
   text-shadow: none;
   transition: all 0.3s ease;
 }
@@ -2908,14 +3087,36 @@ body, html {
   font-size: 0.7rem;
   cursor: pointer;
   user-select: none;
+  transition: all 0.3s ease;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.effects-panel-collapse-arrow span {
+  display: inline-block;
   transition: transform 0.2s ease;
+  line-height: 1;
 }
 
 .effects-panel-collapse-arrow:hover {
   color: rgba(0, 255, 128, 1);
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
 }
 
-.effects-panel-collapse-arrow.collapsed {
+.effects-panel-collapse-arrow.collapsed span {
   transform: rotate(-90deg);
 }
 
@@ -3091,11 +3292,11 @@ body, html {
 .effects-chain {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 32px;
+  gap: 2px;
+  min-height: 28px;
   border: 1px dashed rgba(0, 255, 128, 0.2);
   border-radius: 4px;
-  padding: 6px;
+  padding: 4px;
   background: rgba(0, 20, 0, 0.2);
 }
 
@@ -3124,18 +3325,20 @@ body, html {
 }
 
 .add-effect-button.empty-state {
-  padding: 12px;
-  min-height: 40px;
+  padding: 8px;
+  min-height: 30px;
   flex-direction: column;
   gap: 3px;
 }
 
 .add-effect-button.chain-end {
-  padding: 6px;
-  min-height: 28px;
-  width: 28px;
+  padding: 4px;
+  min-height: 17px;
+  width: 17px;
+  height: 17px;
+  border-radius: 3px;
   align-self: center;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .add-effect-icon {
@@ -3153,7 +3356,7 @@ body, html {
   background: rgba(0, 0, 20, 0.7);
   border: 1px solid rgba(0, 128, 255, 0.3);
   border-radius: 4px;
-  padding: 8px;
+  padding: 4px 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
@@ -3185,7 +3388,7 @@ body, html {
 .effect-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .effect-expand-arrow {
@@ -3224,7 +3427,7 @@ body, html {
 .effect-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .effect-toggle {
@@ -3270,19 +3473,7 @@ body, html {
 }
 
 .effect-pipeline-connector {
-  height: 1px;
-  background: rgba(0, 128, 255, 0.4);
-  margin: 2px 10px;
-  position: relative;
-}
-
-.effect-pipeline-connector::after {
-  content: '→';
-  position: absolute;
-  right: -8px;
-  top: -8px;
-  color: rgba(0, 128, 255, 0.6);
-  font-size: 0.7rem;
+  display: none;
 }
 
 .effect-parameters-container {
@@ -3309,7 +3500,7 @@ body, html {
 .parameter-control {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .parameter-control label {
@@ -3317,11 +3508,11 @@ body, html {
   font-size: 0.7rem;
   font-family: monospace;
   font-weight: 400;
-  min-width: 80px;
+  min-width: 60px;
 }
 
 .parameter-control input[type="range"] {
-  width: 100px;
+  width: 80px;
   height: 2px;
   background: rgba(0, 64, 128, 0.6);
   border-radius: 1px;
@@ -3350,13 +3541,13 @@ body, html {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.6rem;
   font-family: monospace;
-  min-width: 40px;
+  min-width: 20px;
 }
 
 /* Expandable Effect Parameters */
 .effect-parameters-container {
-  margin-top: 8px;
-  padding: 8px;
+  margin-top: 4px;
+  padding: 4px 6px;
   background: rgba(0, 0, 20, 0.5);
   border: 1px solid rgba(0, 128, 255, 0.2);
   border-radius: 4px;
@@ -3364,7 +3555,7 @@ body, html {
 }
 
 .effect-parameters-container .parameter-control {
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .effect-parameters-container .parameter-control:last-child {
@@ -3385,7 +3576,7 @@ body, html {
 
 .effect-parameters-container .parameter-value {
   font-size: 0.6rem;
-  min-width: 35px;
+  min-width: 20px;
 }
 
 .no-effect-selected {
@@ -3397,69 +3588,97 @@ body, html {
 }
 
 /* Add Effect Modal Styles */
-.add-effect-modal {
-  position: fixed;
-  top: 0;
+.add-effect-dropdown {
+  position: absolute;
+  top: 100%;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  backdrop-filter: blur(4px);
+  right: 0;
+  z-index: 1000;
+  margin-top: 5px;
 }
 
-.add-effect-modal-content {
-  background: rgba(0, 0, 20, 0.95);
-  border: 1px solid rgba(0, 128, 255, 0.4);
-  border-radius: 8px;
-  padding: 20px;
-  max-width: 600px;
-  max-height: 80vh;
+.add-effect-dropdown-content {
+  background: rgba(0, 20, 0, 0.95);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 400px;
   overflow-y: auto;
-  position: relative;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
 }
 
 .add-effect-modal-title {
   color: rgba(0, 128, 255, 0.9);
   font-family: 'Space Mono', monospace;
   font-size: 1rem;
-  margin: 0 0 20px 0;
+  margin: 0 0 15px 0;
   text-align: center;
   border-bottom: 1px solid rgba(0, 128, 255, 0.3);
   padding-bottom: 10px;
 }
 
+.add-effect-search-container {
+  margin-bottom: 8px;
+}
+
+.add-effect-search {
+  width: 100%;
+  background: rgba(0, 40, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  outline: none;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.add-effect-search:focus {
+  border-color: rgba(0, 255, 0, 0.6);
+  background: rgba(0, 50, 0, 0.9);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+}
+
+.add-effect-search::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .add-effect-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 4px;
 }
 
 .add-effect-option {
-  background: rgba(0, 0, 20, 0.7);
-  border: 1px solid rgba(0, 128, 255, 0.3);
-  border-radius: 6px;
+  background: rgba(0, 30, 0, 0.7);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
   color: rgba(255, 255, 255, 0.8);
-  padding: 8px;
+  padding: 6px 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-family: 'Space Mono', monospace;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   text-align: center;
   outline: none;
 }
 
 .add-effect-option:hover {
-  background: rgba(0, 128, 255, 0.2);
-  border-color: rgba(0, 128, 255, 0.6);
+  background: rgba(0, 255, 0, 0.15);
+  border-color: rgba(0, 255, 0, 0.6);
   color: rgba(255, 255, 255, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 128, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 255, 0, 0.2);
+}
+
+.add-effect-option.keyboard-selected {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.8);
+  color: rgba(255, 255, 255, 1);
+  box-shadow: 0 1px 6px rgba(0, 255, 0, 0.3);
 }
 
 .add-effect-close {

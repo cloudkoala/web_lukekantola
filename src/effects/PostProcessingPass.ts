@@ -6,7 +6,7 @@ import { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
 import { BrushEffect } from './BrushEffect'
 import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'film' | 'dotscreen' | 'bleachbypass' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'film' | 'dotscreen' | 'bleachbypass' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -16,6 +16,7 @@ export class PostProcessingPass {
   private camera: THREE.OrthographicCamera
   private mainScene: THREE.Scene | null = null
   private pointClouds: THREE.Points[] = []
+  private sphereMeshes: THREE.InstancedMesh[] = []
   private originalDrawRanges: Map<THREE.BufferGeometry, { start: number, count: number }> = new Map()
   private animationStartTime: number = 0
   
@@ -29,11 +30,17 @@ export class PostProcessingPass {
   // Material effect state
   private originalMaterials: Map<THREE.Points, THREE.Material | THREE.Material[]> = new Map()
   private customMaterials: Map<THREE.Points, THREE.ShaderMaterial> = new Map()
+  private originalSphereMaterials: Map<THREE.InstancedMesh, THREE.Material | THREE.Material[]> = new Map()
+  private customSphereMaterials: Map<THREE.InstancedMesh, THREE.ShaderMaterial> = new Map()
   private materialAnimationStartTime: number = 0
   
   // Topographic effect state
   private topographicAnimationStartTime: number = 0
   private topographicWires: THREE.LineSegments[] = []
+  
+  // Sphere motion tracking for motion blur
+  private spherePreviousPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
+  private sphereCurrentPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
   
   // Chain support
   public enabled: boolean = false
@@ -72,6 +79,38 @@ export class PostProcessingPass {
   public oilBrushSize: number = 4.0
   public oilRoughness: number = 0.6
   public oilBrightness: number = 1.2
+  public oilTexture: number = 0.5
+  public datamoshIntensity: number = 0.5
+  public datamoshDisplacement: number = 10.0
+  public datamoshCorruption: number = 0.3
+  public datamoshBlockSize: number = 8.0
+  public datamoshGlitchFreq: number = 0.2
+  public datamoshFrameBlend: number = 0.7
+  public pixelsortIntensity: number = 0.5
+  public pixelsortLength: number = 50
+  public pixelsortThreshold: number = 0.5
+  public pixelsortDirection: number = 0
+  public pixelsortMode: number = 0
+  public glowIntensity: number = 0.5
+  public glowThreshold: number = 0.8
+  public glowRadius: number = 1.0
+  public glowStrength: number = 2.0
+  public glowSamples: number = 8
+  public glowSoftness: number = 0.5
+  public pixelateIntensity: number = 1.0
+  public pixelateSize: number = 6
+  public pixelateNormalEdge: number = 0.3
+  public pixelateDepthEdge: number = 0.4
+  public pixelateEdgeMode: number = 0
+  public pixelateSmoothing: number = 0.5
+  public fogIntensity: number = 0.5
+  public fogNear: number = 5.0
+  public fogFar: number = 50.0
+  public fogColorR: number = 0.8
+  public fogColorG: number = 0.9
+  public fogColorB: number = 1.0
+  public fogMode: number = 0
+  public fogYMax: number = 10.0
   
   // Camera matrices for velocity calculation
   private previousViewProjectionMatrix: THREE.Matrix4 = new THREE.Matrix4()
@@ -104,13 +143,15 @@ export class PostProcessingPass {
       uniforms: {
         tDiffuse: { value: null },
         resolution: { value: new THREE.Vector2(width, height) },
-        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=film, 7=dotscreen, 8=bleachbypass, 9=colorify, 10=sobel, 11=sobelthreshold, 12=motionblur, 13=oilpainting
+        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=film, 7=dotscreen, 8=bleachbypass, 9=colorify, 10=sobel, 11=sobelthreshold, 12=motionblur, 13=oilpainting, 14=datamosh, 15=pixelsort, 16=glow, 17=pixelate, 18=fog
         intensity: { value: this.intensity },
         colorTint: { value: new THREE.Vector3(this.colorR, this.colorG, this.colorB) },
         vignetteOffset: { value: this.vignetteOffset },
         vignetteDarkness: { value: this.vignetteDarkness },
         vignetteFeather: { value: this.vignetteFeather },
         blurAmount: { value: this.blurAmount },
+        blurThreshold: { value: 0.0 },
+        blurType: { value: 0 },
         filmNoiseSeed: { value: this.filmNoiseSeed },
         dotscreenCenter: { value: new THREE.Vector2(this.dotscreenCenterX, this.dotscreenCenterY) },
         dotscreenScale: { value: this.dotscreenScale },
@@ -127,9 +168,40 @@ export class PostProcessingPass {
         bloomThreshold: { value: 0.8 },
         bloomIntensity: { value: 1.0 },
         bloomRadius: { value: 0.5 },
+        bloomQuality: { value: 2 },
         oilBrushSize: { value: this.oilBrushSize },
         oilRoughness: { value: this.oilRoughness },
-        oilBrightness: { value: this.oilBrightness }
+        oilBrightness: { value: this.oilBrightness },
+        oilTexture: { value: this.oilTexture },
+        datamoshIntensity: { value: this.datamoshIntensity },
+        datamoshDisplacement: { value: this.datamoshDisplacement },
+        datamoshCorruption: { value: this.datamoshCorruption },
+        datamoshBlockSize: { value: this.datamoshBlockSize },
+        datamoshGlitchFreq: { value: this.datamoshGlitchFreq },
+        datamoshFrameBlend: { value: this.datamoshFrameBlend },
+        pixelsortIntensity: { value: this.pixelsortIntensity },
+        pixelsortLength: { value: this.pixelsortLength },
+        pixelsortThreshold: { value: this.pixelsortThreshold },
+        pixelsortDirection: { value: this.pixelsortDirection },
+        pixelsortMode: { value: this.pixelsortMode },
+        glowIntensity: { value: this.glowIntensity },
+        glowThreshold: { value: this.glowThreshold },
+        glowRadius: { value: this.glowRadius },
+        glowStrength: { value: this.glowStrength },
+        glowSamples: { value: this.glowSamples },
+        glowSoftness: { value: this.glowSoftness },
+        pixelateIntensity: { value: this.pixelateIntensity },
+        pixelateSize: { value: this.pixelateSize },
+        pixelateNormalEdge: { value: this.pixelateNormalEdge },
+        pixelateDepthEdge: { value: this.pixelateDepthEdge },
+        pixelateEdgeMode: { value: this.pixelateEdgeMode },
+        pixelateSmoothing: { value: this.pixelateSmoothing },
+        fogIntensity: { value: this.fogIntensity },
+        fogNear: { value: this.fogNear },
+        fogFar: { value: this.fogFar },
+        fogColor: { value: new THREE.Vector3(this.fogColorR, this.fogColorG, this.fogColorB) },
+        fogMode: { value: this.fogMode },
+        fogYMax: { value: this.fogYMax }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -192,6 +264,7 @@ export class PostProcessingPass {
       // Reset materials if no material effects are active
       this.resetMaterials()
     }
+    
     
     // Check if any topographic effects are active
     const hasTopographicEffect = enabledEffects.some(effect => effect.type === 'topographic')
@@ -339,11 +412,14 @@ export class PostProcessingPass {
         break
       case 'blur':
         this.material.uniforms.blurAmount.value = effect.parameters.blurAmount ?? 0.002
+        this.material.uniforms.blurThreshold.value = effect.parameters.threshold ?? 0.0
+        this.material.uniforms.blurType.value = effect.parameters.blurType ?? 0
         break
       case 'bloom':
         this.material.uniforms.bloomThreshold.value = effect.parameters.threshold ?? 0.8
         this.material.uniforms.bloomIntensity.value = effect.parameters.intensity ?? 1.0
         this.material.uniforms.bloomRadius.value = effect.parameters.radius ?? 0.5
+        this.material.uniforms.bloomQuality.value = effect.parameters.quality ?? 2
         break
       case 'film':
         this.material.uniforms.filmNoiseSeed.value = effect.parameters.noiseSeed ?? 0.35
@@ -373,6 +449,56 @@ export class PostProcessingPass {
         this.material.uniforms.oilBrushSize.value = effect.parameters.brushSize ?? 4.0
         this.material.uniforms.oilRoughness.value = effect.parameters.roughness ?? 0.6
         this.material.uniforms.oilBrightness.value = effect.parameters.brightness ?? 1.2
+        this.material.uniforms.oilTexture.value = effect.parameters.texture ?? 0.5
+        break
+      case 'datamosh':
+        this.material.uniforms.datamoshIntensity.value = effect.parameters.intensity ?? 0.5
+        this.material.uniforms.datamoshDisplacement.value = effect.parameters.displacement ?? 10.0
+        this.material.uniforms.datamoshCorruption.value = effect.parameters.corruption ?? 0.3
+        this.material.uniforms.datamoshBlockSize.value = effect.parameters.blockSize ?? 8.0
+        this.material.uniforms.datamoshGlitchFreq.value = effect.parameters.glitchFreq ?? 0.2
+        this.material.uniforms.datamoshFrameBlend.value = effect.parameters.frameBlend ?? 0.7
+        break
+      
+      case 'pixelsort':
+        this.material.uniforms.pixelsortIntensity.value = effect.parameters.intensity ?? 0.5
+        this.material.uniforms.pixelsortLength.value = effect.parameters.sortLength ?? 50
+        this.material.uniforms.pixelsortThreshold.value = effect.parameters.threshold ?? 0.5
+        this.material.uniforms.pixelsortDirection.value = effect.parameters.direction ?? 0
+        this.material.uniforms.pixelsortMode.value = effect.parameters.sortMode ?? 0
+        break
+      
+      case 'glow':
+        this.material.uniforms.glowIntensity.value = effect.parameters.intensity ?? 0.5
+        this.material.uniforms.glowThreshold.value = effect.parameters.threshold ?? 0.8
+        this.material.uniforms.glowRadius.value = effect.parameters.radius ?? 1.0
+        this.material.uniforms.glowStrength.value = effect.parameters.strength ?? 2.0
+        this.material.uniforms.glowSamples.value = effect.parameters.samples ?? 8
+        this.material.uniforms.glowSoftness.value = effect.parameters.softness ?? 0.5
+        break
+      
+      case 'pixelate':
+        this.material.uniforms.pixelateIntensity.value = effect.parameters.intensity ?? 1.0
+        this.material.uniforms.pixelateSize.value = effect.parameters.pixelSize ?? 6
+        this.material.uniforms.pixelateNormalEdge.value = effect.parameters.normalEdge ?? 0.3
+        this.material.uniforms.pixelateDepthEdge.value = effect.parameters.depthEdge ?? 0.4
+        this.material.uniforms.pixelateEdgeMode.value = effect.parameters.edgeMode ?? 0
+        this.material.uniforms.pixelateSmoothing.value = effect.parameters.smoothing ?? 0.5
+        break
+      
+      case 'fog':
+        this.material.uniforms.fogIntensity.value = effect.parameters.intensity ?? 0.5
+        this.material.uniforms.fogNear.value = effect.parameters.near ?? 5.0
+        this.material.uniforms.fogFar.value = effect.parameters.far ?? 50.0
+        this.material.uniforms.fogColor.value.set(
+          effect.parameters.fogColorR ?? 0.8,
+          effect.parameters.fogColorG ?? 0.9,
+          effect.parameters.fogColorB ?? 1.0
+        )
+        this.material.uniforms.fogMode.value = effect.parameters.fogMode ?? 0
+        this.material.uniforms.fogYMax.value = effect.parameters.yMax ?? 10.0
+        
+        // Fog parameters updated above
         break
     }
     
@@ -480,6 +606,11 @@ export class PostProcessingPass {
       case 'sobelthreshold': return 11
       case 'motionblur': return 12
       case 'oilpainting': return 13
+      case 'datamosh': return 14
+      case 'pixelsort': return 15
+      case 'glow': return 16
+      case 'pixelate': return 17
+      case 'fog': return 18
       // Background effects are handled separately in applyBackgroundEffect
       case 'background': return 0
       // Topographic effects are handled separately in applyTopographicEffect
@@ -542,12 +673,14 @@ export class PostProcessingPass {
     this.material.uniforms.previousViewProjectionMatrix.value.copy(this.previousViewProjectionMatrix)
     this.material.uniforms.currentViewProjectionMatrix.value.copy(this.currentViewProjectionMatrix)
   }
+
   
   updatePointClouds(): void {
     if (!this.mainScene) return
     
-    // Find all point clouds in the scene
+    // Find all point clouds and sphere meshes in the scene
     this.pointClouds = []
+    this.sphereMeshes = []
     this.mainScene.traverse((child) => {
       if (child instanceof THREE.Points) {
         this.pointClouds.push(child)
@@ -580,6 +713,14 @@ export class PostProcessingPass {
         // Store original material for material effects
         if (!this.originalMaterials.has(child)) {
           this.originalMaterials.set(child, child.material)
+        }
+      } else if (child instanceof THREE.InstancedMesh && child.userData?.isSphereInstanced) {
+        // Track instanced sphere meshes created by SphereInstancer
+        this.sphereMeshes.push(child)
+        
+        // Store original material for material effects
+        if (!this.originalSphereMaterials.has(child)) {
+          this.originalSphereMaterials.set(child, child.material)
         }
       }
     })
@@ -660,10 +801,19 @@ export class PostProcessingPass {
   
   // Reset materials to original
   private resetMaterials(): void {
+    // Reset point cloud materials
     this.pointClouds.forEach(pointCloud => {
       const originalMaterial = this.originalMaterials.get(pointCloud)
       if (originalMaterial) {
         pointCloud.material = originalMaterial
+      }
+    })
+    
+    // Reset sphere mesh materials
+    this.sphereMeshes.forEach(sphereMesh => {
+      const originalMaterial = this.originalSphereMaterials.get(sphereMesh)
+      if (originalMaterial) {
+        sphereMesh.material = originalMaterial
       }
     })
     
@@ -672,6 +822,11 @@ export class PostProcessingPass {
       material.dispose()
     })
     this.customMaterials.clear()
+    
+    this.customSphereMaterials.forEach(material => {
+      material.dispose()
+    })
+    this.customSphereMaterials.clear()
     
     this.materialAnimationStartTime = 0
   }
@@ -1197,6 +1352,7 @@ export class PostProcessingPass {
     const lineOpacity = (effect.parameters.lineOpacity ?? 50) / 100 // Convert to 0-1
     const enableAnimation = effect.parameters.enableAnimation ?? 1
     const resetPositions = effect.parameters.resetPositions ?? 0
+    const randomSeed = effect.parameters.randomSeed ?? 0
     
     // Handle reset positions button
     if (resetPositions > 0.5) {
@@ -1256,11 +1412,64 @@ export class PostProcessingPass {
         
         positionAttribute.needsUpdate = true
       })
+      
+      // Update sphere mesh positions (instanced mesh animation)
+      this.sphereMeshes.forEach(sphereMesh => {
+        // Initialize position tracking for this mesh if not exists
+        if (!this.spherePreviousPositions.has(sphereMesh)) {
+          this.spherePreviousPositions.set(sphereMesh, new Float32Array(sphereMesh.count * 3))
+          this.sphereCurrentPositions.set(sphereMesh, new Float32Array(sphereMesh.count * 3))
+        }
+        
+        const previousPositions = this.spherePreviousPositions.get(sphereMesh)!
+        const currentPositions = this.sphereCurrentPositions.get(sphereMesh)!
+        
+        // For sphere meshes, we need to animate the instance matrices
+        const matrix = new THREE.Matrix4()
+        const position = new THREE.Vector3()
+        const scale = new THREE.Vector3()
+        const quaternion = new THREE.Quaternion()
+        
+        // We need to track original sphere positions and velocities
+        // For now, create simple oscillation animation
+        for (let i = 0; i < sphereMesh.count; i++) {
+          sphereMesh.getMatrixAt(i, matrix)
+          matrix.decompose(position, quaternion, scale)
+          
+          // Store previous position before updating
+          const i3 = i * 3
+          previousPositions[i3] = currentPositions[i3]
+          previousPositions[i3 + 1] = currentPositions[i3 + 1] 
+          previousPositions[i3 + 2] = currentPositions[i3 + 2]
+          
+          // Simple sine wave animation for spheres
+          const time = (performance.now() - this.networkAnimationStartTime) * 0.001
+          const waveOffset = (i * 0.1) % (Math.PI * 2) // Different phase for each sphere
+          
+          // Add wave motion if movement range > 0
+          if (movementRange > 0) {
+            const waveAmplitude = movementRange * 10000 * 0.01 // Scale similar to points
+            position.y += Math.sin(time * 2 + waveOffset) * waveAmplitude * deltaTime
+            position.x += Math.cos(time * 1.5 + waveOffset) * waveAmplitude * deltaTime * 0.5
+          }
+          
+          // Store current position after updating
+          currentPositions[i3] = position.x
+          currentPositions[i3 + 1] = position.y
+          currentPositions[i3 + 2] = position.z
+          
+          // Rebuild matrix with updated position
+          matrix.compose(position, quaternion, scale)
+          sphereMesh.setMatrixAt(i, matrix)
+        }
+        
+        sphereMesh.instanceMatrix.needsUpdate = true
+      })
     }
     
     // Generate connection lines
     if (showConnections > 0.5) {
-      this.updateConnectionLines(connectionDistance, maxConnections, lineOpacity)
+      this.updateConnectionLines(connectionDistance, maxConnections, lineOpacity, randomSeed)
     } else if (this.connectionLines) {
       // Hide existing connection lines
       this.mainScene.remove(this.connectionLines)
@@ -1274,8 +1483,8 @@ export class PostProcessingPass {
     }
   }
   
-  private updateConnectionLines(connectionDistance: number, maxConnections: number, lineOpacity: number): void {
-    if (!this.mainScene || this.pointClouds.length === 0) return
+  private updateConnectionLines(connectionDistance: number, maxConnections: number, lineOpacity: number, randomSeed: number = 0): void {
+    if (!this.mainScene || (this.pointClouds.length === 0 && this.sphereMeshes.length === 0)) return
     
     // Remove existing lines
     if (this.connectionLines) {
@@ -1288,25 +1497,86 @@ export class PostProcessingPass {
       }
     }
     
-    // Collect all points from all point clouds (limit for performance)
+    // Simple seeded random function (Linear Congruential Generator)
+    const seededRandom = (seed: number) => {
+      let state = seed
+      return () => {
+        state = (state * 1664525 + 1013904223) % 4294967296
+        return state / 4294967296
+      }
+    }
+    
+    const random = seededRandom(randomSeed)
+    
+    // Collect all points - prioritize sphere meshes if available (they replace point clouds when sphere mode is on)
     const allPoints: THREE.Vector3[] = []
     const pointCloudIndices: number[] = [] // Track which point cloud each point belongs to
     const maxPointsForConnections = 1000 // Limit connections to prevent performance issues
     
-    this.pointClouds.forEach((pointCloud, cloudIndex) => {
-      const positionAttribute = pointCloud.geometry.attributes.position
-      const positions = positionAttribute.array as Float32Array
-      const count = positionAttribute.count
-      
-      // For large point clouds, sample every nth point to maintain performance
-      const step = count > maxPointsForConnections ? Math.ceil(count / maxPointsForConnections) : 1
-      
-      for (let i = 0; i < count && allPoints.length < maxPointsForConnections; i += step) {
-        const i3 = i * 3
-        allPoints.push(new THREE.Vector3(positions[i3], positions[i3 + 1], positions[i3 + 2]))
-        pointCloudIndices.push(cloudIndex)
-      }
-    })
+    if (this.sphereMeshes.length > 0) {
+      // Use sphere mesh positions (animated positions)
+      this.sphereMeshes.forEach((sphereMesh, meshIndex) => {
+        const count = sphereMesh.count
+        
+        // Calculate how many points to sample from this mesh
+        const remainingSlots = maxPointsForConnections - allPoints.length
+        const pointsToSample = Math.min(count, remainingSlots, Math.floor(maxPointsForConnections / this.sphereMeshes.length))
+        
+        // Use seeded random selection
+        const selectedIndices = new Set<number>()
+        const matrix = new THREE.Matrix4()
+        const position = new THREE.Vector3()
+        
+        // Generate random indices for sphere selection
+        for (let sampleCount = 0; sampleCount < pointsToSample && selectedIndices.size < pointsToSample; sampleCount++) {
+          let randomIndex = Math.floor(random() * count)
+          
+          // Ensure we don't pick the same sphere twice
+          while (selectedIndices.has(randomIndex) && selectedIndices.size < count) {
+            randomIndex = Math.floor(random() * count)
+          }
+          
+          selectedIndices.add(randomIndex)
+          
+          // Get current animated position from instance matrix
+          sphereMesh.getMatrixAt(randomIndex, matrix)
+          position.setFromMatrixPosition(matrix)
+          
+          allPoints.push(position.clone())
+          pointCloudIndices.push(meshIndex)
+        }
+      })
+    } else {
+      // Fallback to point clouds when no sphere meshes
+      this.pointClouds.forEach((pointCloud, cloudIndex) => {
+        const positionAttribute = pointCloud.geometry.attributes.position
+        const positions = positionAttribute.array as Float32Array
+        const count = positionAttribute.count
+        
+        // Calculate how many points to sample from this cloud
+        const remainingSlots = maxPointsForConnections - allPoints.length
+        const pointsToSample = Math.min(count, remainingSlots, Math.floor(maxPointsForConnections / this.pointClouds.length))
+        
+        // Use seeded random selection instead of regular stepping
+        const selectedIndices = new Set<number>()
+        
+        // Generate random indices for point selection
+        for (let sampleCount = 0; sampleCount < pointsToSample && selectedIndices.size < pointsToSample; sampleCount++) {
+          let randomIndex = Math.floor(random() * count)
+          
+          // Ensure we don't pick the same point twice
+          while (selectedIndices.has(randomIndex) && selectedIndices.size < count) {
+            randomIndex = Math.floor(random() * count)
+          }
+          
+          selectedIndices.add(randomIndex)
+          
+          const i3 = randomIndex * 3
+          allPoints.push(new THREE.Vector3(positions[i3], positions[i3 + 1], positions[i3 + 2]))
+          pointCloudIndices.push(cloudIndex)
+        }
+      })
+    }
     
     // Generate connections
     const linePositions: number[] = []
@@ -1357,13 +1627,13 @@ export class PostProcessingPass {
   }
   
   private applyMaterialEffect(effect: EffectInstance): void {
-    // Update point clouds list in case scene changed
+    // Update point clouds and sphere meshes in case scene changed
     this.updatePointClouds()
     
-    if (this.pointClouds.length === 0) return
+    if (this.pointClouds.length === 0 && this.sphereMeshes.length === 0) return
     
     const transparency = (effect.parameters.transparency ?? 0) / 100 // Convert to 0-1
-    const sizeMultiplier = (effect.parameters.sizeMultiplier ?? 100) / 100 // Convert to 0.1-5.0
+    const sizeMultiplier = effect.parameters.sizeMultiplier ?? 100 // Keep as percentage for shader
     const useVertexColors = effect.parameters.useVertexColors ?? 1
     const waveDeformation = effect.parameters.waveDeformation ?? 0
     const twistEffect = effect.parameters.twistEffect ?? 0
@@ -1372,6 +1642,7 @@ export class PostProcessingPass {
     const pulseEffect = effect.parameters.pulseEffect ?? 0
     const colorCycling = effect.parameters.colorCycling ?? 0
     const deformationEnable = effect.parameters.deformationEnable ?? 0
+    
     
     // Initialize animation time
     if (this.materialAnimationStartTime === 0) {
@@ -1415,6 +1686,7 @@ export class PostProcessingPass {
       if (customMaterial && customMaterial.uniforms) {
         customMaterial.uniforms.time.value = time
         
+        
         if (pulseEffect > 0.5 && customMaterial.uniforms.pulseTime) {
           customMaterial.uniforms.pulseTime.value = Math.sin(time * 3.0) * 0.5 + 1.0
         }
@@ -1424,12 +1696,60 @@ export class PostProcessingPass {
         }
       }
     })
+    
+    // Apply material effects to sphere meshes
+    this.sphereMeshes.forEach(sphereMesh => {
+      const originalMaterial = this.originalSphereMaterials.get(sphereMesh)
+      if (!originalMaterial) return
+      
+      // Create or update custom material for spheres
+      let customMaterial = this.customSphereMaterials.get(sphereMesh)
+      
+      if (!customMaterial || this.shouldUpdateMaterial(effect)) {
+        // Dispose old material if exists
+        if (customMaterial) {
+          customMaterial.dispose()
+        }
+        
+        // Create new shader material for spheres
+        customMaterial = this.createCustomSphereMaterial(
+          sphereMesh,
+          transparency,
+          useVertexColors,
+          waveDeformation,
+          twistEffect,
+          waveFrequency,
+          pulseEffect,
+          colorCycling,
+          deformationEnable
+        )
+        
+        this.customSphereMaterials.set(sphereMesh, customMaterial)
+        sphereMesh.material = customMaterial
+      }
+      
+      // Update time-based uniforms for spheres
+      if (customMaterial && customMaterial.uniforms) {
+        customMaterial.uniforms.time.value = time
+        
+        
+        if (pulseEffect > 0.5 && customMaterial.uniforms.pulseTime) {
+          customMaterial.uniforms.pulseTime.value = Math.sin(time * 3.0) * 0.5 + 1.0
+        }
+        
+        if (colorCycling > 0.5 && customMaterial.uniforms.colorTime) {
+          customMaterial.uniforms.colorTime.value = time
+        }
+        
+      }
+    })
   }
   
   private shouldUpdateMaterial(_effect: EffectInstance): boolean {
     // For now, always update - in a production system you'd compare parameters
     return false
   }
+  
   
   private createCustomMaterial(
     _pointCloud: THREE.Points,
@@ -1458,15 +1778,16 @@ export class PostProcessingPass {
       void main() {
         vec3 pos = position;
         
+        // Apply deformations in object space before transformation
         if (deformationEnable > 0.5) {
-          // Wave deformation
+          // Wave deformation - apply to object space coordinates
           if (waveDeformation > 0.0) {
             float wave = sin(time + pos.y * waveFrequency) * waveDeformation;
             pos.x += wave;
             pos.z += wave * 0.5;
           }
           
-          // Twist effect (inspired by Three.js example)
+          // Twist effect - apply rotation in object space
           if (twistEffect > 0.0) {
             float theta = sin(time + pos.y) / twistEffect;
             float c = cos(theta);
@@ -1476,10 +1797,11 @@ export class PostProcessingPass {
           }
         }
         
+        // Transform to view space
         vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
         
-        // Calculate point size
-        float pointSize = sizeMultiplier * 2.0; // Base size
+        // Calculate point size - sizeMultiplier comes as percentage (100 = normal size)
+        float pointSize = (sizeMultiplier / 100.0) * 2.0; // Convert percentage to multiplier
         if (deformationEnable > 0.5 && pulseTime > 0.0) {
           pointSize *= pulseTime;
         }
@@ -1549,7 +1871,162 @@ export class PostProcessingPass {
         deformationEnable: { value: deformationEnable }
       },
       transparent: transparency > 0,
-      vertexColors: useVertexColors > 0.5
+      vertexColors: useVertexColors > 0.5,
+      // Essential rendering properties
+      depthTest: true,
+      depthWrite: !transparency
+    })
+    
+    return material
+  }
+  
+  private createCustomSphereMaterial(
+    sphereMesh: THREE.InstancedMesh,
+    transparency: number,
+    useVertexColors: number,
+    waveDeformation: number,
+    twistEffect: number,
+    waveFrequency: number,
+    _pulseEffect: number,
+    colorCycling: number,
+    deformationEnable: number
+  ): THREE.ShaderMaterial {
+    
+    // Initialize sphere position tracking if not already done
+    if (!this.spherePreviousPositions.has(sphereMesh)) {
+      const positionCount = sphereMesh.count * 3 // x, y, z for each instance
+      this.spherePreviousPositions.set(sphereMesh, new Float32Array(positionCount))
+      this.sphereCurrentPositions.set(sphereMesh, new Float32Array(positionCount))
+      
+      // Initialize with current positions
+      const matrix = new THREE.Matrix4()
+      const position = new THREE.Vector3()
+      const currentPositions = this.sphereCurrentPositions.get(sphereMesh)!
+      
+      for (let i = 0; i < sphereMesh.count; i++) {
+        sphereMesh.getMatrixAt(i, matrix)
+        matrix.decompose(position, new THREE.Quaternion(), new THREE.Vector3())
+        
+        currentPositions[i * 3] = position.x
+        currentPositions[i * 3 + 1] = position.y
+        currentPositions[i * 3 + 2] = position.z
+      }
+      
+      // Copy current to previous for initial frame
+      this.spherePreviousPositions.get(sphereMesh)!.set(currentPositions)
+    }
+    
+    const vertexShader = `
+      uniform float time;
+      uniform float waveDeformation;
+      uniform float twistEffect;
+      uniform float waveFrequency;
+      uniform float pulseTime;
+      uniform float deformationEnable;
+      uniform float sphereCount;
+      
+      varying vec3 vColor;
+      
+      void main() {
+        vec3 pos = position;
+        
+        // Get instance matrix and apply it to position
+        vec4 instancePos = instanceMatrix * vec4(pos, 1.0);
+        
+        
+        if (deformationEnable > 0.5) {
+          // Wave deformation
+          if (waveDeformation > 0.0) {
+            float wave = sin(time + instancePos.y * waveFrequency) * waveDeformation;
+            instancePos.x += wave;
+            instancePos.z += wave * 0.5;
+          }
+          
+          // Twist effect
+          if (twistEffect > 0.0) {
+            float theta = sin(time + instancePos.y) / twistEffect;
+            float c = cos(theta);
+            float s = sin(theta);
+            mat3 m = mat3(c, 0, s, 0, 1, 0, -s, 0, c);
+            instancePos.xyz = instancePos.xyz * m;
+          }
+        }
+        
+        vec4 mvPosition = modelViewMatrix * instancePos;
+        vec4 screenPos = projectionMatrix * mvPosition;
+        gl_Position = screenPos;
+        
+        // Pass color to fragment shader (use instance color if available)
+        if (${useVertexColors > 0.5 ? 'true' : 'false'}) {
+          vColor = instanceColor;
+        } else {
+          vColor = vec3(1.0);
+        }
+      }
+    `
+    
+    const fragmentShader = `
+      uniform float time;
+      uniform float transparency;
+      uniform float colorTime;
+      uniform float colorCycling;
+      
+      varying vec3 vColor;
+      
+      void main() {
+        vec3 finalColor = vColor;
+        
+        if (colorCycling > 0.5) {
+          // Color cycling effect - proper HSV to RGB conversion
+          float hue = mod(colorTime * 0.3, 6.28318); // 2*PI for full spectrum
+          float sat = 1.0;
+          float val = 1.0;
+          
+          float c = val * sat;
+          float x = c * (1.0 - abs(mod(hue / 1.047, 2.0) - 1.0)); // 1.047 = PI/3
+          float m = val - c;
+          
+          if (hue < 1.047) {
+            finalColor = vec3(c, x, 0) + m;
+          } else if (hue < 2.094) {
+            finalColor = vec3(x, c, 0) + m;
+          } else if (hue < 3.141) {
+            finalColor = vec3(0, c, x) + m;
+          } else if (hue < 4.188) {
+            finalColor = vec3(0, x, c) + m;
+          } else if (hue < 5.236) {
+            finalColor = vec3(x, 0, c) + m;
+          } else {
+          finalColor = vec3(c, 0, x) + m;
+          }
+        }
+        
+        float alpha = 1.0 - transparency;
+        gl_FragColor = vec4(finalColor, alpha);
+        
+        gl_FragColor = vec4(finalColor, alpha);
+      }
+    `
+    
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms: {
+        time: { value: 0 },
+        transparency: { value: transparency },
+        waveDeformation: { value: waveDeformation },
+        twistEffect: { value: twistEffect },
+        waveFrequency: { value: waveFrequency },
+        pulseTime: { value: 1.0 },
+        colorTime: { value: 0 },
+        colorCycling: { value: colorCycling },
+        deformationEnable: { value: deformationEnable },
+        sphereCount: { value: sphereMesh.count }
+      },
+      transparent: transparency > 0,
+      // Essential rendering properties
+      depthTest: true,
+      depthWrite: !transparency
     })
     
     return material
@@ -1672,6 +2149,8 @@ export class PostProcessingPass {
       uniform float vignetteDarkness;
       uniform float vignetteFeather;
       uniform float blurAmount;
+      uniform float blurThreshold;
+      uniform float blurType;
       uniform float filmNoiseSeed;
       uniform vec2 dotscreenCenter;
       uniform float dotscreenScale;
@@ -1688,9 +2167,40 @@ export class PostProcessingPass {
       uniform float bloomThreshold;
       uniform float bloomIntensity;
       uniform float bloomRadius;
+      uniform float bloomQuality;
       uniform float oilBrushSize;
       uniform float oilRoughness;
       uniform float oilBrightness;
+      uniform float oilTexture;
+      uniform float datamoshIntensity;
+      uniform float datamoshDisplacement;
+      uniform float datamoshCorruption;
+      uniform float datamoshBlockSize;
+      uniform float datamoshGlitchFreq;
+      uniform float datamoshFrameBlend;
+      uniform float pixelsortIntensity;
+      uniform float pixelsortLength;
+      uniform float pixelsortThreshold;
+      uniform float pixelsortDirection;
+      uniform float pixelsortMode;
+      uniform float glowIntensity;
+      uniform float glowThreshold;
+      uniform float glowRadius;
+      uniform float glowStrength;
+      uniform float glowSamples;
+      uniform float glowSoftness;
+      uniform float pixelateIntensity;
+      uniform float pixelateSize;
+      uniform float pixelateNormalEdge;
+      uniform float pixelateDepthEdge;
+      uniform float pixelateEdgeMode;
+      uniform float pixelateSmoothing;
+      uniform float fogIntensity;
+      uniform float fogNear;
+      uniform float fogFar;
+      uniform vec3 fogColor;
+      uniform float fogMode;
+      uniform float fogYMax;
       
       varying vec2 vUv;
       
@@ -1766,9 +2276,128 @@ export class PostProcessingPass {
         return color * vignetteFactor;
       }
       
-      // Blur effect (using preBlur implementation)
-      vec3 blur(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
-        return preBlur(tex, uv, resolution, amount);
+      // Box blur - simple averaging
+      vec3 boxBlur(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
+        vec3 color = vec3(0.0);
+        vec2 texelSize = amount / resolution;
+        float samples = 0.0;
+        
+        for (int x = -2; x <= 2; x++) {
+          for (int y = -2; y <= 2; y++) {
+            color += texture2D(tex, uv + vec2(float(x), float(y)) * texelSize).rgb;
+            samples += 1.0;
+          }
+        }
+        
+        return color / samples;
+      }
+      
+      // Motion blur for blur effect - directional blur
+      vec3 motionBlurEffect(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
+        vec3 color = vec3(0.0);
+        vec2 direction = vec2(cos(time), sin(time)) * amount / resolution;
+        
+        for (int i = -4; i <= 4; i++) {
+          float weight = 1.0 - abs(float(i)) / 4.0;
+          color += texture2D(tex, uv + direction * float(i)).rgb * weight;
+        }
+        
+        return color / 5.0; // Normalize
+      }
+      
+      // Radial blur - blur from center outward
+      vec3 radialBlur(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
+        vec3 color = vec3(0.0);
+        vec2 center = vec2(0.5, 0.5);
+        vec2 direction = normalize(uv - center);
+        float distance = length(uv - center);
+        
+        float samples = 8.0;
+        for (float i = 0.0; i < samples; i++) {
+          float offset = (i / samples - 0.5) * amount * distance;
+          color += texture2D(tex, uv + direction * offset / resolution).rgb;
+        }
+        
+        return color / samples;
+      }
+      
+      // Zoom blur - blur toward/away from center
+      vec3 zoomBlur(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
+        vec3 color = vec3(0.0);
+        vec2 center = vec2(0.5, 0.5);
+        vec2 direction = uv - center;
+        
+        float samples = 8.0;
+        for (float i = 0.0; i < samples; i++) {
+          float scale = 1.0 + (i / samples - 0.5) * amount;
+          vec2 sampleUV = center + direction * scale;
+          color += texture2D(tex, sampleUV).rgb;
+        }
+        
+        return color / samples;
+      }
+      
+      // Bokeh blur - circular blur with nice falloff
+      vec3 bokehBlur(sampler2D tex, vec2 uv, vec2 resolution, float amount) {
+        vec3 color = vec3(0.0);
+        vec2 texelSize = amount / resolution;
+        float totalWeight = 0.0;
+        
+        // Sample in a circle pattern
+        for (float angle = 0.0; angle < 6.28318; angle += 0.39269) { // 16 samples
+          for (float radius = 0.0; radius <= 1.0; radius += 0.25) {
+            vec2 offset = vec2(cos(angle), sin(angle)) * radius * texelSize;
+            float weight = 1.0 - radius; // Weight decreases with distance
+            color += texture2D(tex, uv + offset).rgb * weight;
+            totalWeight += weight;
+          }
+        }
+        
+        return color / totalWeight;
+      }
+      
+      // Main blur function with type selection and threshold
+      vec3 blur(sampler2D tex, vec2 uv, vec2 resolution, float amount, float threshold, float blurType) {
+        vec3 originalColor = texture2D(tex, uv).rgb;
+        vec3 blurredColor;
+        
+        // Select blur type
+        if (blurType <= 0.5) {
+          // Gaussian blur (existing preBlur)
+          blurredColor = preBlur(tex, uv, resolution, amount);
+        } else if (blurType <= 1.5) {
+          // Box blur
+          blurredColor = boxBlur(tex, uv, resolution, amount);
+        } else if (blurType <= 2.5) {
+          // Motion blur
+          blurredColor = motionBlurEffect(tex, uv, resolution, amount);
+        } else if (blurType <= 3.5) {
+          // Radial blur
+          blurredColor = radialBlur(tex, uv, resolution, amount);
+        } else if (blurType <= 4.5) {
+          // Zoom blur
+          blurredColor = zoomBlur(tex, uv, resolution, amount);
+        } else {
+          // Bokeh blur
+          blurredColor = bokehBlur(tex, uv, resolution, amount);
+        }
+        
+        if (threshold <= 0.0) {
+          // No threshold - use blur result
+          return blurredColor;
+        }
+        
+        // Apply threshold - only blur bright areas
+        float luminance = dot(originalColor, vec3(0.299, 0.587, 0.114));
+        
+        if (luminance > threshold) {
+          // Bright area - blend between original and blurred
+          float blurStrength = smoothstep(threshold, threshold + 0.1, luminance);
+          return mix(originalColor, blurredColor, blurStrength);
+        } else {
+          // Dark area - keep original
+          return originalColor;
+        }
       }
       
       // Film effect with noise and scanlines
@@ -1890,35 +2519,126 @@ export class PostProcessingPass {
         return vec3(gradient);
       }
       
-      // Bloom effect
-      vec3 bloom(sampler2D tex, vec2 uv, vec2 resolution, float threshold, float intensity, float radius) {
-        vec3 originalColor = texture2D(tex, uv).rgb;
+      // Bloom effect that creates misty glow extending beyond geometry
+      vec3 bloom(sampler2D tex, vec2 uv, vec2 resolution, float threshold, float intensity, float radius, float quality) {
+        vec3 currentColor = texture2D(tex, uv).rgb;
         
-        // Extract bright areas using threshold
-        float luminance = dot(originalColor, vec3(0.299, 0.587, 0.114));
-        float bloomMask = smoothstep(threshold - 0.1, threshold + 0.1, luminance);
-        vec3 brightColor = originalColor * bloomMask;
+        // Create expanding glow that extends beyond geometry
+        vec3 glowColor = vec3(0.0);
+        float totalWeight = 0.0;
         
-        // Apply Gaussian blur to bright areas for bloom effect
-        vec3 bloomColor = vec3(0.0);
+        // Multiple glow passes with increasing radius for misty effect
         vec2 texelSize = radius / resolution;
         
-        // 9-tap Gaussian blur for bloom
-        bloomColor += texture2D(tex, uv + vec2(-texelSize.x, -texelSize.y)).rgb * 0.0625;
-        bloomColor += texture2D(tex, uv + vec2(0.0, -texelSize.y)).rgb * 0.125;
-        bloomColor += texture2D(tex, uv + vec2(texelSize.x, -texelSize.y)).rgb * 0.0625;
-        bloomColor += texture2D(tex, uv + vec2(-texelSize.x, 0.0)).rgb * 0.125;
-        bloomColor += texture2D(tex, uv).rgb * 0.25;
-        bloomColor += texture2D(tex, uv + vec2(texelSize.x, 0.0)).rgb * 0.125;
-        bloomColor += texture2D(tex, uv + vec2(-texelSize.x, texelSize.y)).rgb * 0.0625;
-        bloomColor += texture2D(tex, uv + vec2(0.0, texelSize.y)).rgb * 0.125;
-        bloomColor += texture2D(tex, uv + vec2(texelSize.x, texelSize.y)).rgb * 0.0625;
+        // Quality-based sampling density
+        float angleStep1, angleStep2, angleStep3;
+        int distSamples1, distSamples2, distSamples3;
         
-        // Apply threshold mask to blurred color
-        bloomColor = bloomColor * bloomMask;
+        if (quality <= 1.0) {
+          // Fast: Minimal samples
+          angleStep1 = 1.5708; // 4 samples
+          angleStep2 = 3.1416; // 2 samples  
+          angleStep3 = 6.2832; // 1 sample
+          distSamples1 = 2;
+          distSamples2 = 1;
+          distSamples3 = 1;
+        } else if (quality <= 2.0) {
+          // Medium: Balanced quality
+          angleStep1 = 0.78539; // 8 samples
+          angleStep2 = 1.5708;  // 4 samples
+          angleStep3 = 3.1416;  // 2 samples
+          distSamples1 = 3;
+          distSamples2 = 2;
+          distSamples3 = 2;
+        } else if (quality <= 3.0) {
+          // High: Good quality
+          angleStep1 = 0.39269; // 16 samples
+          angleStep2 = 0.78539; // 8 samples
+          angleStep3 = 1.5708;  // 4 samples
+          distSamples1 = 3;
+          distSamples2 = 3;
+          distSamples3 = 3;
+        } else {
+          // Ultra: Maximum quality
+          angleStep1 = 0.19635; // 32 samples
+          angleStep2 = 0.39269; // 16 samples
+          angleStep3 = 0.78539; // 8 samples
+          distSamples1 = 4;
+          distSamples2 = 4;
+          distSamples3 = 4;
+        }
         
-        // Combine original with bloom
-        return originalColor + bloomColor * intensity;
+        // Pass 1: Close glow (2x radius)
+        for (float angle = 0.0; angle < 6.28318; angle += angleStep1) {
+          for (int d = 1; d <= distSamples1; d++) {
+            float dist = float(d);
+            vec2 offset = vec2(cos(angle), sin(angle)) * texelSize * dist * 2.0;
+            vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+            float luminance = dot(sampleColor, vec3(0.299, 0.587, 0.114));
+            
+            if (luminance > threshold) {
+              float weight = 1.0 / (dist * dist); // Falloff
+              glowColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Pass 2: Medium glow (4x radius) 
+        for (float angle = 0.0; angle < 6.28318; angle += angleStep2) {
+          for (int d = 1; d <= distSamples2; d++) {
+            float dist = float(d) * 2.0;
+            vec2 offset = vec2(cos(angle), sin(angle)) * texelSize * dist * 4.0;
+            vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+            float luminance = dot(sampleColor, vec3(0.299, 0.587, 0.114));
+            
+            if (luminance > threshold * 0.8) {
+              float weight = 0.5 / (dist * dist);
+              glowColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Pass 3: Far glow (8x radius) - creates the misty halo
+        for (float angle = 0.0; angle < 6.28318; angle += angleStep3) {
+          for (int d = 1; d <= distSamples3; d++) {
+            float dist = float(d) * 4.0;
+            vec2 offset = vec2(cos(angle), sin(angle)) * texelSize * dist * 8.0;
+            vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+            float luminance = dot(sampleColor, vec3(0.299, 0.587, 0.114));
+            
+            if (luminance > threshold * 0.6) {
+              float weight = 0.25 / (dist * dist);
+              glowColor += sampleColor * weight * 2.0; // Extra boost for far glow
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Normalize and apply glow
+        if (totalWeight > 0.0) {
+          glowColor = glowColor / totalWeight;
+          
+          // Create atmospheric scattering effect
+          float currentLum = dot(currentColor, vec3(0.299, 0.587, 0.114));
+          
+          // Boost glow in dark areas (where there's no current geometry)
+          float darkBoost = 1.0 - smoothstep(0.0, 0.3, currentLum);
+          glowColor *= (1.0 + darkBoost * 2.0);
+          
+          // Screen blend for natural light expansion
+          vec3 screenBlend = vec3(1.0) - (vec3(1.0) - currentColor) * (vec3(1.0) - glowColor * intensity);
+          
+          // Add glow more aggressively in empty areas
+          float emptyAreaBoost = smoothstep(0.1, 0.0, currentLum);
+          vec3 additiveGlow = currentColor + glowColor * intensity * (1.0 + emptyAreaBoost * 3.0);
+          
+          // Combine screen and additive based on content
+          return mix(screenBlend, additiveGlow, emptyAreaBoost * 0.7);
+        }
+        
+        return currentColor;
       }
       
       // Motion blur effect using velocity vectors
@@ -1961,7 +2681,7 @@ export class PostProcessingPass {
       }
       
       // Oil painting effect - creates painterly look with brush strokes
-      vec3 oilPainting(sampler2D tex, vec2 uv, vec2 resolution, float brushSize, float roughness, float brightness) {
+      vec3 oilPainting(sampler2D tex, vec2 uv, vec2 resolution, float brushSize, float roughness, float brightness, float canvasTexture) {
         vec2 texelSize = 1.0 / resolution;
         vec3 finalColor = vec3(0.0);
         
@@ -2027,12 +2747,376 @@ export class PostProcessingPass {
         // Apply brightness adjustment
         dominantColor *= brightness;
         
-        // Add some texture by mixing with a slightly different sample
-        vec2 textureOffset = vec2(sin(uv.x * 100.0) * texelSize.x, cos(uv.y * 100.0) * texelSize.y) * roughness * 0.5;
-        vec3 textureColor = texture2D(tex, uv + textureOffset).rgb;
+        // Add canvas texture using multiple offset samples
+        vec3 textureColor = dominantColor;
+        if (canvasTexture > 0.0) {
+          // Create canvas-like texture with multiple directional samples
+          vec2 textureOffset1 = vec2(sin(uv.x * 150.0 + time * 0.1), cos(uv.y * 150.0 + time * 0.1)) * texelSize * canvasTexture * 0.5;
+          vec2 textureOffset2 = vec2(cos(uv.x * 200.0 - time * 0.05), sin(uv.y * 200.0 - time * 0.05)) * texelSize * canvasTexture * 0.3;
+          
+          vec3 sample1 = texture2D(tex, uv + textureOffset1).rgb;
+          vec3 sample2 = texture2D(tex, uv + textureOffset2).rgb;
+          
+          // Combine samples to create canvas texture effect
+          textureColor = mix(dominantColor, mix(sample1, sample2, 0.5), canvasTexture * 0.4);
+        }
         
         // Blend the dominant color with texture for more painterly effect
-        return mix(dominantColor, textureColor, roughness * 0.2);
+        return mix(dominantColor, textureColor, min(canvasTexture, 1.0));
+      }
+      
+      // Data moshing effect with corruption and displacement
+      vec3 datamosh(sampler2D tex, vec2 uv, vec2 resolution) {
+        vec3 originalColor = texture2D(tex, uv).rgb;
+        
+        // Create block-based distortion
+        vec2 blockUV = floor(uv * resolution / datamoshBlockSize) * datamoshBlockSize / resolution;
+        
+        // Generate noise for this block
+        float blockNoise = random(blockUV + time * datamoshGlitchFreq);
+        
+        // Only apply effect to some blocks based on corruption level
+        if (blockNoise > datamoshCorruption) {
+          return originalColor;
+        }
+        
+        // Calculate displacement for corrupted blocks
+        vec2 displacement = vec2(
+          random(blockUV + vec2(1.0, 0.0)) - 0.5,
+          random(blockUV + vec2(0.0, 1.0)) - 0.5
+        ) * datamoshDisplacement / resolution;
+        
+        // Sample displaced color
+        vec3 displacedColor = texture2D(tex, uv + displacement).rgb;
+        
+        // Frame blending - mix current with "previous frame" (simulated with offset)
+        vec2 frameOffset = vec2(sin(time * 0.1) * 0.001, cos(time * 0.1) * 0.001);
+        vec3 frameColor = texture2D(tex, uv + frameOffset).rgb;
+        vec3 blendedColor = mix(displacedColor, frameColor, datamoshFrameBlend);
+        
+        // Mix with original based on intensity
+        return mix(originalColor, blendedColor, datamoshIntensity);
+      }
+      
+      vec3 pixelsort(sampler2D tex, vec2 uv, vec2 resolution, vec3 currentColor) {
+        // Use the current processed color for brightness calculation
+        float brightness = dot(currentColor, vec3(0.299, 0.587, 0.114));
+        
+        // Only apply sorting to pixels above threshold
+        if (brightness < pixelsortThreshold) {
+          return currentColor;
+        }
+        
+        // Determine sort direction
+        vec2 sortDirection;
+        if (pixelsortDirection == 0.0) {
+          sortDirection = vec2(1.0, 0.0); // Horizontal right
+        } else if (pixelsortDirection == 1.0) {
+          sortDirection = vec2(0.0, 1.0); // Vertical up
+        } else if (pixelsortDirection == 2.0) {
+          sortDirection = vec2(-1.0, 0.0); // Horizontal left
+        } else {
+          sortDirection = vec2(0.0, -1.0); // Vertical down
+        }
+        
+        // Enhanced sampling - more samples for better edge repetition
+        vec2 step = sortDirection / resolution * pixelsortLength;
+        vec3 samples[16]; // Doubled sample count
+        float brightnesses[16];
+        int sampleCount = 16;
+        
+        // Sample in both directions for better edge detection
+        for (int i = 0; i < 16; i++) {
+          // Spread samples further apart for more dramatic effect
+          float offset = float(i - 8) * 1.5;
+          vec2 sampleUV = uv + step * offset / float(sampleCount - 1);
+          sampleUV = clamp(sampleUV, vec2(0.0), vec2(1.0));
+          samples[i] = texture2D(tex, sampleUV).rgb;
+          brightnesses[i] = dot(samples[i], vec3(0.299, 0.587, 0.114));
+        }
+        
+        // Enhanced sorting with multiple passes for more dramatic effect
+        vec3 sortedColor = currentColor;
+        
+        if (pixelsortMode == 0.0) {
+          // Multi-pass brightest sampling for streak effect
+          float maxBrightness = 0.0;
+          vec3 brightestColor = currentColor;
+          
+          // First pass - find absolute brightest
+          for (int i = 0; i < 16; i++) {
+            if (brightnesses[i] > maxBrightness) {
+              maxBrightness = brightnesses[i];
+              brightestColor = samples[i];
+            }
+          }
+          
+          // Second pass - enhance edges by finding streaks
+          float edgeThreshold = maxBrightness * 0.8;
+          vec3 streakColor = brightestColor;
+          int streakCount = 0;
+          
+          for (int i = 0; i < 16; i++) {
+            if (brightnesses[i] > edgeThreshold) {
+              streakColor = mix(streakColor, samples[i], 0.3);
+              streakCount++;
+            }
+          }
+          
+          sortedColor = streakCount > 2 ? streakColor : brightestColor;
+          
+        } else if (pixelsortMode == 1.0) {
+          // Multi-pass darkest sampling for shadow streaks
+          float minBrightness = 1.0;
+          vec3 darkestColor = currentColor;
+          
+          // First pass - find absolute darkest
+          for (int i = 0; i < 16; i++) {
+            if (brightnesses[i] < minBrightness) {
+              minBrightness = brightnesses[i];
+              darkestColor = samples[i];
+            }
+          }
+          
+          // Second pass - enhance dark edges
+          float darkThreshold = minBrightness + 0.2;
+          vec3 darkStreakColor = darkestColor;
+          int darkStreakCount = 0;
+          
+          for (int i = 0; i < 16; i++) {
+            if (brightnesses[i] < darkThreshold) {
+              darkStreakColor = mix(darkStreakColor, samples[i], 0.3);
+              darkStreakCount++;
+            }
+          }
+          
+          sortedColor = darkStreakCount > 2 ? darkStreakColor : darkestColor;
+          
+        } else {
+          // Enhanced edge detection mode
+          // Find the most contrasting neighbor for dramatic edge repetition
+          float maxContrast = 0.0;
+          vec3 contrastColor = currentColor;
+          
+          for (int i = 0; i < 15; i++) {
+            float contrast = abs(brightnesses[i] - brightnesses[i + 1]);
+            if (contrast > maxContrast) {
+              maxContrast = contrast;
+              // Choose the more extreme value for dramatic effect
+              contrastColor = brightnesses[i] > brightnesses[i + 1] ? samples[i] : samples[i + 1];
+            }
+          }
+          
+          sortedColor = contrastColor;
+        }
+        
+        // Apply multiple passes for more dramatic streaking
+        vec3 finalColor = mix(currentColor, sortedColor, pixelsortIntensity);
+        
+        // Second pass - amplify the effect by sampling from the sorted result
+        if (pixelsortIntensity > 0.5) {
+          vec2 secondPassStep = step * 0.5;
+          vec3 secondPassColor = texture2D(tex, uv + secondPassStep).rgb;
+          float secondPassBrightness = dot(secondPassColor, vec3(0.299, 0.587, 0.114));
+          
+          if (abs(brightness - secondPassBrightness) > 0.1) {
+            finalColor = mix(finalColor, secondPassColor, (pixelsortIntensity - 0.5) * 2.0);
+          }
+        }
+        
+        return finalColor;
+      }
+      
+      vec3 glow(sampler2D tex, vec2 uv, vec2 resolution, vec3 currentColor) {
+        // Calculate brightness of current pixel
+        float brightness = dot(currentColor, vec3(0.299, 0.587, 0.114));
+        
+        // Only apply glow to pixels above threshold
+        if (brightness < glowThreshold) {
+          return currentColor;
+        }
+        
+        // Calculate the glow effect using radial sampling
+        vec3 glowColor = vec3(0.0);
+        float totalWeight = 0.0;
+        
+        // Use dynamic sample count for quality control
+        int sampleCount = int(glowSamples);
+        float radiusStep = glowRadius / float(sampleCount);
+        
+        // Multi-ring sampling for smooth glow
+        for (int ring = 1; ring <= 4; ring++) {
+          float ringRadius = radiusStep * float(ring);
+          int ringSamples = 8 * ring; // More samples for outer rings
+          
+          for (int i = 0; i < 32; i++) { // Max samples for WebGL compatibility
+            if (i >= ringSamples) break;
+            
+            // Calculate angle for this sample
+            float angle = float(i) * 6.28318 / float(ringSamples);
+            
+            // Calculate sample position
+            vec2 offset = vec2(cos(angle), sin(angle)) * ringRadius / resolution;
+            vec2 sampleUV = uv + offset;
+            
+            // Skip samples outside texture bounds
+            if (sampleUV.x < 0.0 || sampleUV.x > 1.0 || sampleUV.y < 0.0 || sampleUV.y > 1.0) {
+              continue;
+            }
+            
+            // Sample color and calculate brightness
+            vec3 sampleColor = texture2D(tex, sampleUV).rgb;
+            float sampleBrightness = dot(sampleColor, vec3(0.299, 0.587, 0.114));
+            
+            // Only contribute if sample is bright enough
+            if (sampleBrightness > glowThreshold) {
+              // Calculate falloff based on distance and softness
+              float distance = length(offset * resolution);
+              float falloff = 1.0 - pow(distance / (glowRadius * glowSoftness), 2.0);
+              falloff = max(0.0, falloff);
+              
+              // Weight by brightness above threshold
+              float weight = (sampleBrightness - glowThreshold) * falloff;
+              
+              glowColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+        }
+        
+        // Normalize the accumulated glow
+        if (totalWeight > 0.0) {
+          glowColor /= totalWeight;
+          glowColor *= glowStrength;
+        }
+        
+        // Blend original with glow using screen blend mode for additive effect
+        vec3 screenBlend = currentColor + glowColor - (currentColor * glowColor);
+        
+        return mix(currentColor, screenBlend, glowIntensity);
+      }
+      
+      vec3 pixelate(sampler2D tex, vec2 uv, vec2 resolution, vec3 currentColor) {
+        // Calculate pixelated coordinates
+        vec2 pixelatedRes = resolution / pixelateSize;
+        vec2 pixelatedUV = floor(uv * pixelatedRes) / pixelatedRes;
+        
+        // Sample the pixelated color
+        vec3 pixelatedColor = texture2D(tex, pixelatedUV).rgb;
+        
+        // Edge detection based on brightness differences
+        vec2 texelSize = 1.0 / resolution;
+        
+        // Sample neighboring pixels for edge detection
+        vec3 colorRight = texture2D(tex, pixelatedUV + vec2(texelSize.x, 0.0)).rgb;
+        vec3 colorUp = texture2D(tex, pixelatedUV + vec2(0.0, texelSize.y)).rgb;
+        vec3 colorLeft = texture2D(tex, pixelatedUV - vec2(texelSize.x, 0.0)).rgb;
+        vec3 colorDown = texture2D(tex, pixelatedUV - vec2(0.0, texelSize.y)).rgb;
+        
+        // Calculate brightness for edge detection
+        float centerBrightness = dot(pixelatedColor, vec3(0.299, 0.587, 0.114));
+        float rightBrightness = dot(colorRight, vec3(0.299, 0.587, 0.114));
+        float upBrightness = dot(colorUp, vec3(0.299, 0.587, 0.114));
+        float leftBrightness = dot(colorLeft, vec3(0.299, 0.587, 0.114));
+        float downBrightness = dot(colorDown, vec3(0.299, 0.587, 0.114));
+        
+        // Calculate edge strength
+        float edgeX = abs(rightBrightness - leftBrightness);
+        float edgeY = abs(upBrightness - downBrightness);
+        float edgeStrength = sqrt(edgeX * edgeX + edgeY * edgeY);
+        
+        // Apply edge detection modes
+        vec3 finalColor = pixelatedColor;
+        
+        if (pixelateEdgeMode == 0.0) {
+          // Standard pixelation - no edge enhancement
+          finalColor = pixelatedColor;
+        } else if (pixelateEdgeMode == 1.0) {
+          // Edge enhancement - brighten edges
+          float edgeMultiplier = 1.0 + edgeStrength * pixelateNormalEdge;
+          finalColor = pixelatedColor * edgeMultiplier;
+        } else {
+          // Edge outline - darken edges
+          float edgeMultiplier = 1.0 - edgeStrength * pixelateNormalEdge;
+          finalColor = pixelatedColor * edgeMultiplier;
+        }
+        
+        // Apply depth-based edge detection (simulated using color variance)
+        vec3 colorVariance = abs(pixelatedColor - currentColor);
+        float depthEdgeIndicator = dot(colorVariance, vec3(0.333));
+        
+        if (depthEdgeIndicator > pixelateDepthEdge) {
+          // Enhance edges based on depth differences
+          finalColor = mix(finalColor, finalColor * 0.5, pixelateSmoothing);
+        }
+        
+        // Smooth the pixelation effect
+        finalColor = mix(finalColor, pixelatedColor, pixelateSmoothing);
+        
+        return mix(currentColor, finalColor, pixelateIntensity);
+      }
+      
+      vec3 fog(sampler2D tex, vec2 uv, vec2 resolution, vec3 currentColor) {
+        // Simple but effective distance-based fog using screen coordinates
+        vec2 screenPos = uv * 2.0 - 1.0; // Convert to NDC (-1 to 1)
+        
+        // Multi-factor distance estimation
+        float brightness = dot(currentColor, vec3(0.299, 0.587, 0.114));
+        float screenDistance = length(screenPos);
+        float yPosition = uv.y; // 0 = bottom, 1 = top
+        
+        // Combine factors for distance estimation
+        float estimatedDistance = 
+          (1.0 - brightness) * 0.5 +        // Darker = further
+          screenDistance * 0.3 +             // Screen edge = further  
+          yPosition * 0.2;                   // Top = further (typical for point clouds)
+        
+        // Scale to fog distance range
+        float fogDistance = fogNear + estimatedDistance * (fogFar - fogNear);
+        
+        // Calculate fog factor based on mode
+        float fogFactor = 0.0;
+        
+        if (fogMode == 0.0) {
+          // Linear fog
+          fogFactor = clamp((fogDistance - fogNear) / (fogFar - fogNear), 0.0, 1.0);
+        } else if (fogMode == 1.0) {
+          // Exponential fog
+          float density = 2.0 / (fogFar - fogNear);
+          fogFactor = 1.0 - exp(-density * max(0.0, fogDistance - fogNear));
+        } else {
+          // Exponential squared fog
+          float density = 1.0 / (fogFar - fogNear);
+          float factor = density * max(0.0, fogDistance - fogNear);
+          fogFactor = 1.0 - exp(-factor * factor);
+        }
+        
+        // Apply Y-height cutoff based on screen Y position
+        float screenYWorld = (1.0 - uv.y) * fogYMax * 2.0; // Approximate world Y
+        if (screenYWorld > fogYMax) {
+          float heightFade = 1.0 - smoothstep(fogYMax, fogYMax + 5.0, screenYWorld);
+          fogFactor *= heightFade;
+        }
+        
+        // Add subtle time-based variation
+        float timeVariation = 1.0 + sin(time * 0.3 + screenPos.x + screenPos.y) * 0.05;
+        fogFactor *= timeVariation;
+        
+        // Clamp fog factor
+        fogFactor = clamp(fogFactor, 0.0, 1.0);
+        
+        // Apply atmospheric perspective
+        vec3 atmosphericColor = fogColor;
+        if (fogDistance > fogNear) {
+          float temperatureShift = min((fogDistance - fogNear) / (fogFar - fogNear), 1.0);
+          atmosphericColor = mix(
+            fogColor, 
+            fogColor * vec3(0.92, 0.96, 1.08), 
+            temperatureShift * 0.15
+          );
+        }
+        
+        return mix(currentColor, atmosphericColor, fogFactor * fogIntensity);
       }
       
       void main() {
@@ -2053,10 +3137,11 @@ export class PostProcessingPass {
           color = mix(color, vignette(color, vUv, vignetteOffset, vignetteDarkness, vignetteFeather), intensity);
         } else if (effectType == 4) {
           // Blur
-          color = mix(color, blur(tDiffuse, vUv, resolution, blurAmount), intensity);
+          color = mix(color, blur(tDiffuse, vUv, resolution, blurAmount, blurThreshold, blurType), intensity);
         } else if (effectType == 5) {
           // Bloom
-          color = bloom(tDiffuse, vUv, resolution, bloomThreshold, bloomIntensity, bloomRadius);
+          vec3 bloomResult = bloom(tDiffuse, vUv, resolution, bloomThreshold, bloomIntensity, bloomRadius, bloomQuality);
+          color = mix(color, bloomResult, intensity);
         } else if (effectType == 6) {
           // Film
           color = mix(color, film(color, vUv), intensity);
@@ -2080,7 +3165,22 @@ export class PostProcessingPass {
           color = mix(color, motionBlur(tDiffuse, vUv, resolution, motionBlurStrength, motionBlurSamples), intensity);
         } else if (effectType == 13) {
           // Oil painting
-          color = mix(color, oilPainting(tDiffuse, vUv, resolution, oilBrushSize, oilRoughness, oilBrightness), intensity);
+          color = mix(color, oilPainting(tDiffuse, vUv, resolution, oilBrushSize, oilRoughness, oilBrightness, oilTexture), intensity);
+        } else if (effectType == 14) {
+          // Data moshing
+          color = mix(color, datamosh(tDiffuse, vUv, resolution), intensity);
+        } else if (effectType == 15) {
+          // Pixel sorting
+          color = pixelsort(tDiffuse, vUv, resolution, color);
+        } else if (effectType == 16) {
+          // Glow
+          color = glow(tDiffuse, vUv, resolution, color);
+        } else if (effectType == 17) {
+          // Pixelation
+          color = pixelate(tDiffuse, vUv, resolution, color);
+        } else if (effectType == 18) {
+          // Distance Fog
+          color = fog(tDiffuse, vUv, resolution, color);
         }
         
         gl_FragColor = vec4(color, originalColor.a);

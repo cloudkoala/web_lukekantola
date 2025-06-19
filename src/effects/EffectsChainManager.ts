@@ -55,10 +55,11 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       maxConnections: 5, 
       lineOpacity: 50,
       enableAnimation: 1,
-      resetPositions: 0
+      resetPositions: 0,
+      randomSeed: 0
     },
     parameterDefinitions: {
-      movementSpeed: { min: 0, max: 0.02, step: 0.001, label: 'Movement Speed' },
+      movementSpeed: { min: 0, max: 0.2, step: 0.001, label: 'Movement Speed' },
       movementRange: { min: 0, max: 500, step: 1, label: 'Movement Range (%)' },
       bounceEffect: { min: 0, max: 1, step: 1, label: 'Bounce Effect' },
       showConnections: { min: 0, max: 1, step: 1, label: 'Show Connections' },
@@ -66,7 +67,8 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       maxConnections: { min: 1, max: 20, step: 1, label: 'Max Connections' },
       lineOpacity: { min: 0, max: 100, step: 5, label: 'Line Opacity (%)' },
       enableAnimation: { min: 0, max: 1, step: 1, label: 'Enable Animation' },
-      resetPositions: { min: 0, max: 1, step: 1, label: 'Reset Positions' }
+      resetPositions: { min: 0, max: 1, step: 1, label: 'Reset Positions' },
+      randomSeed: { min: 0, max: 1000, step: 1, label: 'Random Seed' }
     }
   },
   {
@@ -79,7 +81,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       waveDeformation: 0, 
       twistEffect: 0, 
       animationSpeed: 1, 
-      waveFrequency: 1,
+      waveFrequency: 2,
       pulseEffect: 0,
       colorCycling: 0,
       deformationEnable: 0
@@ -88,10 +90,10 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       transparency: { min: 0, max: 100, step: 5, label: 'Transparency (%)' },
       sizeMultiplier: { min: 10, max: 500, step: 10, label: 'Size Multiplier (%)' },
       useVertexColors: { min: 0, max: 1, step: 1, label: 'Use Vertex Colors' },
-      waveDeformation: { min: 0, max: 2.0, step: 0.1, label: 'Wave Deformation' },
+      waveDeformation: { min: 0, max: 2.0, step: 0.01, label: 'Wave Deformation' },
       twistEffect: { min: 0, max: 2.0, step: 0.1, label: 'Twist Effect' },
       animationSpeed: { min: 0, max: 2.0, step: 0.1, label: 'Animation Speed' },
-      waveFrequency: { min: 0.1, max: 5.0, step: 0.1, label: 'Wave Frequency' },
+      waveFrequency: { min: 0.1, max: 20.0, step: 0.1, label: 'Wave Frequency' },
       pulseEffect: { min: 0, max: 1, step: 1, label: 'Pulse Effect' },
       colorCycling: { min: 0, max: 1, step: 1, label: 'Color Cycling' },
       deformationEnable: { min: 0, max: 1, step: 1, label: 'Enable Deformation' }
@@ -166,20 +168,23 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'blur',
     name: 'Blur',
-    defaultParameters: { intensity: 0.5, blurAmount: 0.002 },
+    defaultParameters: { intensity: 0.5, blurAmount: 0.002, threshold: 0.0, blurType: 0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      blurAmount: { min: 0.0005, max: 0.02, step: 0.0005, label: 'Blur Amount' }
+      blurAmount: { min: 0.0005, max: 0.02, step: 0.0005, label: 'Amount' },
+      threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
+      blurType: { min: 0, max: 5, step: 1, label: 'Type' }
     }
   },
   {
     type: 'bloom',
     name: 'Bloom',
-    defaultParameters: { threshold: 0.8, intensity: 1.0, radius: 0.5 },
+    defaultParameters: { threshold: 0.8, intensity: 1.0, radius: 0.5, quality: 2 },
     parameterDefinitions: {
       threshold: { min: 0, max: 1, step: 0.01, label: 'Threshold' },
       intensity: { min: 0, max: 3, step: 0.1, label: 'Intensity' },
-      radius: { min: 0.1, max: 2.0, step: 0.1, label: 'Radius' }
+      radius: { min: 0.1, max: 2.0, step: 0.1, label: 'Radius' },
+      quality: { min: 1, max: 4, step: 1, label: 'Quality' }
     }
   },
   {
@@ -274,19 +279,20 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     defaultParameters: { intensity: 0.5, strength: 0.02, samples: 8 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      strength: { min: 0.001, max: 0.1, step: 0.001, label: 'Blur Strength' },
+      strength: { min: 0.001, max: 1.0, step: 0.001, label: 'Blur Strength' },
       samples: { min: 4, max: 16, step: 1, label: 'Sample Count' }
     }
   },
   {
     type: 'oilpainting',
     name: 'Oil Painting',
-    defaultParameters: { intensity: 0.8, brushSize: 4.0, roughness: 0.6, brightness: 1.2 },
+    defaultParameters: { intensity: 0.8, brushSize: 4.0, roughness: 0.6, brightness: 1.2, texture: 0.5 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       brushSize: { min: 1.0, max: 12.0, step: 0.5, label: 'Brush Size' },
       roughness: { min: 0.1, max: 1.0, step: 0.05, label: 'Roughness' },
-      brightness: { min: 0.5, max: 2.0, step: 0.05, label: 'Brightness' }
+      brightness: { min: 0.5, max: 2.0, step: 0.05, label: 'Brightness' },
+      texture: { min: 0.0, max: 2.0, step: 0.05, label: 'Canvas Texture' }
     }
   },
   {
@@ -302,6 +308,108 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       minY: { min: 0, max: 100, step: 1, label: 'Min Y Threshold (%)' },
       maxY: { min: 0, max: 100, step: 1, label: 'Max Y Threshold (%)' },
       wireOpacity: { min: 0.1, max: 1.0, step: 0.05, label: 'Wire Opacity' }
+    }
+  },
+  {
+    type: 'datamosh',
+    name: 'Data Moshing',
+    defaultParameters: { 
+      intensity: 0.5, 
+      displacement: 10.0, 
+      corruption: 0.3, 
+      blockSize: 8.0,
+      glitchFreq: 0.2,
+      frameBlend: 0.7 
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      displacement: { min: 0, max: 100.0, step: 1.0, label: 'Displacement' },
+      corruption: { min: 0, max: 1, step: 0.01, label: 'Corruption Level' },
+      blockSize: { min: 1.0, max: 32.0, step: 1.0, label: 'Block Size' },
+      glitchFreq: { min: 0, max: 1, step: 0.01, label: 'Glitch Frequency' },
+      frameBlend: { min: 0, max: 1, step: 0.01, label: 'Frame Blending' }
+    }
+  },
+  {
+    type: 'pixelsort',
+    name: 'Pixel Sorting',
+    defaultParameters: { 
+      intensity: 0.5, 
+      sortLength: 50, 
+      threshold: 0.5, 
+      direction: 0,
+      sortMode: 0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      sortLength: { min: 1, max: 500, step: 1, label: 'Sort Length' },
+      threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
+      direction: { min: 0, max: 3, step: 1, label: 'Direction' },
+      sortMode: { min: 0, max: 2, step: 1, label: 'Sort Mode' }
+    }
+  },
+  {
+    type: 'glow',
+    name: 'Glow',
+    defaultParameters: { 
+      intensity: 0.5, 
+      threshold: 0.8, 
+      radius: 1.0, 
+      strength: 2.0,
+      samples: 8,
+      softness: 0.5
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
+      radius: { min: 0.1, max: 3.0, step: 0.1, label: 'Glow Radius' },
+      strength: { min: 0.5, max: 5.0, step: 0.1, label: 'Glow Strength' },
+      samples: { min: 4, max: 16, step: 1, label: 'Quality (Samples)' },
+      softness: { min: 0.1, max: 2.0, step: 0.1, label: 'Edge Softness' }
+    }
+  },
+  {
+    type: 'pixelate',
+    name: 'Pixelation',
+    defaultParameters: { 
+      intensity: 1.0, 
+      pixelSize: 6, 
+      normalEdge: 0.3, 
+      depthEdge: 0.4,
+      edgeMode: 0,
+      smoothing: 0.5
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      pixelSize: { min: 1, max: 32, step: 1, label: 'Pixel Size' },
+      normalEdge: { min: 0, max: 2, step: 0.1, label: 'Normal Edge Strength' },
+      depthEdge: { min: 0, max: 1, step: 0.1, label: 'Depth Edge Strength' },
+      edgeMode: { min: 0, max: 2, step: 1, label: 'Edge Mode' },
+      smoothing: { min: 0, max: 1, step: 0.1, label: 'Edge Smoothing' }
+    }
+  },
+  {
+    type: 'fog',
+    name: 'Distance Fog',
+    defaultParameters: { 
+      intensity: 0.5, 
+      near: 5.0, 
+      far: 50.0, 
+      fogColorR: 0.8,
+      fogColorG: 0.9,
+      fogColorB: 1.0,
+      fogMode: 0,
+      yMax: 10.0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      near: { min: 0.1, max: 20.0, step: 0.1, label: 'Near Distance' },
+      far: { min: 5.0, max: 200.0, step: 1.0, label: 'Far Distance' },
+      fogColorR: { min: 0, max: 1, step: 0.01, label: 'Fog Red' },
+      fogColorG: { min: 0, max: 1, step: 0.01, label: 'Fog Green' },
+      fogColorB: { min: 0, max: 1, step: 0.01, label: 'Fog Blue' },
+      fogMode: { min: 0, max: 2, step: 1, label: 'Fog Mode' },
+      yMax: { min: -10.0, max: 50.0, step: 0.5, label: 'Y Max Height' }
     }
   }
 ]

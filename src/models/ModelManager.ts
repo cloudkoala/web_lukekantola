@@ -3,6 +3,7 @@ import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { SplatMesh } from '@sparkjsdev/spark'
 import * as Spark from '@sparkjsdev/spark'
 import type { ModelsConfig } from '../types'
+import { SphereInstancer } from './SphereInstancer'
 
 export class ModelManager {
   private modelsConfig: ModelsConfig | null = null
@@ -11,6 +12,7 @@ export class ModelManager {
   private currentRenderObject: THREE.Points | SplatMesh | null = null
   private currentQuality: 'low' | 'high' = 'low'
   private gaussianSplattingLoader: any
+  private sphereInstancer: SphereInstancer
   
   // Injected dependencies
   private scene: THREE.Scene
@@ -31,6 +33,7 @@ export class ModelManager {
     this.progressFill = progressFill
     this.progressiveLoader = progressiveLoader
     this.orbitalCamera = orbitalCamera
+    this.sphereInstancer = new SphereInstancer(scene)
     
     console.log('ModelManager initialized')
     
@@ -708,4 +711,25 @@ export class ModelManager {
     return texture
   }
   */
+
+  // Sphere instancing methods
+  toggleSpheres(): void {
+    this.sphereInstancer.toggleSpheres()
+  }
+
+  setSphereRadius(radius: number): void {
+    this.sphereInstancer.setSphereRadius(radius)
+  }
+
+  setSphereDetail(detail: number): void {
+    this.sphereInstancer.setSphereDetail(detail)
+  }
+
+  isSphereMode(): boolean {
+    return this.sphereInstancer.isEnabled()
+  }
+
+  getSphereStats(): { totalSpheres: number, meshCount: number } {
+    return this.sphereInstancer.getStats()
+  }
 }

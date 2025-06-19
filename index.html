@@ -48,39 +48,60 @@
           </select>
         </div>
       </div>
-      <div class="point-size-control">
-        <label for="point-size">Point Size:</label>
-        <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
-        <span id="point-size-value">0.001</span>
+      
+      <!-- Settings Button -->
+      <div class="settings-button-container">
+        <button id="settings-button" class="settings-button">settings</button>
       </div>
-      <div class="focal-length-control">
-        <label for="focal-length">Focal Length:</label>
-        <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
-        <span id="focal-length-value">50</span>
-      </div>
-      <!-- Effects Panel (New Chaining System) -->
-      <div id="effects-panel" class="effects-panel">
-        <div class="effects-panel-header">
-          <div class="effects-panel-title-row">
-            <span class="effects-panel-collapse-arrow" id="effects-panel-collapse">▼</span>
-            <label for="effects-main-dropdown">Effect:</label>
-            <select id="effects-main-dropdown" class="effects-main-dropdown">
-              <option value="none">None</option>
-            </select>
-            <button id="save-preset" class="save-preset-button" title="Save current effects as preset">💾</button>
+      
+      <!-- Settings Panel (replaces button when open) -->
+      <div id="settings-panel" class="settings-panel" style="display: none;">
+        <div class="point-size-control">
+          <label for="point-size">Point Size:</label>
+          <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
+          <span id="point-size-value">0.001</span>
+          <button id="settings-close" class="settings-close-button">×</button>
+        </div>
+        <div class="focal-length-control">
+          <label for="focal-length">Focal Length:</label>
+          <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
+          <span id="focal-length-value">50</span>
+        </div>
+        <div class="sphere-controls">
+          <div class="sphere-toggle-control">
+            <label for="sphere-toggle">Sphere Mode:</label>
+            <input type="checkbox" id="sphere-toggle" class="sphere-toggle-checkbox" checked>
+          </div>
+          <div class="sphere-detail-control" style="display: flex;">
+            <label for="sphere-detail">Detail:</label>
+            <input type="range" id="sphere-detail" min="0" max="2" step="1" value="1">
+            <span id="sphere-detail-value">Medium</span>
           </div>
         </div>
-        <div class="effects-panel-collapsible" id="effects-panel-collapsible">
-          <div class="effects-panel-content" id="effects-panel-content">
-            <div class="effects-chain-container">
-              <div id="effects-chain" class="effects-chain">
-                <!-- Effect cards will be dynamically added here -->
-              </div>
+        <!-- Effects Panel (New Chaining System) -->
+        <div id="effects-panel" class="effects-panel">
+          <div class="effects-panel-header">
+            <div class="effects-panel-title-row">
+              <span class="effects-panel-collapse-arrow" id="effects-panel-collapse">▼</span>
+              <label for="effects-main-dropdown">Effect:</label>
+              <select id="effects-main-dropdown" class="effects-main-dropdown">
+                <option value="none">None</option>
+              </select>
+              <button id="save-preset" class="save-preset-button" title="Save current effects as preset">💾</button>
             </div>
-            
-            <div class="effect-parameters-container" style="display: none;">
-              <div id="effect-parameters" class="effect-parameters">
-                <!-- Dynamic parameter controls will be added here -->
+          </div>
+          <div class="effects-panel-collapsible" id="effects-panel-collapsible">
+            <div class="effects-panel-content" id="effects-panel-content">
+              <div class="effects-chain-container">
+                <div id="effects-chain" class="effects-chain">
+                  <!-- Effect cards will be dynamically added here -->
+                </div>
+              </div>
+              
+              <div class="effect-parameters-container" style="display: none;">
+                <div id="effect-parameters" class="effect-parameters">
+                  <!-- Dynamic parameter controls will be added here -->
+                </div>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { EffectsChainManager, EFFECT_DEFINITIONS } from '../effects/EffectsChainManager'
 import type { EffectInstance } from '../effects/EffectsChainManager'
+import type { EffectType } from '../effects/PostProcessingPass'
 
 export class EffectsPanel {
   private chainManager: EffectsChainManager
@@ -44,6 +45,11 @@ export class EffectsPanel {
     
     // Initialize collapsed state
     this.initializeCollapsedState()
+    
+    // Delay default preset loading to ensure all connections are established
+    setTimeout(() => {
+      this.loadDefaultPreset()
+    }, 200)
   }
 
   private setupEventListeners(): void {
@@ -64,14 +70,25 @@ export class EffectsPanel {
     this.collapseArrow.addEventListener('click', () => {
       this.toggleCollapse()
     })
+    
+    // Also make the "Effect:" label clickable to toggle
+    const effectLabel = this.panelElement.querySelector('.effects-panel-title-row label') as HTMLElement
+    if (effectLabel) {
+      effectLabel.style.cursor = 'pointer'
+      effectLabel.addEventListener('click', () => {
+        this.toggleCollapse()
+      })
+    }
   }
 
   private initializeCollapsedState(): void {
+    // Wrap arrow content in span for rotation
+    this.collapseArrow.innerHTML = '<span>▼</span>'
+    
     if (this.isCollapsed) {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
       this.collapseArrow.classList.add('collapsed')
-      this.collapseArrow.textContent = '▶'
     }
   }
 
@@ -82,12 +99,16 @@ export class EffectsPanel {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
       this.collapseArrow.classList.add('collapsed')
-      this.collapseArrow.textContent = '▶'
     } else {
       this.panelCollapsible.classList.remove('collapsed')
       this.panelElement.classList.remove('collapsed')
       this.collapseArrow.classList.remove('collapsed')
-      this.collapseArrow.textContent = '▼'
+    }
+  }
+
+  private ensureExpanded(): void {
+    if (this.isCollapsed) {
+      this.toggleCollapse()
     }
   }
 
@@ -115,10 +136,25 @@ export class EffectsPanel {
     } else if (value === 'custom') {
       // User selected custom - just enable effects, keep current chain
       this.updateEffectsEnabled(true)
+    } else if (value.startsWith('effect:')) {
+      // User selected an individual effect - add to existing chain
+      const effectType = value.replace('effect:', '') as EffectType
+      this.chainManager.addEffect(effectType)
+      this.refreshChain()
+      this.updateEffectsEnabled(true)
+      
+      // Switch dropdown to "Custom" since they now have a custom chain
+      this.mainDropdown.value = 'custom'
+      
+      // Expand the panel so users can see and edit the effect
+      this.ensureExpanded()
     } else {
       // Load a preset
       this.loadPreset(value)
       this.updateEffectsEnabled(true)
+      
+      // Expand the panel so users can see the loaded effects
+      this.ensureExpanded()
     }
   }
   
@@ -139,31 +175,42 @@ export class EffectsPanel {
       this.mainDropdown.removeChild(this.mainDropdown.lastChild!)
     }
     
-    // Add preset options
-    Object.keys(presets).forEach(name => {
+    // Add "Custom" option first
+    const customOption = document.createElement('option')
+    customOption.value = 'custom'
+    customOption.textContent = 'Custom'
+    this.mainDropdown.appendChild(customOption)
+    
+    // Create presets section
+    if (Object.keys(presets).length > 0) {
+      const presetsGroup = document.createElement('optgroup')
+      presetsGroup.label = '── Presets ──'
+      
+      Object.keys(presets).forEach(name => {
+        const option = document.createElement('option')
+        option.value = name
+        option.textContent = `📋 ${name}`
+        presetsGroup.appendChild(option)
+      })
+      
+      this.mainDropdown.appendChild(presetsGroup)
+    }
+    
+    // Create effects section
+    const effectsGroup = document.createElement('optgroup')
+    effectsGroup.label = '── Effects ──'
+    
+    // Add individual effects
+    EFFECT_DEFINITIONS.forEach(definition => {
       const option = document.createElement('option')
-      option.value = name
-      option.textContent = name
-      this.mainDropdown.appendChild(option)
+      option.value = `effect:${definition.type}`
+      option.textContent = `⚡ ${definition.name}`
+      effectsGroup.appendChild(option)
     })
     
-    // Add "Custom" option if not already present
-    const hasCustom = Array.from(this.mainDropdown.options).some(option => option.value === 'custom')
-    if (!hasCustom) {
-      this.addCustomOption()
-    }
+    this.mainDropdown.appendChild(effectsGroup)
   }
   
-  private addCustomOption(): void {
-    // Check if Custom option already exists
-    const hasCustom = Array.from(this.mainDropdown.options).some(option => option.value === 'custom')
-    if (!hasCustom) {
-      const customOption = document.createElement('option')
-      customOption.value = 'custom'
-      customOption.textContent = 'Custom'
-      this.mainDropdown.appendChild(customOption)
-    }
-  }
 
   private getDefaultPresets(): Record<string, EffectInstance[]> {
     return {
@@ -533,6 +580,15 @@ export class EffectsPanel {
     }
   }
 
+  private loadDefaultPreset(): void {
+    console.log('Loading default preset: Delicate Noir')
+    // Load "Delicate Noir" preset by default
+    this.loadPreset('Delicate Noir')
+    this.mainDropdown.value = 'Delicate Noir'
+    this.updateEffectsEnabled(true)
+    console.log('Default preset loaded, effects enabled')
+  }
+
 
   private showSavePresetDialog(): void {
     const name = prompt('Enter preset name:')
@@ -560,63 +616,156 @@ export class EffectsPanel {
   }
 
   private createAddEffectModal(): void {
-    // Create modal for effect selection
+    // Create dropdown for effect selection
     this.addEffectModal = document.createElement('div')
-    this.addEffectModal.className = 'add-effect-modal'
+    this.addEffectModal.className = 'add-effect-dropdown'
     this.addEffectModal.style.display = 'none'
     
-    const modalContent = document.createElement('div')
-    modalContent.className = 'add-effect-modal-content'
+    const dropdownContent = document.createElement('div')
+    dropdownContent.className = 'add-effect-dropdown-content'
     
-    const title = document.createElement('h3')
-    title.textContent = 'Add Effect'
-    title.className = 'add-effect-modal-title'
-    modalContent.appendChild(title)
+    // Add search input (no title needed for compact dropdown)
+    const searchContainer = document.createElement('div')
+    searchContainer.className = 'add-effect-search-container'
+    
+    const searchInput = document.createElement('input')
+    searchInput.type = 'text'
+    searchInput.placeholder = 'Search effects...'
+    searchInput.className = 'add-effect-search'
+    searchContainer.appendChild(searchInput)
+    dropdownContent.appendChild(searchContainer)
     
     const effectGrid = document.createElement('div')
     effectGrid.className = 'add-effect-grid'
     
-    // Add effect buttons
+    // Create all effect buttons and store references
+    const effectButtons: Array<{button: HTMLButtonElement, definition: any}> = []
+    
     EFFECT_DEFINITIONS.forEach(definition => {
       const button = document.createElement('button')
       button.className = 'add-effect-option'
       button.textContent = definition.name
+      button.setAttribute('data-effect-name', definition.name.toLowerCase())
+      button.setAttribute('data-effect-type', definition.type.toLowerCase())
       button.onclick = () => {
         this.chainManager.addEffect(definition.type)
         this.refreshChain() // Manually refresh after adding effect
         this.hideAddEffectModal()
         
         // Switch to Custom and enable effects
-        this.addCustomOption()
         this.mainDropdown.value = 'custom'
         this.updateEffectsEnabled(true)
       }
       effectGrid.appendChild(button)
+      effectButtons.push({button, definition})
     })
     
-    modalContent.appendChild(effectGrid)
+    // Track selected index for keyboard navigation
+    let selectedIndex = 0
     
-    // Close button
-    const closeButton = document.createElement('button')
-    closeButton.className = 'add-effect-close'
-    closeButton.textContent = '×'
-    closeButton.onclick = () => this.hideAddEffectModal()
-    modalContent.appendChild(closeButton)
+    // Helper function to get visible buttons
+    const getVisibleButtons = () => {
+      return effectButtons.filter(({button}) => button.style.display !== 'none')
+    }
     
-    this.addEffectModal.appendChild(modalContent)
-    document.body.appendChild(this.addEffectModal)
-    
-    // Close modal when clicking outside
-    this.addEffectModal.onclick = (e) => {
-      if (e.target === this.addEffectModal) {
-        this.hideAddEffectModal()
+    // Helper function to update selection highlight
+    const updateSelection = () => {
+      const visibleButtons = getVisibleButtons()
+      
+      // Remove previous highlight
+      effectButtons.forEach(({button}) => {
+        button.classList.remove('keyboard-selected')
+      })
+      
+      // Add highlight to current selection
+      if (visibleButtons.length > 0) {
+        selectedIndex = Math.max(0, Math.min(selectedIndex, visibleButtons.length - 1))
+        visibleButtons[selectedIndex].button.classList.add('keyboard-selected')
       }
     }
+    
+    // Add search functionality
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = (e.target as HTMLInputElement).value.toLowerCase().trim()
+      
+      effectButtons.forEach(({button, definition}) => {
+        const name = definition.name.toLowerCase()
+        const type = definition.type.toLowerCase()
+        const matches = name.includes(searchTerm) || type.includes(searchTerm)
+        
+        button.style.display = matches ? 'block' : 'none'
+      })
+      
+      // Reset selection to top when search changes
+      selectedIndex = 0
+      updateSelection()
+    })
+    
+    // Add keyboard support
+    searchInput.addEventListener('keydown', (e) => {
+      const visibleButtons = getVisibleButtons()
+      
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        // Select the currently highlighted effect
+        if (visibleButtons.length > 0 && visibleButtons[selectedIndex]) {
+          visibleButtons[selectedIndex].button.click()
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        selectedIndex = Math.min(selectedIndex + 1, visibleButtons.length - 1)
+        updateSelection()
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        selectedIndex = Math.max(selectedIndex - 1, 0)
+        updateSelection()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        this.hideAddEffectModal()
+      }
+    })
+    
+    // Initialize selection on first load
+    setTimeout(() => updateSelection(), 0)
+    
+    dropdownContent.appendChild(effectGrid)
+    
+    this.addEffectModal.appendChild(dropdownContent)
+    
+    // Position dropdown relative to the effects panel
+    this.panelElement.appendChild(this.addEffectModal)
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (this.addEffectModal && this.addEffectModal.style.display !== 'none') {
+        const isClickInside = this.addEffectModal.contains(e.target as Node) || 
+                             (e.target as Element).closest('.add-effect-button')
+        if (!isClickInside) {
+          this.hideAddEffectModal()
+        }
+      }
+    })
+    
+    // Store reference to search input for focus management
+    this.addEffectModal.setAttribute('data-search-input', 'true')
   }
   
   private showAddEffectModal(): void {
     if (this.addEffectModal) {
       this.addEffectModal.style.display = 'flex'
+      
+      // Clear search and show all effects
+      const searchInput = this.addEffectModal.querySelector('.add-effect-search') as HTMLInputElement
+      if (searchInput) {
+        searchInput.value = ''
+        searchInput.focus()
+        
+        // Show all effect buttons
+        const effectButtons = this.addEffectModal.querySelectorAll('.add-effect-option')
+        effectButtons.forEach(button => {
+          (button as HTMLElement).style.display = 'block'
+        })
+      }
     }
   }
   
@@ -634,8 +783,6 @@ export class EffectsPanel {
     
     // Update dropdown to "Custom" if there are effects and it's not set to a specific preset
     if (effects.length > 0 && this.mainDropdown.value === 'none') {
-      // Ensure Custom option exists
-      this.addCustomOption()
       this.mainDropdown.value = 'custom'
     } else if (effects.length === 0 && this.mainDropdown.value === 'custom') {
       this.mainDropdown.value = 'none'
@@ -714,6 +861,7 @@ export class EffectsPanel {
     toggleButton?.addEventListener('click', (e) => {
       e.stopPropagation()
       this.chainManager.toggleEffect(effect.id)
+      this.refreshChain() // Manually refresh to update visual state
     })
 
     // Remove effect

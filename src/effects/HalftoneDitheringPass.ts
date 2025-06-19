@@ -65,7 +65,6 @@ export class HalftoneDitheringPass {
     this.material.uniforms.dotSize.value = this.dotSize
     this.material.uniforms.contrast.value = this.contrast
     this.material.uniforms.angle.value = this.angle * Math.PI / 180
-    console.log('Halftone render: angle in degrees:', this.angle, 'converted to radians:', this.angle * Math.PI / 180)
     
     // Render the effect
     renderer.setRenderTarget(outputTarget || null)

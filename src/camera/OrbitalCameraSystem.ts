@@ -64,6 +64,9 @@ export class OrbitalCameraSystem {
   // Effects system
   private effectsChainManager: EffectsChainManager
   private effectsPanel: EffectsPanel | null = null
+  
+  // Model manager reference (set after initialization)
+  public modelManager: any = null
 
   constructor(
     camera: THREE.PerspectiveCamera, 
@@ -331,6 +334,11 @@ export class OrbitalCameraSystem {
       this.pointSize = parseFloat((e.target as HTMLInputElement).value)
       pointSizeValue.textContent = this.pointSize.toFixed(3)
       this.updatePointSize()
+      
+      // Also update sphere radius if spheres are active
+      if (this.modelManager) {
+        this.modelManager.setSphereRadius(this.pointSize)
+      }
     })
     
     focalLengthSlider?.addEventListener('input', (e) => {
@@ -500,6 +508,47 @@ export class OrbitalCameraSystem {
     
     saveDisplayNameButton?.addEventListener('click', () => {
       this.saveDisplayName()
+    })
+    
+    // Sphere Controls
+    const sphereToggleCheckbox = document.querySelector('#sphere-toggle') as HTMLInputElement
+    const sphereDetailSlider = document.querySelector('#sphere-detail') as HTMLInputElement
+    
+    const sphereDetailValue = document.querySelector('#sphere-detail-value') as HTMLSpanElement
+    
+    const detailLabels = ['Low', 'Medium', 'High']
+    
+    sphereToggleCheckbox?.addEventListener('change', () => {
+      if (this.modelManager) {
+        this.modelManager.toggleSpheres()
+        const isEnabled = this.modelManager.isSphereMode()
+        
+        // Update checkbox state
+        sphereToggleCheckbox.checked = isEnabled
+        
+        // Show/hide detail controls
+        const detailControl = document.querySelector('.sphere-detail-control') as HTMLElement
+        
+        if (detailControl) {
+          detailControl.style.display = isEnabled ? 'flex' : 'none'
+        }
+        
+        console.log(`Sphere mode ${isEnabled ? 'enabled' : 'disabled'}`)
+        if (isEnabled) {
+          const stats = this.modelManager.getSphereStats()
+          console.log(`Rendered ${stats.totalSpheres} spheres in ${stats.meshCount} meshes`)
+        }
+      }
+    })
+    
+    
+    sphereDetailSlider?.addEventListener('input', (e) => {
+      const detail = parseInt((e.target as HTMLInputElement).value)
+      sphereDetailValue.textContent = detailLabels[detail] || 'Medium'
+      
+      if (this.modelManager) {
+        this.modelManager.setSphereDetail(detail)
+      }
     })
     
   }
