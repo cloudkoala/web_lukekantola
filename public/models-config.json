@@ -11,6 +11,11 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.005,
       "defaultFocalLength": 30,
+      "highQualityPosition": {
+        "cameraPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
+        "target": { "x": -0.13, "y": 0.87, "z": -0.29 },
+        "focalLength": 85
+      },
       "loadingAnimation": {
         "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
         "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
@@ -34,6 +39,11 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.002,
       "defaultFocalLength": 30,
+      "highQualityPosition": {
+        "cameraPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
+        "target": { "x": 0.36, "y": 0.36, "z": -0.22 },
+        "focalLength": 120
+      },
       "loadingAnimation": {
         "startPosition": { "x": 0.33, "y": 4.00, "z": 5.05 },
         "endPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
@@ -56,6 +66,11 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.046,
       "defaultFocalLength": 200,
+      "highQualityPosition": {
+        "cameraPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
+        "target": { "x": -0.04, "y": 4.15, "z": -0.08 },
+        "focalLength": 135
+      },
       "loadingAnimation": {
         "startPosition": { "x": -1.82, "y": 11.52, "z": 1.11 },
         "endPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
@@ -79,6 +94,11 @@
       "renderType": "point-cloud",
       "defaultPointSize": 0.019,
       "defaultFocalLength": 152,
+      "highQualityPosition": {
+        "cameraPosition": { "x": -29.55, "y": 3.78, "z": 5.00 },
+        "target": { "x": 8, "y": 11.47, "z": 0.56 },
+        "focalLength": 76
+      },
       "loadingAnimation": {
         "startPosition": { "x": 7.81, "y": 9.35, "z": 7.87 },
         "endPosition": { "x": 7.73, "y": 2.01, "z": 7.13 },

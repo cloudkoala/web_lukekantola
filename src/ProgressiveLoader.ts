@@ -303,19 +303,23 @@ export class ProgressiveLoader {
     // Calculate density-aware point size for this chunk
     const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
     
-    // Create material for this chunk
+    // Create material for this chunk using shared texture
     const material = new THREE.PointsMaterial({
       size: adjustedSize,
       vertexColors: true,
       transparent: true,
-      map: this.createSquareTexture(),
+      // map: this.createSquareTexture(), // Disabled to avoid GL_INVALID_OPERATION errors
       blending: THREE.NormalBlending,
       depthWrite: true,
-      alphaTest: 0.1
+      alphaTest: 0.01, // Reduced alpha test threshold
+      side: THREE.DoubleSide // Prevent backface culling
     })
     
     // Create individual point cloud for this chunk
     const pointCloud = new THREE.Points(geometry, material)
+    
+    // Disable frustum culling to prevent disappearing during fast rotation
+    pointCloud.frustumCulled = false
     
     // Apply model rotation immediately if set
     if (this.modelRotation) {
@@ -372,9 +376,8 @@ export class ProgressiveLoader {
     return baseSize * densityFactor
   }
 
-  /**
-   * Create square texture for points
-   */
+  // Temporarily disabled to avoid GL_INVALID_OPERATION errors
+  /*
   private createSquareTexture(): THREE.Texture {
     const canvas = document.createElement('canvas')
     canvas.width = 64
@@ -400,6 +403,7 @@ export class ProgressiveLoader {
     texture.needsUpdate = true
     return texture
   }
+  */
   
   /**
    * Get overall bounding box of the model

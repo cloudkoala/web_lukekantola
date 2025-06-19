@@ -7,20 +7,15 @@ export interface ModelConfig {
   renderType: 'point-cloud' | 'gaussian-splat'
   defaultPointSize: number
   defaultFocalLength: number
-  rotation: {
+  rotation?: {
     x: number
     y: number
     z: number
   }
-  gaussianSplatRotation?: {
-    x: number
-    y: number
-    z: number
-  }
-  rotationCenter: {
-    x: number
-    y: number
-    z: number
+  highQualityPosition?: {
+    cameraPosition: { x: number, y: number, z: number }
+    target: { x: number, y: number, z: number }
+    focalLength: number
   }
   loadingAnimation: {
     startPosition: { x: number, y: number, z: number }
@@ -31,7 +26,6 @@ export interface ModelConfig {
   footerPosition: {
     cameraPosition: { x: number, y: number, z: number }
     target: { x: number, y: number, z: number }
-    scale: number
     duration: number
   }
   idleRotation: {

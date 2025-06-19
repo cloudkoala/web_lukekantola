@@ -58,6 +58,31 @@
         <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
         <span id="focal-length-value">50</span>
       </div>
+      <div class="hue-control">
+        <label for="model-hue">Model Hue:</label>
+        <input type="range" id="model-hue" min="0" max="1" step="0.01" value="0">
+        <span id="model-hue-value">0.00</span>
+      </div>
+      <div class="background-controls">
+        <label>Background:</label>
+        <div class="background-hsl">
+          <div class="hsl-control">
+            <label for="bg-hue">H:</label>
+            <input type="range" id="bg-hue" min="0" max="1" step="0.01" value="0.75">
+            <span id="bg-hue-value">0.75</span>
+          </div>
+          <div class="hsl-control">
+            <label for="bg-saturation">S:</label>
+            <input type="range" id="bg-saturation" min="0" max="100" step="1" value="17">
+            <span id="bg-saturation-value">32%</span>
+          </div>
+          <div class="hsl-control">
+            <label for="bg-lightness">L:</label>
+            <input type="range" id="bg-lightness" min="0" max="100" step="1" value="9">
+            <span id="bg-lightness-value">9%</span>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Camera Info Display -->

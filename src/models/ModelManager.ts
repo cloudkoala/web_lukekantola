@@ -1,21 +1,19 @@
 import * as THREE from 'three'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
-import { Viewer as GaussianSplatViewer } from '@mkkellogg/gaussian-splats-3d'
+import { SplatMesh } from '@sparkjsdev/spark'
+import * as Spark from '@sparkjsdev/spark'
 import type { ModelsConfig } from '../types'
 
 export class ModelManager {
   private modelsConfig: ModelsConfig | null = null
   private isModelSwitching: boolean = false
   private isQualitySwitching: boolean = false
-  private currentRenderObject: THREE.Points | THREE.Object3D | null = null
+  private currentRenderObject: THREE.Points | SplatMesh | null = null
   private currentQuality: 'low' | 'high' = 'low'
+  private gaussianSplattingLoader: any
   
   // Injected dependencies
   private scene: THREE.Scene
-  private camera: THREE.PerspectiveCamera
-  private controls: any // OrbitControls
-  private canvas: HTMLCanvasElement
-  private renderer: THREE.WebGLRenderer
   private progressEl: HTMLDivElement
   private progressFill: HTMLDivElement
   private progressiveLoader: any
@@ -23,24 +21,30 @@ export class ModelManager {
 
   constructor(
     scene: THREE.Scene,
-    camera: THREE.PerspectiveCamera,
-    controls: any, // OrbitControls
-    canvas: HTMLCanvasElement,
-    renderer: THREE.WebGLRenderer,
     progressEl: HTMLDivElement,
     progressFill: HTMLDivElement,
     progressiveLoader: any,
     orbitalCamera: any // OrbitalCameraSystem
   ) {
     this.scene = scene
-    this.camera = camera
-    this.controls = controls
-    this.canvas = canvas
-    this.renderer = renderer
     this.progressEl = progressEl
     this.progressFill = progressFill
     this.progressiveLoader = progressiveLoader
     this.orbitalCamera = orbitalCamera
+    
+    console.log('ModelManager initialized')
+    
+    // Initialize Gaussian Splatting Loader - try different possible names
+    if ((Spark as any).GaussianSplattingLoader) {
+      this.gaussianSplattingLoader = new (Spark as any).GaussianSplattingLoader()
+      console.log('Initialized GaussianSplattingLoader')
+    } else if ((Spark as any).SplatLoader) {
+      this.gaussianSplattingLoader = new (Spark as any).SplatLoader()
+      console.log('Initialized SplatLoader')
+    } else {
+      console.warn('No Gaussian Splatting Loader found in Spark exports')
+      this.gaussianSplattingLoader = null
+    }
   }
 
   async loadModelsConfig() {
@@ -81,11 +85,11 @@ export class ModelManager {
     return this.isQualitySwitching
   }
 
-  getCurrentRenderObject(): THREE.Points | THREE.Object3D | null {
+  getCurrentRenderObject(): THREE.Points | SplatMesh | null {
     return this.currentRenderObject
   }
 
-  setCurrentRenderObject(object: THREE.Points | THREE.Object3D | null) {
+  setCurrentRenderObject(object: THREE.Points | SplatMesh | null) {
     this.currentRenderObject = object
   }
 
@@ -160,33 +164,6 @@ export class ModelManager {
       return
     }
     
-    // If switching from high to low, revert the Z scaling on animation config
-    if (this.currentQuality === 'high' && quality === 'low') {
-      if (currentModel && currentModel.loadingAnimation) {
-        const scaledEndZ = currentModel.loadingAnimation.endPosition.z
-        const originalEndZ = scaledEndZ / 10
-        currentModel.loadingAnimation.endPosition.z = originalEndZ
-        console.log('Reverted loading animation end Z position from 10x scaling:', scaledEndZ, '->', originalEndZ)
-      }
-      
-      // Also scale down current camera Z position
-      const scaledCameraZ = this.camera.position.z
-      const originalCameraZ = scaledCameraZ / 10
-      this.camera.position.z = originalCameraZ
-      this.controls.update()
-      console.log('Reverted camera Z position from 10x scaling:', scaledCameraZ, '->', originalCameraZ)
-      
-      // Restore solid background for point clouds
-      this.scene.background = new THREE.Color(0x151515)
-      console.log('Restored solid background for low quality mode')
-    }
-    
-    // If switching to high quality, set transparent background for Gaussian splats
-    if (this.currentQuality === 'low' && quality === 'high') {
-      this.scene.background = null
-      console.log('Set transparent background for high quality mode')
-    }
-    
     this.currentQuality = quality
     this.isQualitySwitching = true
     
@@ -240,59 +217,25 @@ export class ModelManager {
     this.orbitalCamera.loadDefaultPointSize()
     this.orbitalCamera.loadDefaultFocalLength()
     
-    // Clear current scene - but preserve point cloud when upgrading to high quality
-    const isUpgradingToHighQuality = this.isQualitySwitching && this.currentQuality === 'high' && 
-                                     this.currentRenderObject instanceof THREE.Points
-    
-    if (this.currentRenderObject && !isUpgradingToHighQuality) {
-      // Check if it's a Gaussian splat viewer
-      if ((this.currentRenderObject as any).dispose && typeof (this.currentRenderObject as any).dispose === 'function') {
-        console.log('Disposing Gaussian splat viewer')
-        ;(this.currentRenderObject as any).dispose()
-        
-        // Remove splat canvas
-        const splatCanvas = document.getElementById('splat-canvas')
-        if (splatCanvas) {
-          splatCanvas.remove()
-        }
-        
-        // Restore main Three.js canvas
-        this.canvas.style.display = 'block'
-        
-        // Restore UI elements that were hidden for splat mode
-        const elementsToRestore = [
-          '.point-size-control',
-          '.camera-info', 
-          '#home-navigation',
-          '.navigation-help'
-        ]
-        elementsToRestore.forEach(selector => {
-          const element = document.querySelector(selector) as HTMLElement
-          if (element) {
-            if (selector === '#home-navigation') {
-              // Home navigation needs explicit flex display and visibility
-              element.style.display = 'flex'
-              element.style.visibility = 'visible'
-            } else {
-              element.style.display = ''
-            }
-          }
-        })
-      } else {
-        // Regular Three.js object
+    // Clear current scene
+    if (this.currentRenderObject) {
+      if (this.currentRenderObject instanceof SplatMesh) {
+        console.log('Removing previous SplatMesh')
+        this.scene.remove(this.currentRenderObject)
+      } else if (this.currentRenderObject instanceof THREE.Points) {
+        console.log('Removing previous point cloud')
         this.scene.remove(this.currentRenderObject)
       }
       this.currentRenderObject = null
     }
     
-    // Clear any existing point clouds or other objects (except when upgrading to high quality)
-    if (!isUpgradingToHighQuality) {
-      const existingObjects = this.scene.children.filter(child => 
-        child instanceof THREE.Points || 
-        (child.type === 'Mesh' && child.userData?.isSplatMesh)
-      )
-      existingObjects.forEach(obj => this.scene.remove(obj))
-    }
+    // Clear any remaining objects in scene
+    const existingObjects = this.scene.children.filter(child => 
+      child instanceof THREE.Points || 
+      child instanceof SplatMesh ||
+      (child.type === 'Mesh' && child.userData?.isSplatMesh)
+    )
+    existingObjects.forEach(obj => this.scene.remove(obj))
     
     // Clear camera system references
     this.orbitalCamera.setCurrentRenderObject(new THREE.Object3D()) // Clear reference
@@ -321,21 +264,25 @@ export class ModelManager {
       return
     }
     
-    if (currentModel.renderType === 'gaussian-splat') {
-      // Load with Gaussian splat viewer
-      await this.loadGaussianSplat(fileName)
-    } else if (this.currentQuality === 'high' && currentModel.gaussianSplatFile) {
-      // Load dedicated Gaussian splat file for high quality
-      await this.loadGaussianSplat(currentModel.gaussianSplatFile)
+    // Use quality setting to determine which file to load
+    if (this.currentQuality === 'high' && currentModel.gaussianSplatFile) {
+      // Load Gaussian splat for high quality
+      await this.loadSplatMesh(currentModel.gaussianSplatFile)
+      // ALSO load the point cloud for comparison
+      console.log('Loading point cloud alongside Gaussian splat for comparison')
+      await this.loadPointCloudByFileName(fileName, true) // Pass flag to indicate it's a comparison load
     } else {
-      // Load point cloud version
+      // Load point cloud for low quality or when no splat file available
       await this.loadPointCloudByFileName(fileName)
     }
   }
 
-  async loadPointCloudByFileName(fileName: string) {
+  async loadPointCloudByFileName(fileName: string, isComparisonLoad: boolean = false) {
     console.log('=== LOAD POINT CLOUD START ===')
     console.log('Loading point cloud:', fileName)
+    if (isComparisonLoad) {
+      console.log('Loading as comparison alongside Gaussian splat')
+    }
     
     
     
@@ -405,18 +352,18 @@ export class ModelManager {
         console.log('No chunked version found, loading single file...')
         // Cancel any ongoing progressive loading
         this.progressiveLoader.cancelLoading()
-        this.loadSinglePointCloud(fileName)
+        this.loadSinglePointCloud(fileName, isComparisonLoad)
       }
       
     } catch (error) {
       console.log('Error checking for chunked version, falling back to single file loading:', error)
       // Cancel any ongoing progressive loading
       this.progressiveLoader.cancelLoading()
-      this.loadSinglePointCloud(fileName)
+      this.loadSinglePointCloud(fileName, isComparisonLoad)
     }
   }
 
-  loadSinglePointCloud(fileName: string) {
+  loadSinglePointCloud(fileName: string, isComparisonLoad: boolean = false) {
     const loader = new PLYLoader()
     
     console.log('Loading single point cloud file:', fileName)
@@ -425,7 +372,7 @@ export class ModelManager {
       const fullPath = this.getModelPath(fileName)
       loader.load(
         `${import.meta.env.BASE_URL}${fullPath}`,
-        (geometry: THREE.BufferGeometry) => this.onLoad(geometry),
+        (geometry: THREE.BufferGeometry) => this.onLoad(geometry, isComparisonLoad),
         (progress: ProgressEvent) => this.onStreamingProgress(progress),
         (error: any) => this.onError(error)
       )
@@ -440,130 +387,94 @@ export class ModelManager {
     }
   }
 
-  async loadGaussianSplat(fileName: string) {
+  async addGaussian(url: string): Promise<SplatMesh> {
     try {
-      console.log('Loading real Gaussian splat:', fileName)
+      console.log('Loading Gaussian splat with progress tracking:', url)
       
-      // Set transparent background for Gaussian splat rendering
-      this.scene.background = null
-      console.log('Set scene background to transparent for Gaussian splat')
-      
-      // Create a dedicated canvas for the Gaussian splat viewer
-      const splatCanvas = document.createElement('canvas')
-      splatCanvas.id = 'splat-canvas'
-      splatCanvas.style.position = 'absolute'
-      splatCanvas.style.top = '0'
-      splatCanvas.style.left = '0'
-      splatCanvas.style.width = '100%'
-      splatCanvas.style.height = '100%'
-      splatCanvas.style.zIndex = '2001'
-      splatCanvas.style.pointerEvents = 'auto'
-      splatCanvas.style.touchAction = 'none'
-      
-      // We're using the main canvas, so don't hide it or add splat canvas
-      
-      // We'll position the camera after the splat loads
-      
-      // Try regular Viewer with our existing canvas
-      console.log('Trying regular Viewer with canvas integration')
-      
-      // Show our canvas instead of hiding it
-      this.canvas.style.display = 'block'
-      this.canvas.style.zIndex = '1'
-      
-      const viewer = new GaussianSplatViewer({
-        'canvas': this.canvas,
-        'renderer': this.renderer,
-        'camera': this.camera,
-        'useBuiltInControls': false,
-        'enableThreeJSRendering': true
-      })
-      
-      console.log('Regular Viewer created, starting and loading splat scene...')
-      
-      // Remove our custom canvas since we're using the main canvas
-      if (splatCanvas.parentNode) {
-        splatCanvas.parentNode.removeChild(splatCanvas)
+      if (!this.gaussianSplattingLoader) {
+        console.log('No loader available, falling back to direct URL loading')
+        return new SplatMesh({ url })
       }
       
-      // Remove preserved point cloud before starting Gaussian splat viewer
-      // since they can't render simultaneously
-      if (this.isQualitySwitching && this.currentQuality === 'high') {
-        const existingPointClouds = this.scene.children.filter(child => child instanceof THREE.Points)
-        existingPointClouds.forEach(obj => {
-          console.log('Removing point cloud before starting Gaussian splat viewer')
-          this.scene.remove(obj)
-        })
-      }
-      
-      // Start the viewer first
-      await viewer.start()
-      
-      // Add the splat scene
-      const fullPath = this.getModelPath(fileName, true)
-      await viewer.addSplatScene(`${import.meta.env.BASE_URL}${fullPath}`, {
-        'showLoadingUI': false,
-        'progressiveLoad': true
-      })
-      
-      console.log('Regular Viewer scene loaded successfully')
-      console.log('Viewer object:', viewer)
-      console.log('Splat mesh:', (viewer as any).splatMesh)
-      
-      // Log splat info for debugging
-      const splat = (viewer as any).splatMesh
-      if (splat && splat.geometry) {
-        console.log('=== HIGH QUALITY GAUSSIAN SPLAT BOUNDING BOX ===')
-        console.log('Splat geometry:', splat.geometry)
-        splat.geometry.computeBoundingBox()
-        if (splat.geometry.boundingBox) {
-          const box = splat.geometry.boundingBox
-          const size = box.getSize(new THREE.Vector3())
-          const center = box.getCenter(new THREE.Vector3())
-          const maxDimension = Math.max(size.x, size.y, size.z)
+      // Step 1: Load packedSplats with progress tracking
+      const packedSplats = await this.gaussianSplattingLoader.loadAsync(url, (event: any) => {
+        if (event.type === 'progress') {
+          const progress = event.lengthComputable
+            ? `${((event.loaded / event.total) * 100).toFixed(2)}%`
+            : `${event.loaded} bytes`
+          console.log(`Gaussian splat download progress: ${progress}`)
           
-          console.log('Bounding box min:', box.min)
-          console.log('Bounding box max:', box.max)
-          console.log('Size (width, height, depth):', size)
-          console.log('Center:', center)
-          console.log('Max dimension:', maxDimension)
-          console.log('Point count:', splat.geometry.attributes.position?.count || 'Unknown')
-          console.log('=== END HIGH QUALITY INFO ===')
+          // Update progress bar if visible
+          if (this.progressEl.style.display !== 'none' && event.lengthComputable) {
+            const percentage = (event.loaded / event.total) * 100
+            this.progressFill.style.width = `${percentage}%`
+          }
+        }
+      })
+      
+      console.log('Gaussian splat data loaded, creating SplatMesh...')
+      
+      // Step 2: Create SplatMesh from loaded data
+      const splatMesh = new SplatMesh({ packedSplats })
+      
+      // Enable viewToWorld matrix updates for fast rotation handling
+      if ((splatMesh as any).enableViewToWorld !== undefined) {
+        (splatMesh as any).enableViewToWorld = true
+        console.log('Enabled viewToWorld matrix updates for fast rotation')
+      }
+      
+      // Try to prevent culling artifacts by adjusting properties after creation
+      if ((splatMesh as any).frustumCulled !== undefined) {
+        (splatMesh as any).frustumCulled = false
+        console.log('Disabled frustum culling on SplatMesh')
+      }
+      
+      // Try to access and modify any internal culling settings
+      if ((splatMesh as any).material) {
+        const material = (splatMesh as any).material
+        if (material.side !== undefined) {
+          material.side = THREE.DoubleSide
+          console.log('Set SplatMesh material to DoubleSide')
         }
       }
       
-      // Scale Z position for Gaussian splat by factor of 10
-      const originalZ = this.camera.position.z
-      this.camera.position.z = this.camera.position.z * 10
-      this.controls.update()
+      return splatMesh
+    } catch (error) {
+      console.warn('Failed to load Gaussian splat:', error)
+      throw error
+    }
+  }
+
+  async loadSplatMesh(fileName: string) {
+    try {
+      console.log('Loading Gaussian splat with two-step loading:', fileName)
       
-      console.log('Scaled camera Z position for Gaussian splat by 10x')
-      console.log('Original Z:', originalZ, '-> Scaled Z:', this.camera.position.z)
-      console.log('Our camera position:', this.camera.position)
-      console.log('Our camera target:', this.controls.target)
+      // Apply user's background color
+      this.applyUserBackgroundColor()
       
-      console.log('Real Gaussian splat loaded successfully!')
-      console.log('Canvas controls - try click and drag to orbit, scroll to zoom')
+      // Use the new addGaussian method for better loading
+      const fullPath = this.getModelPath(fileName, true)
+      const url = `${import.meta.env.BASE_URL}${fullPath}`
+      const splatMesh = await this.addGaussian(url)
       
-      // Store viewer reference globally for cleanup
-      this.currentRenderObject = viewer as any
+      console.log('SplatMesh created, adding to scene')
+      
+      // Add SplatMesh to scene (camera-child approach breaks loading)
+      this.scene.add(splatMesh)
+      this.currentRenderObject = splatMesh
+      
+      // Register with orbital camera system  
+      this.orbitalCamera.setCurrentRenderObject(splatMesh)
       
       // Hide loading screen
       this.progressEl.style.display = 'none'
       
       // Trigger loading animation if switching models (but not quality)
       if (this.isModelSwitching && !this.isQualitySwitching) {
-        // For high quality models, scale the landing Z position by 10
-        if (this.currentQuality === 'high') {
-          const currentModel = this.modelsConfig!.models[this.modelsConfig!.currentModel]
-          if (currentModel && currentModel.loadingAnimation) {
-            const originalEndZ = currentModel.loadingAnimation.endPosition.z
-            currentModel.loadingAnimation.endPosition.z = originalEndZ * 10
-            console.log('Scaled loading animation end Z position by 10x:', originalEndZ, '->', currentModel.loadingAnimation.endPosition.z)
-          }
-        }
         this.orbitalCamera.startLoadingAnimation()
       }
+      
+      // Reset switching flags
       if (this.isModelSwitching) {
         this.isModelSwitching = false
       }
@@ -571,26 +482,21 @@ export class ModelManager {
         this.isQualitySwitching = false
       }
       
+      console.log('SplatMesh loaded with two-step process - should eliminate culling artifacts!')
+      
     } catch (error) {
-      console.error('Failed to load real Gaussian splat:', error)
-      console.error('Gaussian Splat loading failed - no fallback enabled')
+      console.error('Failed to load SplatMesh:', error)
       
-      // Restore solid background on error
-      this.scene.background = new THREE.Color(0x151515)
-      console.log('Restored solid background after Gaussian splat error')
-      
-      // Restore main canvas
-      this.canvas.style.display = 'block'
-      
-      // Remove splat canvas if it exists
-      const splatCanvas = document.getElementById('splat-canvas')
-      if (splatCanvas) {
-        splatCanvas.remove()
-      }
-      
-      // Show error message instead of fallback
+      // Show error message
       this.progressEl.style.display = 'flex'
       this.progressEl.querySelector('p')!.textContent = 'Gaussian Splat loading failed'
+      
+      // Try fallback to point cloud
+      console.log('Falling back to point cloud rendering')
+      const currentModel = this.modelsConfig!.models[this.modelsConfig!.currentModel]
+      if (currentModel) {
+        await this.loadPointCloudByFileName(currentModel.fileName)
+      }
     }
   }
 
@@ -616,22 +522,31 @@ export class ModelManager {
     await this.loadModelByFileName(currentModel.fileName)
   }
 
-  private onLoad(geometry: THREE.BufferGeometry) {
+  private onLoad(geometry: THREE.BufferGeometry, isComparisonLoad: boolean = false) {
     console.log('PLY file loaded successfully!')
     console.log('Geometry attributes:', Object.keys(geometry.attributes))
+    if (isComparisonLoad) {
+      console.log('Processing as comparison point cloud alongside Gaussian splat')
+    }
     
-    // Create material for the point cloud
+    // Create material for the point cloud using shared texture
     const material = new THREE.PointsMaterial({
       size: this.orbitalCamera.pointSize,
-      vertexColors: true,
+      vertexColors: !isComparisonLoad, // Use vertex colors only if not comparison
+      color: isComparisonLoad ? 0x00ff00 : 0xffffff, // Green for comparison, white for normal
       transparent: true,
-      map: this.createSquareTexture(),
+      opacity: isComparisonLoad ? 0.6 : 1.0, // More transparent for comparison
+      // map: this.createSquareTexture(), // Disabled to avoid GL_INVALID_OPERATION errors
       blending: THREE.NormalBlending,
       depthWrite: true,
-      alphaTest: 0.1
+      alphaTest: 0.01, // Reduced alpha test threshold
+      side: THREE.DoubleSide // Prevent backface culling
     })
     
     const pointCloud = new THREE.Points(geometry, material)
+    
+    // Disable frustum culling to prevent disappearing during fast rotation
+    pointCloud.frustumCulled = false
     
     // Apply per-model rotation from configuration
     const currentModel = this.modelsConfig!.models[this.modelsConfig!.currentModel]
@@ -642,13 +557,17 @@ export class ModelManager {
       pointCloud.rotateZ((currentModel.rotation.z * Math.PI) / 180)
     }
     
+    
     this.scene.add(pointCloud)
     
-    // Register with orbital camera system
-    this.orbitalCamera.setCurrentPointCloud(pointCloud)
-    
-    // Update point size to current setting (important for model switching)
-    this.orbitalCamera.updatePointSize()
+    // Register with orbital camera system (only if not comparison)
+    if (!isComparisonLoad) {
+      this.orbitalCamera.setCurrentPointCloud(pointCloud)
+      // Update point size to current setting (important for model switching)
+      this.orbitalCamera.updatePointSize()
+    } else {
+      console.log('Skipping camera registration for comparison point cloud')
+    }
     
     // Calculate bounding box for model info
     console.log('=== BOUNDING BOX ANALYSIS ===')
@@ -685,6 +604,8 @@ export class ModelManager {
     if (this.isModelSwitching && !this.isQualitySwitching) {
       this.orbitalCamera.startLoadingAnimation()
     }
+    
+    // Reset switching flags
     if (this.isModelSwitching) {
       this.isModelSwitching = false
     }
@@ -722,6 +643,36 @@ export class ModelManager {
     return basePath + fileName
   }
 
+  private applyUserBackgroundColor() {
+    // Get current values from HTML controls
+    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
+    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
+    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
+    
+    if (!bgHueSlider || !bgSaturationSlider || !bgLightnessSlider) {
+      console.log('Background controls not found, using default')
+      return
+    }
+    
+    const hue = parseFloat(bgHueSlider.value) // 0-1 range
+    const saturation = parseInt(bgSaturationSlider.value) / 100 // Convert to 0-1
+    let lightness = parseInt(bgLightnessSlider.value) / 100 // Convert to 0-1
+    
+    // Apply the same gamma correction as the orbital camera system
+    lightness = Math.pow(lightness, 2.2)
+    
+    // Use Three.js built-in HSL conversion
+    const color = new THREE.Color()
+    color.setHSL(hue, saturation, lightness)
+    
+    // Update Three.js scene background
+    this.scene.background = color
+    
+    console.log(`ModelManager: Background color applied: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
+  }
+
+  // Temporarily disabled to avoid GL_INVALID_OPERATION errors
+  /*
   private createSquareTexture() {
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')!
@@ -750,4 +701,5 @@ export class ModelManager {
     
     return texture
   }
+  */
 }

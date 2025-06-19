@@ -292,6 +292,140 @@ body, html {
   min-width: 40px;
 }
 
+/* Model Hue Control */
+.hue-control {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hue-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.hue-control input[type="range"] {
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.hue-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hue-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(255, 255, 255, 1);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.2);
+}
+
+.hue-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 40px;
+}
+
+/* Background Controls */
+.background-controls {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+}
+
+.background-controls > label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.background-hsl {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.hsl-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hsl-control label {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  min-width: 12px;
+}
+
+.hsl-control input[type="range"] {
+  width: 80px;
+  height: 2px;
+  background: rgba(0, 128, 0, 0.6);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.hsl-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.hsl-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
+}
+
+.hsl-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 30px;
+}
+
+/* Special background for hue slider */
+#bg-hue {
+  background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000) !important;
+}
+
 /* Camera Info Display */
 .camera-info {
   position: fixed;

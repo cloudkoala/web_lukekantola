@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { SplatMesh } from '@sparkjsdev/spark'
 import type { ModelsConfig, InterfaceMode, ProjectsConfig } from '../types'
 
 export class OrbitalCameraSystem {
@@ -14,6 +15,9 @@ export class OrbitalCameraSystem {
   public rotationRadius: number = 5.0
   public pointSize: number = 0.001
   public interactionMode: string = 'free-nav'
+  
+  // Store original colors for hue shifting
+  private originalColors: Map<THREE.BufferGeometry, Float32Array> = new Map()
   
   private savedCameraPosition: THREE.Vector3 | null = null
   private savedCameraTarget: THREE.Vector3 | null = null
@@ -56,7 +60,7 @@ export class OrbitalCameraSystem {
   private setCurrentProjectId: (id: string | null) => void
   private projectsConfig: () => ProjectsConfig | null
   private progressiveLoader: any
-  private setCurrentRenderObjectRef: (object: THREE.Points | THREE.Object3D | null) => void
+  private setCurrentRenderObjectRef: (object: THREE.Points | SplatMesh | null) => void
 
   constructor(
     camera: THREE.PerspectiveCamera, 
@@ -70,7 +74,7 @@ export class OrbitalCameraSystem {
     setCurrentProjectId: (id: string | null) => void,
     projectsConfig: () => ProjectsConfig | null,
     progressiveLoader: any,
-    setCurrentRenderObject: (object: THREE.Points | THREE.Object3D | null) => void
+    setCurrentRenderObject: (object: THREE.Points | SplatMesh | null) => void
   ) {
     this.canvas = canvas
     this.scene = scene
@@ -93,6 +97,9 @@ export class OrbitalCameraSystem {
     
     // Initialize orbit center at target point
     this.clickedPoint = new THREE.Vector3(0.08, 0.80, -0.21)
+    
+    // Apply default background color
+    this.updateBackgroundColor()
     
     // Set initial camera position for loading animation (will be updated from config)
     this.camera.position.set(1.03, 2.83, 6.08)
@@ -136,8 +143,8 @@ export class OrbitalCameraSystem {
     this.canvas.addEventListener('mousemove', (event) => {
       this.handleCanvasMouseMove(event)
     })
-    this.canvas.addEventListener('mouseup', (event) => {
-      this.handleCanvasMouseUp(event)
+    this.canvas.addEventListener('mouseup', () => {
+      this.handleCanvasMouseUp()
     })
     
     // Add touch handler for mobile devices (double-tap)
@@ -318,6 +325,43 @@ export class OrbitalCameraSystem {
       const focalLength = parseFloat((e.target as HTMLInputElement).value)
       focalLengthValue.textContent = focalLength.toString()
       this.updateFocalLength(focalLength)
+    })
+    
+    // Model Hue Control
+    const modelHueSlider = document.querySelector('#model-hue') as HTMLInputElement
+    const modelHueValue = document.querySelector('#model-hue-value') as HTMLSpanElement
+    
+    modelHueSlider?.addEventListener('input', (e) => {
+      const hue = parseFloat((e.target as HTMLInputElement).value)
+      modelHueValue.textContent = hue.toFixed(2)
+      this.updateModelHue(hue)
+    })
+    
+    // Background HSL Controls
+    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
+    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
+    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
+    
+    const bgHueValue = document.querySelector('#bg-hue-value') as HTMLSpanElement
+    const bgSaturationValue = document.querySelector('#bg-saturation-value') as HTMLSpanElement
+    const bgLightnessValue = document.querySelector('#bg-lightness-value') as HTMLSpanElement
+    
+    bgHueSlider?.addEventListener('input', (e) => {
+      const hue = parseFloat((e.target as HTMLInputElement).value)
+      bgHueValue.textContent = hue.toFixed(2)
+      this.updateBackgroundColor()
+    })
+    
+    bgSaturationSlider?.addEventListener('input', (e) => {
+      const saturation = parseFloat((e.target as HTMLInputElement).value)
+      bgSaturationValue.textContent = saturation.toString() + '%'
+      this.updateBackgroundColor()
+    })
+    
+    bgLightnessSlider?.addEventListener('input', (e) => {
+      const lightness = parseFloat((e.target as HTMLInputElement).value)
+      bgLightnessValue.textContent = lightness.toString() + '%'
+      this.updateBackgroundColor()
     })
     
     // Set default point size button
@@ -783,14 +827,18 @@ export class OrbitalCameraSystem {
   setCurrentPointCloud(pointCloud: THREE.Points) {
     this.currentPointCloud = pointCloud
     this.setCurrentRenderObjectRef(pointCloud)
+    // Store original colors for hue shifting
+    setTimeout(() => this.storeOriginalColors(), 100) // Small delay to ensure colors are loaded
   }
   
-  setCurrentRenderObject(object: THREE.Object3D) {
+  setCurrentRenderObject(object: THREE.Points | SplatMesh | null) {
     // Update global reference via injected function
     this.setCurrentRenderObjectRef(object)
     // If it's a Points object, also set the currentPointCloud for compatibility
     if (object instanceof THREE.Points) {
       this.currentPointCloud = object
+      // Store original colors for hue shifting
+      setTimeout(() => this.storeOriginalColors(), 100) // Small delay to ensure colors are loaded
     } else {
       this.currentPointCloud = null
     }
@@ -858,6 +906,208 @@ export class OrbitalCameraSystem {
     this.camera.updateProjectionMatrix()
     
     console.log(`Focal length updated to: ${focalLength}mm, FOV: ${fovDegrees.toFixed(1)}°`)
+  }
+
+  public storeOriginalColors() {
+    // Store original colors for all point clouds in the scene
+    this.scene.children.forEach(child => {
+      if (child instanceof THREE.Points && child.geometry) {
+        const geometry = child.geometry as THREE.BufferGeometry
+        const colors = geometry.attributes.color
+        
+        if (colors && !this.originalColors.has(geometry)) {
+          // Store a copy of the original color array
+          this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
+        }
+      }
+    })
+    
+    // Also store for progressive loader chunks
+    this.progressiveLoader.getLoadedPointClouds().forEach((pointCloud: THREE.Points) => {
+      const geometry = pointCloud.geometry as THREE.BufferGeometry
+      const colors = geometry.attributes.color
+      
+      if (colors && !this.originalColors.has(geometry)) {
+        this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
+      }
+    })
+  }
+
+  public updateModelHue(hue: number) {
+    // Update hue for all point clouds in the scene by applying shift to original colors
+    this.scene.children.forEach(child => {
+      if (child instanceof THREE.Points && child.geometry) {
+        const geometry = child.geometry as THREE.BufferGeometry
+        const colors = geometry.attributes.color
+        
+        if (colors) {
+          // Get original colors or store them if not available
+          if (!this.originalColors.has(geometry)) {
+            this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
+          }
+          
+          const originalArray = this.originalColors.get(geometry)!
+          const colorArray = colors.array as Float32Array
+          
+          // Process colors in groups of 3 (RGB), using original colors as base
+          for (let i = 0; i < colorArray.length; i += 3) {
+            const r = originalArray[i]
+            const g = originalArray[i + 1]
+            const b = originalArray[i + 2]
+            
+            // Convert RGB to HSL
+            const max = Math.max(r, g, b)
+            const min = Math.min(r, g, b)
+            let h = 0, s = 0, l = (max + min) / 2
+            
+            if (max !== min) {
+              const d = max - min
+              s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+              
+              switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break
+                case g: h = (b - r) / d + 2; break
+                case b: h = (r - g) / d + 4; break
+              }
+              h /= 6
+            }
+            
+            // Apply hue shift (hue is already in 0-1 range)
+            h = (h + hue) % 1
+            
+            // Convert back to RGB
+            const hslToRgb = (h: number, s: number, l: number) => {
+              if (s === 0) {
+                return [l, l, l] // achromatic
+              }
+              
+              const hue2rgb = (p: number, q: number, t: number) => {
+                if (t < 0) t += 1
+                if (t > 1) t -= 1
+                if (t < 1/6) return p + (q - p) * 6 * t
+                if (t < 1/2) return q
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+                return p
+              }
+              
+              const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+              const p = 2 * l - q
+              
+              return [
+                hue2rgb(p, q, h + 1/3),
+                hue2rgb(p, q, h),
+                hue2rgb(p, q, h - 1/3)
+              ]
+            }
+            
+            const [newR, newG, newB] = hslToRgb(h, s, l)
+            colorArray[i] = newR
+            colorArray[i + 1] = newG
+            colorArray[i + 2] = newB
+          }
+          
+          colors.needsUpdate = true
+        }
+      }
+    })
+    
+    // Also update progressive loader chunks
+    this.progressiveLoader.getLoadedPointClouds().forEach((pointCloud: THREE.Points) => {
+      const geometry = pointCloud.geometry as THREE.BufferGeometry
+      const colors = geometry.attributes.color
+      
+      if (colors) {
+        // Get original colors or store them if not available
+        if (!this.originalColors.has(geometry)) {
+          this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
+        }
+        
+        const originalArray = this.originalColors.get(geometry)!
+        const colorArray = colors.array as Float32Array
+        
+        // Apply the same hue shift logic to progressive chunks
+        for (let i = 0; i < colorArray.length; i += 3) {
+          const r = originalArray[i]
+          const g = originalArray[i + 1] 
+          const b = originalArray[i + 2]
+          
+          // Same HSL conversion and hue shift logic as above...
+          const max = Math.max(r, g, b)
+          const min = Math.min(r, g, b)
+          let h = 0, s = 0, l = (max + min) / 2
+          
+          if (max !== min) {
+            const d = max - min
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+            
+            switch (max) {
+              case r: h = (g - b) / d + (g < b ? 6 : 0); break
+              case g: h = (b - r) / d + 2; break
+              case b: h = (r - g) / d + 4; break
+            }
+            h /= 6
+          }
+          
+          h = (h + hue) % 1
+          
+          const hslToRgb = (h: number, s: number, l: number) => {
+            if (s === 0) return [l, l, l]
+            
+            const hue2rgb = (p: number, q: number, t: number) => {
+              if (t < 0) t += 1
+              if (t > 1) t -= 1
+              if (t < 1/6) return p + (q - p) * 6 * t
+              if (t < 1/2) return q
+              if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+              return p
+            }
+            
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+            const p = 2 * l - q
+            
+            return [
+              hue2rgb(p, q, h + 1/3),
+              hue2rgb(p, q, h),
+              hue2rgb(p, q, h - 1/3)
+            ]
+          }
+          
+          const [newR, newG, newB] = hslToRgb(h, s, l)
+          colorArray[i] = newR
+          colorArray[i + 1] = newG
+          colorArray[i + 2] = newB
+        }
+        
+        colors.needsUpdate = true
+      }
+    })
+    
+    console.log(`Model hue updated to: ${hue} (0-1 range)`)
+  }
+
+  public updateBackgroundColor() {
+    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
+    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
+    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
+    
+    if (!bgHueSlider || !bgSaturationSlider || !bgLightnessSlider) return
+    
+    const hue = parseFloat(bgHueSlider.value) // 0-1 range
+    const saturation = parseInt(bgSaturationSlider.value) / 100 // Convert to 0-1
+    let lightness = parseInt(bgLightnessSlider.value) / 100 // Convert to 0-1
+    
+    // Compensate for ACES tone mapping which brightens dark values
+    // Apply a power curve to make low lightness values darker
+    lightness = Math.pow(lightness, 2.2) // Gamma correction to counteract tone mapping
+    
+    // Use Three.js built-in HSL conversion
+    const color = new THREE.Color()
+    color.setHSL(hue, saturation, lightness)
+    
+    // Update Three.js scene background
+    this.scene.background = color
+    
+    console.log(`Background color updated to: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
   }
 
   private calculateDensityAwarePointSize(geometry: THREE.BufferGeometry, baseSize: number): number {
@@ -1910,7 +2160,7 @@ export class OrbitalCameraSystem {
     }
   }
 
-  private handleCanvasMouseUp(event: MouseEvent) {
+  private handleCanvasMouseUp() {
     if (!this.mouseDownPosition) return
     
     // Reset tracking variables (animation already started on mousedown)
@@ -1969,9 +2219,13 @@ export class OrbitalCameraSystem {
     let nearestPoint: THREE.Vector3 | null = null
     let nearestDistance = Infinity
     
-    // Check all point clouds in the scene
+    // Check for different object types in the scene
+    let foundRenderableObjects = false
+    
     this.scene.children.forEach(child => {
       if (child instanceof THREE.Points && child.geometry) {
+        // Handle point clouds (low quality mode)
+        foundRenderableObjects = true
         const geometry = child.geometry
         const positions = geometry.attributes.position
         if (!positions) return
@@ -1992,8 +2246,37 @@ export class OrbitalCameraSystem {
             nearestPoint = tempPoint.clone()
           }
         }
+      } else if (child instanceof SplatMesh) {
+        // Handle Gaussian splats (high quality mode) using raycasting
+        foundRenderableObjects = true
+        console.log('Detected SplatMesh, using raycaster intersection')
+        
+        const intersects = raycaster.intersectObject(child)
+        if (intersects.length > 0) {
+          // Use the first intersection point
+          nearestPoint = intersects[0].point.clone()
+          console.log('SplatMesh intersection found at:', nearestPoint)
+        } else {
+          // Fallback to plane intersection if no direct intersection
+          const targetDistance = this.camera.position.distanceTo(this.controls.target)
+          nearestPoint = raycaster.ray.origin.clone().add(
+            raycaster.ray.direction.clone().multiplyScalar(targetDistance)
+          )
+          console.log('SplatMesh fallback to plane intersection at:', nearestPoint)
+        }
       }
     })
+    
+    // If no renderable objects found, use plane intersection
+    if (!foundRenderableObjects) {
+      // Create a plane at the current target depth for intersection
+      const targetDistance = this.camera.position.distanceTo(this.controls.target)
+      const intersectionPoint = raycaster.ray.origin.clone().add(
+        raycaster.ray.direction.clone().multiplyScalar(targetDistance)
+      )
+      nearestPoint = intersectionPoint
+      console.log('No renderable objects found, using plane intersection at:', nearestPoint)
+    }
     
     return nearestPoint
   }

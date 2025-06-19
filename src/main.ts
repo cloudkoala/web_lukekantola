@@ -73,10 +73,6 @@ const contentLoader = new ContentLoader()
 
 const modelManager = new ModelManager(
   scene,
-  camera,
-  controls,
-  canvas,
-  renderer,
   progressEl,
   progressFill,
   progressiveLoader,
@@ -95,7 +91,7 @@ const orbitalCamera = new OrbitalCameraSystem(
   (id: string | null) => { currentProjectId = id },
   () => contentLoader.getProjectsConfig(),
   progressiveLoader,
-  (object: THREE.Points | THREE.Object3D | null) => modelManager.setCurrentRenderObject(object)
+  (object: THREE.Points | import('@sparkjsdev/spark').SplatMesh | null) => modelManager.setCurrentRenderObject(object)
 )
 
 // Set orbital camera reference in model manager
