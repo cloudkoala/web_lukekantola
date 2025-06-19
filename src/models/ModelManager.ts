@@ -483,8 +483,6 @@ export class ModelManager {
     try {
       console.log('Loading Gaussian splat with two-step loading:', fileName)
       
-      // Apply user's background color
-      this.applyUserBackgroundColor()
       
       // Use the new addGaussian method for better loading
       const fullPath = this.getModelPath(fileName, true)
@@ -591,6 +589,10 @@ export class ModelManager {
     
     this.scene.add(pointCloud)
     
+    // Update post-processing point clouds list
+    const updateFn = (window as any).updatePostProcessingPointClouds
+    if (updateFn) updateFn()
+    
     // Register with orbital camera system (only if not comparison)
     if (!isComparisonLoad) {
       this.orbitalCamera.setCurrentPointCloud(pointCloud)
@@ -674,33 +676,6 @@ export class ModelManager {
     return basePath + fileName
   }
 
-  private applyUserBackgroundColor() {
-    // Get current values from HTML controls
-    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
-    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
-    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
-    
-    if (!bgHueSlider || !bgSaturationSlider || !bgLightnessSlider) {
-      console.log('Background controls not found, using default')
-      return
-    }
-    
-    const hue = parseFloat(bgHueSlider.value) // 0-1 range
-    const saturation = parseInt(bgSaturationSlider.value) / 100 // Convert to 0-1
-    let lightness = parseInt(bgLightnessSlider.value) / 100 // Convert to 0-1
-    
-    // Apply the same gamma correction as the orbital camera system
-    lightness = Math.pow(lightness, 2.2)
-    
-    // Use Three.js built-in HSL conversion
-    const color = new THREE.Color()
-    color.setHSL(hue, saturation, lightness)
-    
-    // Update Three.js scene background
-    this.scene.background = color
-    
-    console.log(`ModelManager: Background color applied: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
-  }
 
   // Temporarily disabled to avoid GL_INVALID_OPERATION errors
   /*

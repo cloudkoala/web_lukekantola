@@ -6,6 +6,7 @@ import { ProgressiveLoader } from './ProgressiveLoader.js'
 import { OrbitalCameraSystem } from './camera'
 import { ModelManager } from './models'
 import { ContentLoader } from './interface'
+import { PostProcessingPass } from './effects'
 import type { InterfaceMode } from './types'
 
 // DOM elements
@@ -65,11 +66,31 @@ controls.dampingFactor = 0.05
 // Progressive loader
 const progressiveLoader = new ProgressiveLoader(scene)
 
+// Post-processing effects (includes effects chain management)
+const postProcessingPass = new PostProcessingPass(window.innerWidth, window.innerHeight, renderer)
+postProcessingPass.setMainScene(scene, camera)
+
+const pixelRatio = Math.min(window.devicePixelRatio, 2)
+const renderTarget = new THREE.WebGLRenderTarget(
+  window.innerWidth * pixelRatio, 
+  window.innerHeight * pixelRatio, 
+  {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    type: THREE.UnsignedByteType,
+    generateMipmaps: false,
+    stencilBuffer: false
+  }
+)
+
 // Initialize module instances
 const contentLoader = new ContentLoader()
 
-// Expose contentLoader globally for OrbitalCameraSystem to access
+// Expose contentLoader and effects globally for OrbitalCameraSystem to access
 ;(window as any).contentLoader = contentLoader
+;(window as any).postProcessingPass = postProcessingPass
+;(window as any).updatePostProcessingPointClouds = () => postProcessingPass.updatePointClouds()
 
 const modelManager = new ModelManager(
   scene,
@@ -129,7 +150,29 @@ function animate() {
   }
   
   orbitalCamera.update()
-  renderer.render(scene, camera)
+  
+  // Update brush effects continuously (for physics simulation)
+  postProcessingPass.updateBrushEffects()
+  
+  // Check if we actually have effects to apply and if post-processing is enabled
+  const effectsChain = postProcessingPass.getEffectsChain()
+  const hasActiveEffects = postProcessingPass.enabled && (
+    effectsChain.some(effect => effect.enabled && (effect.parameters.intensity || 0) > 0) || 
+    ((postProcessingPass as any).effectType !== 'none' && postProcessingPass.intensity > 0)
+  )
+  
+  if (hasActiveEffects) {
+    // Render scene to render target and apply effects
+    renderer.setRenderTarget(renderTarget)
+    renderer.render(scene, camera)
+    
+    // Process effects through the modern chain system
+    postProcessingPass.render(renderer, renderTarget.texture, null)
+  } else {
+    // Normal rendering - no effects to apply, render directly to screen
+    renderer.setRenderTarget(null)
+    renderer.render(scene, camera)
+  }
 }
 
 // Handle window resize
@@ -137,7 +180,56 @@ function handleResize() {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
+  
+  // Update effect pass sizes
+  const pixelRatio = Math.min(window.devicePixelRatio, 2)
+  postProcessingPass.setSize(window.innerWidth, window.innerHeight)
+  renderTarget.setSize(window.innerWidth * pixelRatio, window.innerHeight * pixelRatio)
 }
+
+// Mouse/touch event handlers for brush effect
+function handleMouseDown(_event: MouseEvent) {
+  // Don't interfere with camera controls
+}
+
+function handleMouseUp() {
+  // Don't interfere with camera controls
+}
+
+function handleMouseMove(event: MouseEvent) {
+  // Always update brush position on mouse move (brush will be active when effect is enabled)
+  postProcessingPass.setBrushPosition(event.clientX, event.clientY, true)
+}
+
+function handleTouchStart(event: TouchEvent) {
+  if (event.touches.length === 1) {
+    event.preventDefault()
+    const touch = event.touches[0]
+    postProcessingPass.setBrushPosition(touch.clientX, touch.clientY, true)
+  }
+}
+
+function handleTouchEnd() {
+  // Touch ended, but brush can still be active on mouse move
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (event.touches.length === 1) {
+    event.preventDefault()
+    const touch = event.touches[0]
+    postProcessingPass.setBrushPosition(touch.clientX, touch.clientY, true)
+  }
+}
+
+// Add event listeners
+canvas.addEventListener('mousedown', handleMouseDown)
+canvas.addEventListener('mouseup', handleMouseUp)
+canvas.addEventListener('mousemove', handleMouseMove)
+canvas.addEventListener('mouseleave', handleMouseUp) // Reset when mouse leaves canvas
+
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
+canvas.addEventListener('touchend', handleTouchEnd)
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
 

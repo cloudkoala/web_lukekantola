@@ -2,6 +2,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { SplatMesh } from '@sparkjsdev/spark'
 import type { ModelsConfig, InterfaceMode, ProjectsConfig } from '../types'
+import { EffectsChainManager } from '../effects/EffectsChainManager'
+import { EffectsPanel } from '../interface/EffectsPanel'
 
 export class OrbitalCameraSystem {
   private currentMousePos = { x: 0, y: 0 }
@@ -15,9 +17,6 @@ export class OrbitalCameraSystem {
   public rotationRadius: number = 5.0
   public pointSize: number = 0.001
   public interactionMode: string = 'free-nav'
-  
-  // Store original colors for hue shifting
-  private originalColors: Map<THREE.BufferGeometry, Float32Array> = new Map()
   
   private savedCameraPosition: THREE.Vector3 | null = null
   private savedCameraTarget: THREE.Vector3 | null = null
@@ -62,6 +61,10 @@ export class OrbitalCameraSystem {
   private progressiveLoader: any
   private setCurrentRenderObjectRef: (object: THREE.Points | SplatMesh | null) => void
 
+  // Effects system
+  private effectsChainManager: EffectsChainManager
+  private effectsPanel: EffectsPanel | null = null
+
   constructor(
     camera: THREE.PerspectiveCamera, 
     controls: OrbitControls,
@@ -88,6 +91,10 @@ export class OrbitalCameraSystem {
     this.setCurrentRenderObjectRef = setCurrentRenderObject
     this.camera = camera
     this.controls = controls
+    
+    // Initialize effects system
+    this.effectsChainManager = new EffectsChainManager()
+    
     this.setupMouseTracking()
     this.setupControlsInteractionTracking()
     this.setupControls()
@@ -95,11 +102,16 @@ export class OrbitalCameraSystem {
     this.setupNavigation()
     this.setupClickToCopy()
     
+    // Setup effects panel after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      this.setupEffectsPanel()
+    }, 100)
+    
     // Initialize orbit center at target point
     this.clickedPoint = new THREE.Vector3(0.08, 0.80, -0.21)
     
-    // Apply default background color
-    this.updateBackgroundColor()
+    // Set default background color (will be controlled by effects system)
+    this.scene.background = new THREE.Color(0x151515)
     
     // Set initial camera position for loading animation (will be updated from config)
     this.camera.position.set(1.03, 2.83, 6.08)
@@ -327,42 +339,62 @@ export class OrbitalCameraSystem {
       this.updateFocalLength(focalLength)
     })
     
-    // Model Hue Control
-    const modelHueSlider = document.querySelector('#model-hue') as HTMLInputElement
-    const modelHueValue = document.querySelector('#model-hue-value') as HTMLSpanElement
     
-    modelHueSlider?.addEventListener('input', (e) => {
-      const hue = parseFloat((e.target as HTMLInputElement).value)
-      modelHueValue.textContent = hue.toFixed(2)
-      this.updateModelHue(hue)
+    // Post-Processing Controls
+    const postProcessingEnabledCheckbox = document.querySelector('#post-processing-enabled') as HTMLInputElement
+    const postProcessingEffectSelect = document.querySelector('#post-processing-effect') as HTMLSelectElement
+    const postProcessingIntensitySlider = document.querySelector('#post-processing-intensity') as HTMLInputElement
+    const postProcessingColorRSlider = document.querySelector('#post-processing-color-r') as HTMLInputElement
+    const postProcessingColorGSlider = document.querySelector('#post-processing-color-g') as HTMLInputElement
+    const postProcessingColorBSlider = document.querySelector('#post-processing-color-b') as HTMLInputElement
+    const postProcessingThresholdSlider = document.querySelector('#post-processing-threshold') as HTMLInputElement
+    
+    const postProcessingIntensityValue = document.querySelector('#post-processing-intensity-value') as HTMLSpanElement
+    const postProcessingColorRValue = document.querySelector('#post-processing-color-r-value') as HTMLSpanElement
+    const postProcessingColorGValue = document.querySelector('#post-processing-color-g-value') as HTMLSpanElement
+    const postProcessingColorBValue = document.querySelector('#post-processing-color-b-value') as HTMLSpanElement
+    const postProcessingThresholdValue = document.querySelector('#post-processing-threshold-value') as HTMLSpanElement
+    
+    postProcessingEnabledCheckbox?.addEventListener('change', (e) => {
+      const enabled = (e.target as HTMLInputElement).checked
+      this.updatePostProcessingEnabled(enabled)
     })
     
-    // Background HSL Controls
-    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
-    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
-    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
-    
-    const bgHueValue = document.querySelector('#bg-hue-value') as HTMLSpanElement
-    const bgSaturationValue = document.querySelector('#bg-saturation-value') as HTMLSpanElement
-    const bgLightnessValue = document.querySelector('#bg-lightness-value') as HTMLSpanElement
-    
-    bgHueSlider?.addEventListener('input', (e) => {
-      const hue = parseFloat((e.target as HTMLInputElement).value)
-      bgHueValue.textContent = hue.toFixed(2)
-      this.updateBackgroundColor()
+    postProcessingEffectSelect?.addEventListener('change', (e) => {
+      const effectType = (e.target as HTMLSelectElement).value
+      this.updatePostProcessingEffect(effectType)
     })
     
-    bgSaturationSlider?.addEventListener('input', (e) => {
-      const saturation = parseFloat((e.target as HTMLInputElement).value)
-      bgSaturationValue.textContent = saturation.toString() + '%'
-      this.updateBackgroundColor()
+    postProcessingIntensitySlider?.addEventListener('input', (e) => {
+      const intensity = parseFloat((e.target as HTMLInputElement).value)
+      postProcessingIntensityValue.textContent = intensity.toFixed(2)
+      this.updatePostProcessingIntensity(intensity)
     })
     
-    bgLightnessSlider?.addEventListener('input', (e) => {
-      const lightness = parseFloat((e.target as HTMLInputElement).value)
-      bgLightnessValue.textContent = lightness.toString() + '%'
-      this.updateBackgroundColor()
+    postProcessingColorRSlider?.addEventListener('input', (e) => {
+      const colorR = parseFloat((e.target as HTMLInputElement).value)
+      postProcessingColorRValue.textContent = colorR.toFixed(2)
+      this.updatePostProcessingColorR(colorR)
     })
+    
+    postProcessingColorGSlider?.addEventListener('input', (e) => {
+      const colorG = parseFloat((e.target as HTMLInputElement).value)
+      postProcessingColorGValue.textContent = colorG.toFixed(2)
+      this.updatePostProcessingColorG(colorG)
+    })
+    
+    postProcessingColorBSlider?.addEventListener('input', (e) => {
+      const colorB = parseFloat((e.target as HTMLInputElement).value)
+      postProcessingColorBValue.textContent = colorB.toFixed(2)
+      this.updatePostProcessingColorB(colorB)
+    })
+    
+    postProcessingThresholdSlider?.addEventListener('input', (e) => {
+      const threshold = parseFloat((e.target as HTMLInputElement).value)
+      postProcessingThresholdValue.textContent = threshold.toFixed(2)
+      this.updatePostProcessingThreshold(threshold)
+    })
+    
     
     // Set default point size button
     const setDefaultPointSizeButton = document.querySelector('#set-default-point-size') as HTMLButtonElement
@@ -827,8 +859,6 @@ export class OrbitalCameraSystem {
   setCurrentPointCloud(pointCloud: THREE.Points) {
     this.currentPointCloud = pointCloud
     this.setCurrentRenderObjectRef(pointCloud)
-    // Store original colors for hue shifting
-    setTimeout(() => this.storeOriginalColors(), 100) // Small delay to ensure colors are loaded
   }
   
   setCurrentRenderObject(object: THREE.Points | SplatMesh | null) {
@@ -837,8 +867,6 @@ export class OrbitalCameraSystem {
     // If it's a Points object, also set the currentPointCloud for compatibility
     if (object instanceof THREE.Points) {
       this.currentPointCloud = object
-      // Store original colors for hue shifting
-      setTimeout(() => this.storeOriginalColors(), 100) // Small delay to ensure colors are loaded
     } else {
       this.currentPointCloud = null
     }
@@ -908,207 +936,66 @@ export class OrbitalCameraSystem {
     console.log(`Focal length updated to: ${focalLength}mm, FOV: ${fovDegrees.toFixed(1)}°`)
   }
 
-  public storeOriginalColors() {
-    // Store original colors for all point clouds in the scene
-    this.scene.children.forEach(child => {
-      if (child instanceof THREE.Points && child.geometry) {
-        const geometry = child.geometry as THREE.BufferGeometry
-        const colors = geometry.attributes.color
-        
-        if (colors && !this.originalColors.has(geometry)) {
-          // Store a copy of the original color array
-          this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
-        }
-      }
-    })
-    
-    // Also store for progressive loader chunks
-    this.progressiveLoader.getLoadedPointClouds().forEach((pointCloud: THREE.Points) => {
-      const geometry = pointCloud.geometry as THREE.BufferGeometry
-      const colors = geometry.attributes.color
-      
-      if (colors && !this.originalColors.has(geometry)) {
-        this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
-      }
-    })
+
+
+
+
+  public updatePostProcessingEnabled(enabled: boolean) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.enabled = enabled
+      console.log('Post-Processing enabled:', enabled)
+    }
   }
 
-  public updateModelHue(hue: number) {
-    // Update hue for all point clouds in the scene by applying shift to original colors
-    this.scene.children.forEach(child => {
-      if (child instanceof THREE.Points && child.geometry) {
-        const geometry = child.geometry as THREE.BufferGeometry
-        const colors = geometry.attributes.color
-        
-        if (colors) {
-          // Get original colors or store them if not available
-          if (!this.originalColors.has(geometry)) {
-            this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
-          }
-          
-          const originalArray = this.originalColors.get(geometry)!
-          const colorArray = colors.array as Float32Array
-          
-          // Process colors in groups of 3 (RGB), using original colors as base
-          for (let i = 0; i < colorArray.length; i += 3) {
-            const r = originalArray[i]
-            const g = originalArray[i + 1]
-            const b = originalArray[i + 2]
-            
-            // Convert RGB to HSL
-            const max = Math.max(r, g, b)
-            const min = Math.min(r, g, b)
-            let h = 0, s = 0, l = (max + min) / 2
-            
-            if (max !== min) {
-              const d = max - min
-              s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-              
-              switch (max) {
-                case r: h = (g - b) / d + (g < b ? 6 : 0); break
-                case g: h = (b - r) / d + 2; break
-                case b: h = (r - g) / d + 4; break
-              }
-              h /= 6
-            }
-            
-            // Apply hue shift (hue is already in 0-1 range)
-            h = (h + hue) % 1
-            
-            // Convert back to RGB
-            const hslToRgb = (h: number, s: number, l: number) => {
-              if (s === 0) {
-                return [l, l, l] // achromatic
-              }
-              
-              const hue2rgb = (p: number, q: number, t: number) => {
-                if (t < 0) t += 1
-                if (t > 1) t -= 1
-                if (t < 1/6) return p + (q - p) * 6 * t
-                if (t < 1/2) return q
-                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
-                return p
-              }
-              
-              const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-              const p = 2 * l - q
-              
-              return [
-                hue2rgb(p, q, h + 1/3),
-                hue2rgb(p, q, h),
-                hue2rgb(p, q, h - 1/3)
-              ]
-            }
-            
-            const [newR, newG, newB] = hslToRgb(h, s, l)
-            colorArray[i] = newR
-            colorArray[i + 1] = newG
-            colorArray[i + 2] = newB
-          }
-          
-          colors.needsUpdate = true
-        }
-      }
-    })
-    
-    // Also update progressive loader chunks
-    this.progressiveLoader.getLoadedPointClouds().forEach((pointCloud: THREE.Points) => {
-      const geometry = pointCloud.geometry as THREE.BufferGeometry
-      const colors = geometry.attributes.color
-      
-      if (colors) {
-        // Get original colors or store them if not available
-        if (!this.originalColors.has(geometry)) {
-          this.originalColors.set(geometry, new Float32Array(colors.array as Float32Array))
-        }
-        
-        const originalArray = this.originalColors.get(geometry)!
-        const colorArray = colors.array as Float32Array
-        
-        // Apply the same hue shift logic to progressive chunks
-        for (let i = 0; i < colorArray.length; i += 3) {
-          const r = originalArray[i]
-          const g = originalArray[i + 1] 
-          const b = originalArray[i + 2]
-          
-          // Same HSL conversion and hue shift logic as above...
-          const max = Math.max(r, g, b)
-          const min = Math.min(r, g, b)
-          let h = 0, s = 0, l = (max + min) / 2
-          
-          if (max !== min) {
-            const d = max - min
-            s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-            
-            switch (max) {
-              case r: h = (g - b) / d + (g < b ? 6 : 0); break
-              case g: h = (b - r) / d + 2; break
-              case b: h = (r - g) / d + 4; break
-            }
-            h /= 6
-          }
-          
-          h = (h + hue) % 1
-          
-          const hslToRgb = (h: number, s: number, l: number) => {
-            if (s === 0) return [l, l, l]
-            
-            const hue2rgb = (p: number, q: number, t: number) => {
-              if (t < 0) t += 1
-              if (t > 1) t -= 1
-              if (t < 1/6) return p + (q - p) * 6 * t
-              if (t < 1/2) return q
-              if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
-              return p
-            }
-            
-            const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-            const p = 2 * l - q
-            
-            return [
-              hue2rgb(p, q, h + 1/3),
-              hue2rgb(p, q, h),
-              hue2rgb(p, q, h - 1/3)
-            ]
-          }
-          
-          const [newR, newG, newB] = hslToRgb(h, s, l)
-          colorArray[i] = newR
-          colorArray[i + 1] = newG
-          colorArray[i + 2] = newB
-        }
-        
-        colors.needsUpdate = true
-      }
-    })
-    
-    console.log(`Model hue updated to: ${hue} (0-1 range)`)
+  public updatePostProcessingEffect(effectType: string) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.effectType = effectType
+      console.log('Post-Processing effect type updated to:', effectType)
+    }
   }
 
-  public updateBackgroundColor() {
-    const bgHueSlider = document.querySelector('#bg-hue') as HTMLInputElement
-    const bgSaturationSlider = document.querySelector('#bg-saturation') as HTMLInputElement
-    const bgLightnessSlider = document.querySelector('#bg-lightness') as HTMLInputElement
-    
-    if (!bgHueSlider || !bgSaturationSlider || !bgLightnessSlider) return
-    
-    const hue = parseFloat(bgHueSlider.value) // 0-1 range
-    const saturation = parseInt(bgSaturationSlider.value) / 100 // Convert to 0-1
-    let lightness = parseInt(bgLightnessSlider.value) / 100 // Convert to 0-1
-    
-    // Compensate for ACES tone mapping which brightens dark values
-    // Apply a power curve to make low lightness values darker
-    lightness = Math.pow(lightness, 2.2) // Gamma correction to counteract tone mapping
-    
-    // Use Three.js built-in HSL conversion
-    const color = new THREE.Color()
-    color.setHSL(hue, saturation, lightness)
-    
-    // Update Three.js scene background
-    this.scene.background = color
-    
-    console.log(`Background color updated to: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
+  public updatePostProcessingIntensity(intensity: number) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.intensity = intensity
+      console.log('Post-Processing intensity updated to:', intensity)
+    }
   }
+
+  public updatePostProcessingColorR(colorR: number) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.colorR = colorR
+      console.log('Post-Processing color R updated to:', colorR)
+    }
+  }
+
+  public updatePostProcessingColorG(colorG: number) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.colorG = colorG
+      console.log('Post-Processing color G updated to:', colorG)
+    }
+  }
+
+  public updatePostProcessingColorB(colorB: number) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.colorB = colorB
+      console.log('Post-Processing color B updated to:', colorB)
+    }
+  }
+
+  public updatePostProcessingThreshold(threshold: number) {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass) {
+      postProcessingPass.sobelThreshold = threshold
+      console.log('Post-Processing Sobel threshold updated to:', threshold)
+    }
+  }
+
 
   private calculateDensityAwarePointSize(geometry: THREE.BufferGeometry, baseSize: number): number {
     // Get vertex count and bounding box
@@ -2373,6 +2260,44 @@ export class OrbitalCameraSystem {
         controls.classList.remove('hidden')
       }
     })
+  }
+
+  private setupEffectsPanel(): void {
+    try {
+      this.effectsPanel = new EffectsPanel(this.effectsChainManager)
+      
+      // Set up effects chain updates to propagate to the PostProcessingPass
+      this.effectsChainManager.onChainUpdated(() => {
+        this.updatePostProcessingChain()
+      })
+      
+      // Effects toggle is now handled by the EffectsPanel dropdown
+      
+      
+      console.log('Effects panel initialized successfully')
+    } catch (error) {
+      console.warn('Effects panel initialization failed:', error)
+      // Graceful fallback - effects panel is optional
+    }
+  }
+
+  private updatePostProcessingChain(): void {
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass && postProcessingPass.setEffectsChain) {
+      const enabledEffects = this.effectsChainManager.getEnabledEffects()
+      postProcessingPass.setEffectsChain(enabledEffects)
+      console.log('Effects chain updated:', enabledEffects.length, 'effects')
+    }
+  }
+
+
+  // Public methods for external access to effects system
+  public getEffectsChainManager(): EffectsChainManager {
+    return this.effectsChainManager
+  }
+
+  public getEffectsPanel(): EffectsPanel | null {
+    return this.effectsPanel
   }
   
 }
