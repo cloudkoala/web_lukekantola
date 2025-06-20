@@ -8,6 +8,15 @@ import { ModelManager } from './models'
 import { ContentLoader } from './interface'
 import { PostProcessingPass } from './effects'
 import type { InterfaceMode } from './types'
+import type { EffectsChainManager, EffectInstance } from './effects/EffectsChainManager'
+
+// Extend Window interface for effects chain manager
+declare global {
+  interface Window {
+    effectsChainManager: EffectsChainManager
+    refreshHorizontalEffects: () => void
+  }
+}
 
 // DOM elements
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -158,6 +167,9 @@ const orbitalCamera = new OrbitalCameraSystem(
 // Set mutual references between model manager and orbital camera
 ;(modelManager as any).orbitalCamera = orbitalCamera
 ;(orbitalCamera as any).modelManager = modelManager
+
+// Expose effects chain manager globally for mobile effects system
+;(window as any).effectsChainManager = orbitalCamera.getEffectsChainManager()
 
 // Main render loop
 function animate() {
@@ -324,6 +336,690 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
 
+// Unified mobile button positioning
+function setMobileButtonPositions() {
+  const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+  const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
+  
+  if (!bottomSheet) return
+  
+  const wasExpanded = bottomSheet.classList.contains('expanded')
+  if (wasExpanded) bottomSheet.classList.remove('expanded')
+  
+  setTimeout(() => {
+    const bottomSheetRect = bottomSheet.getBoundingClientRect()
+    const distanceFromBottom = window.innerHeight - bottomSheetRect.top
+    const newBottomPosition = distanceFromBottom + 12 // Changed to 12px margin
+    
+    // Position camera and effects buttons at the same time
+    // (trash icon uses fixed CSS positioning and doesn't need JS positioning)
+    if (effectsButtonContainer) {
+      effectsButtonContainer.style.bottom = `${newBottomPosition}px`
+    }
+    if (cameraButtonContainer) {
+      cameraButtonContainer.style.bottom = `${newBottomPosition}px`
+    }
+    
+    if (wasExpanded) bottomSheet.classList.add('expanded')
+  }, 100)
+}
+
+// Mobile effects button functionality
+function setupMobileEffectsButton() {
+  const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+  const effectsButton = document.getElementById('effects-button') as HTMLElement
+  const horizontalEffectsPanel = document.getElementById('mobile-horizontal-effects-panel') as HTMLElement
+  const horizontalEffectsChain = document.getElementById('horizontal-effects-chain') as HTMLElement
+  const parametersBox = document.getElementById('mobile-effect-parameters-box') as HTMLElement
+  const parametersBoxTitle = document.getElementById('parameters-box-title') as HTMLElement
+  const parametersBoxContent = document.getElementById('parameters-box-content') as HTMLElement
+  const parametersBoxClose = document.getElementById('parameters-box-close') as HTMLElement
+  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
+  
+  if (!effectsButtonContainer || !effectsButton || !horizontalEffectsPanel || !horizontalEffectsChain || 
+      !parametersBox || !parametersBoxTitle || !parametersBoxContent || !parametersBoxClose || !bottomSheet) {
+    console.warn('Mobile effects button elements not found')
+    return
+  }
+  
+  let isEffectsPanelOpen = false
+  
+  // Show/hide effects button based on bottom sheet state
+  function updateEffectsButtonVisibility() {
+    const isExpanded = bottomSheet.classList.contains('expanded')
+    if (isExpanded) {
+      effectsButtonContainer.style.opacity = '0'
+      effectsButtonContainer.style.pointerEvents = 'none'
+      if (isEffectsPanelOpen) {
+        closeEffectsPanel()
+      }
+    } else {
+      effectsButtonContainer.style.opacity = '1'
+      effectsButtonContainer.style.pointerEvents = 'auto'
+    }
+  }
+  
+  function toggleEffectsPanel() {
+    isEffectsPanelOpen = !isEffectsPanelOpen
+    
+    if (isEffectsPanelOpen) {
+      horizontalEffectsPanel.classList.add('show')
+      effectsButton.classList.add('active')
+      
+      // Hide bottom sheet when effects panel is open
+      bottomSheet.style.display = 'none'
+      
+      // Move camera and effects buttons up with the same timing as the panel
+      setTimeout(() => {
+        const cameraButton = document.getElementById('mobile-camera-reset') as HTMLElement
+        if (cameraButton) {
+          cameraButton.style.bottom = '92px' // 80px panel + 12px margin = 92px
+        }
+        effectsButtonContainer.style.bottom = '92px'
+      }, 0) // Start immediately but allow CSS transitions to handle timing
+      
+      refreshHorizontalEffectsChain()
+    } else {
+      horizontalEffectsPanel.classList.remove('show')
+      effectsButton.classList.remove('active')
+      
+      // Reset button positions with same timing as panel closes
+      setTimeout(() => {
+        // Show bottom sheet again
+        bottomSheet.style.display = 'block'
+        
+        // Reset both button positions together
+        setMobileButtonPositions()
+      }, 0) // Start immediately but allow CSS transitions to handle timing
+      
+      closeParametersBox()
+    }
+  }
+  
+  function closeEffectsPanel() {
+    isEffectsPanelOpen = false
+    horizontalEffectsPanel.classList.remove('show')
+    effectsButton.classList.remove('active')
+    
+    // Show bottom sheet again
+    bottomSheet.style.display = 'block'
+    
+    // Reset both button positions together
+    setMobileButtonPositions()
+    
+    closeParametersBox()
+  }
+  
+  function closeParametersBox() {
+    parametersBox.classList.remove('show')
+    
+    // Hide trash icon when parameters box is closed
+    hideTrashIcon()
+    
+    // Remove selection from all cards
+    horizontalEffectsChain.querySelectorAll('.horizontal-effect-card').forEach(card => {
+      card.classList.remove('selected')
+    })
+  }
+  
+  function refreshHorizontalEffectsChain() {
+    horizontalEffectsChain.innerHTML = ''
+    
+    // Add existing effects first
+    if (window.effectsChainManager) {
+      const effects = window.effectsChainManager.getEffectsChain()
+      
+      effects.forEach((effect: EffectInstance, index: number) => {
+        const card = document.createElement('div')
+        card.className = 'horizontal-effect-card'
+        card.dataset.effectId = effect.id
+        card.dataset.effectIndex = index.toString()
+        card.draggable = true
+        
+        if (!effect.enabled) {
+          card.classList.add('disabled')
+        }
+        
+        card.innerHTML = `
+          <div class="effect-name">${getEffectDisplayName(effect.type)}</div>
+          <div class="effect-drag-handle">
+            <div class="drag-line"></div>
+            <div class="drag-line"></div>
+            <div class="drag-line"></div>
+          </div>
+        `
+        
+        // Add drag event listeners
+        card.addEventListener('dragstart', handleDragStart)
+        card.addEventListener('dragover', handleDragOver)
+        card.addEventListener('drop', handleDrop)
+        card.addEventListener('dragend', handleDragEnd)
+        
+        // Add faster touch-based drag for mobile
+        let touchStarted = false
+        let touchMoved = false
+        let dragTimeout: number | null = null
+        
+        card.addEventListener('touchstart', () => {
+          touchStarted = true
+          touchMoved = false
+          
+          // Only start drag if touch is held and moved
+          dragTimeout = setTimeout(() => {
+            if (touchStarted && touchMoved) {
+              // Trigger drag start only after movement is detected
+              const dragEvent = new DragEvent('dragstart', {
+                bubbles: true,
+                cancelable: true,
+                dataTransfer: new DataTransfer()
+              })
+              card.dispatchEvent(dragEvent)
+            }
+          }, 20)
+        })
+        
+        card.addEventListener('touchmove', () => {
+          touchMoved = true
+        })
+        
+        card.addEventListener('touchend', () => {
+          touchStarted = false
+          touchMoved = false
+          if (dragTimeout) {
+            clearTimeout(dragTimeout)
+            dragTimeout = null
+          }
+        })
+        
+        card.addEventListener('click', (e) => {
+          // Only select effect if not clicking on drag handle
+          if (!(e.target as HTMLElement).closest('.effect-drag-handle')) {
+            selectEffect(effect.id)
+          }
+        })
+        
+        horizontalEffectsChain.appendChild(card)
+      })
+    }
+    
+    // Add the plus button at the end (far right)
+    const addButton = document.createElement('div')
+    addButton.className = 'horizontal-add-effect-button'
+    addButton.innerHTML = `
+      <div class="add-effect-icon">+</div>
+      <div class="add-effect-text">Add Effect</div>
+    `
+    addButton.addEventListener('click', () => {
+      // Create a simple mobile effect selector menu
+      if (window.effectsChainManager) {
+        showMobileEffectSelector()
+      }
+    })
+    horizontalEffectsChain.appendChild(addButton)
+    
+    // Add the reset button to the right of the add button
+    const resetButton = document.createElement('div')
+    resetButton.className = 'horizontal-reset-button'
+    resetButton.innerHTML = `
+      <div class="reset-effect-icon">×</div>
+      <div class="reset-effect-text">Reset All</div>
+    `
+    resetButton.addEventListener('click', () => {
+      // Clear all effects
+      if (window.effectsChainManager) {
+        window.effectsChainManager.clearEffects()
+        refreshHorizontalEffectsChain()
+        
+        // Update the desktop dropdown to "None"
+        const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
+        if (desktopDropdown) {
+          desktopDropdown.value = 'none'
+        }
+        
+        // Also update mobile dropdown
+        const mobileDropdown = document.getElementById('mobile-effects-main-dropdown') as HTMLSelectElement
+        if (mobileDropdown) {
+          mobileDropdown.value = 'none'
+        }
+      }
+    })
+    horizontalEffectsChain.appendChild(resetButton)
+    
+    // Scroll to the far right to show both buttons
+    setTimeout(() => {
+      const horizontalEffectsContent = horizontalEffectsChain.parentElement
+      if (horizontalEffectsContent) {
+        horizontalEffectsContent.scrollLeft = horizontalEffectsContent.scrollWidth
+      }
+    }, 50)
+  }
+  
+  // Drag and drop functionality
+  let draggedElement: HTMLElement | null = null
+  let trashIconHideTimeout: number | null = null
+  const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
+  
+  function showTrashIcon() {
+    if (trashIcon) {
+      // Clear any existing hide timeout
+      if (trashIconHideTimeout) {
+        clearTimeout(trashIconHideTimeout)
+        trashIconHideTimeout = null
+      }
+      
+      trashIcon.classList.add('show')
+      
+      // Set timeout to hide after 2 seconds
+      trashIconHideTimeout = setTimeout(() => {
+        hideTrashIcon()
+      }, 2000)
+    }
+  }
+  
+  function hideTrashIcon() {
+    if (trashIcon) {
+      trashIcon.classList.remove('show')
+      trashIcon.classList.remove('drag-over')
+      
+      // Clear timeout reference
+      if (trashIconHideTimeout) {
+        clearTimeout(trashIconHideTimeout)
+        trashIconHideTimeout = null
+      }
+    }
+  }
+  
+  function showTrashIconPermanent() {
+    if (trashIcon) {
+      // Clear any existing hide timeout to keep it visible
+      if (trashIconHideTimeout) {
+        clearTimeout(trashIconHideTimeout)
+        trashIconHideTimeout = null
+      }
+      
+      trashIcon.classList.add('show')
+    }
+  }
+  
+  function handleDragStart(e: DragEvent) {
+    draggedElement = e.target as HTMLElement
+    draggedElement.classList.add('dragging')
+    
+    // Show trash icon permanently while dragging
+    showTrashIconPermanent()
+    
+    e.dataTransfer!.effectAllowed = 'move'
+    e.dataTransfer!.setData('text/html', draggedElement.outerHTML)
+  }
+  
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault()
+    e.dataTransfer!.dropEffect = 'move'
+    
+    const target = e.target as HTMLElement
+    const card = target.closest('.horizontal-effect-card') as HTMLElement
+    
+    if (card && card !== draggedElement) {
+      const rect = card.getBoundingClientRect()
+      const midpoint = rect.left + rect.width / 2
+      
+      if (e.clientX < midpoint) {
+        card.style.borderLeft = '2px solid #00ff00'
+        card.style.borderRight = ''
+      } else {
+        card.style.borderRight = '2px solid #00ff00'
+        card.style.borderLeft = ''
+      }
+    }
+  }
+  
+  function handleDrop(e: DragEvent) {
+    e.preventDefault()
+    
+    const target = e.target as HTMLElement
+    const targetCard = target.closest('.horizontal-effect-card') as HTMLElement
+    
+    if (targetCard && draggedElement && targetCard !== draggedElement) {
+      const draggedIndex = parseInt(draggedElement.dataset.effectIndex || '0')
+      const targetIndex = parseInt(targetCard.dataset.effectIndex || '0')
+      
+      // Reorder effects in the chain manager
+      if (window.effectsChainManager) {
+        window.effectsChainManager.moveEffect(draggedIndex, targetIndex)
+        refreshHorizontalEffectsChain()
+      }
+    }
+    
+    // Clear border indicators
+    document.querySelectorAll('.horizontal-effect-card').forEach(card => {
+      ;(card as HTMLElement).style.borderLeft = ''
+      ;(card as HTMLElement).style.borderRight = ''
+    })
+  }
+  
+  function handleDragEnd() {
+    if (draggedElement) {
+      draggedElement.classList.remove('dragging')
+    }
+    
+    // Hide trash icon when dragging ends
+    hideTrashIcon()
+    
+    // Clear border indicators
+    document.querySelectorAll('.horizontal-effect-card').forEach(card => {
+      ;(card as HTMLElement).style.borderLeft = ''
+      ;(card as HTMLElement).style.borderRight = ''
+    })
+    
+    draggedElement = null
+  }
+  
+  // Setup trash icon drag and drop
+  if (trashIcon) {
+    trashIcon.addEventListener('dragover', (e) => {
+      e.preventDefault()
+      trashIcon.classList.add('drag-over')
+      const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+      if (trashButton) {
+        trashButton.classList.add('drag-over')
+      }
+    })
+    
+    trashIcon.addEventListener('dragleave', () => {
+      trashIcon.classList.remove('drag-over')
+      const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+      if (trashButton) {
+        trashButton.classList.remove('drag-over')
+      }
+    })
+    
+    trashIcon.addEventListener('drop', (e) => {
+      e.preventDefault()
+      
+      if (draggedElement && window.effectsChainManager) {
+        const effectId = draggedElement.dataset.effectId
+        if (effectId) {
+          window.effectsChainManager.removeEffect(effectId)
+          refreshHorizontalEffectsChain()
+        }
+      }
+      
+      trashIcon.classList.remove('drag-over')
+      const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+      if (trashButton) {
+        trashButton.classList.remove('drag-over')
+      }
+    })
+    
+    // Add click functionality to trash icon for deleting selected effects
+    const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+    if (trashButton) {
+      trashButton.addEventListener('click', () => {
+        // Find the currently selected effect card
+        const selectedCard = horizontalEffectsChain.querySelector('.horizontal-effect-card.selected') as HTMLElement
+        
+        if (selectedCard && window.effectsChainManager) {
+          const effectId = selectedCard.dataset.effectId
+          if (effectId) {
+            window.effectsChainManager.removeEffect(effectId)
+            refreshHorizontalEffectsChain()
+            closeParametersBox() // Close parameters box since effect is deleted
+          }
+        }
+      })
+    }
+  }
+  
+  function getEffectDisplayName(effectType: string): string {
+    const effectMap: Record<string, string> = {
+      'background': 'Background',
+      'sepia': 'Sepia',
+      'vignette': 'Vignette',
+      'blur': 'Blur',
+      'bloom': 'Bloom',
+      'crtgrain': 'CRT Grain',
+      'halftone': 'Halftone',
+      'gamma': 'Gamma',
+      'sobelthreshold': 'Edge Detect',
+      'colorify': 'Colorify'
+    }
+    return effectMap[effectType] || effectType
+  }
+  
+  function selectEffect(effectId: string) {
+    horizontalEffectsChain.querySelectorAll('.horizontal-effect-card').forEach(card => {
+      card.classList.remove('selected')
+    })
+    
+    const selectedCard = horizontalEffectsChain.querySelector(`[data-effect-id="${effectId}"]`)
+    if (selectedCard) {
+      selectedCard.classList.add('selected')
+      
+      // Show trash icon with auto-hide when an effect is selected
+      showTrashIcon()
+    }
+    
+    showParametersForEffect(effectId)
+  }
+  
+  function showParametersForEffect(effectId: string) {
+    if (!window.effectsChainManager) return
+    
+    const effect = window.effectsChainManager.getEffectsChain().find((e: EffectInstance) => e.id === effectId)
+    if (!effect) return
+    
+    const effectDefinition = window.effectsChainManager.getEffectDefinition(effect.type)
+    if (!effectDefinition) return
+    
+    parametersBoxTitle.textContent = `${getEffectDisplayName(effect.type)} Parameters`
+    parametersBoxContent.innerHTML = ''
+    
+    Object.entries(effectDefinition.parameterDefinitions).forEach(([paramName, paramDef]: [string, any]) => {
+      const control = document.createElement('div')
+      control.className = 'parameter-control'
+      
+      const currentValue = effect.parameters[paramName] || paramDef.min
+      
+      control.innerHTML = `
+        <label for="param-${paramName}">${paramDef.label}:</label>
+        <input type="range" 
+               id="param-${paramName}" 
+               min="${paramDef.min}" 
+               max="${paramDef.max}" 
+               step="${paramDef.step}" 
+               value="${currentValue}">
+        <div class="parameter-value">${currentValue}</div>
+      `
+      
+      const slider = control.querySelector('input') as HTMLInputElement
+      const valueDisplay = control.querySelector('.parameter-value') as HTMLElement
+      
+      slider.addEventListener('input', () => {
+        const value = parseFloat(slider.value)
+        valueDisplay.textContent = value.toString()
+        window.effectsChainManager.updateEffectParameter(effectId, paramName, value)
+      })
+      
+      parametersBoxContent.appendChild(control)
+    })
+    
+    parametersBox.classList.add('show')
+  }
+  
+  function showMobileEffectSelector() {
+    // Get available effects from the global effects chain manager
+    if (!window.effectsChainManager) return
+    
+    import('./effects/EffectsChainManager').then(({ EFFECT_DEFINITIONS }) => {
+      // Create a simple overlay with effect buttons
+      const overlay = document.createElement('div')
+      overlay.className = 'mobile-effect-selector-overlay'
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      `
+      
+      const container = document.createElement('div')
+      container.style.cssText = `
+        background: rgba(21, 21, 21, 0.95);
+        border: 1px solid #00ff00;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 90vw;
+        max-height: 70vh;
+        overflow-y: auto;
+        font-family: 'Space Mono', monospace;
+      `
+      
+      const title = document.createElement('h3')
+      title.textContent = 'Add Effect'
+      title.style.cssText = `
+        color: #00ff00;
+        margin: 0 0 15px 0;
+        text-align: center;
+        font-size: 1.2rem;
+      `
+      container.appendChild(title)
+      
+      const effectsGrid = document.createElement('div')
+      effectsGrid.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+      `
+      
+      EFFECT_DEFINITIONS.forEach(definition => {
+        const button = document.createElement('button')
+        button.textContent = definition.name
+        button.style.cssText = `
+          background: rgba(0, 0, 0, 0.7);
+          border: 1px solid #00ff00;
+          border-radius: 6px;
+          color: #00ff00;
+          padding: 12px 8px;
+          font-family: 'Space Mono', monospace;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          text-align: center;
+        `
+        
+        button.addEventListener('click', () => {
+          // Add the effect
+          window.effectsChainManager.addEffect(definition.type)
+          refreshHorizontalEffectsChain()
+          
+          // Close the selector
+          document.body.removeChild(overlay)
+          
+          // Enable effects and set to custom
+          const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
+          if (desktopDropdown) {
+            desktopDropdown.value = 'custom'
+          }
+        })
+        
+        button.addEventListener('mouseenter', () => {
+          button.style.background = 'rgba(0, 255, 0, 0.1)'
+          button.style.boxShadow = '0 0 8px rgba(0, 255, 0, 0.2)'
+        })
+        
+        button.addEventListener('mouseleave', () => {
+          button.style.background = 'rgba(0, 0, 0, 0.7)'
+          button.style.boxShadow = 'none'
+        })
+        
+        effectsGrid.appendChild(button)
+      })
+      
+      const closeButton = document.createElement('button')
+      closeButton.textContent = '× Close'
+      closeButton.style.cssText = `
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid #666;
+        border-radius: 6px;
+        color: #666;
+        padding: 10px 20px;
+        font-family: 'Space Mono', monospace;
+        cursor: pointer;
+        margin-top: 15px;
+        align-self: center;
+      `
+      
+      closeButton.addEventListener('click', () => {
+        document.body.removeChild(overlay)
+      })
+      
+      container.appendChild(effectsGrid)
+      container.appendChild(closeButton)
+      overlay.appendChild(container)
+      
+      // Close on overlay click
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay)
+        }
+      })
+      
+      document.body.appendChild(overlay)
+    })
+  }
+  
+  // Set initial position
+  setTimeout(() => {
+    setMobileButtonPositions()
+    updateEffectsButtonVisibility()
+  }, 200)
+  
+  // Update position on resize
+  window.addEventListener('resize', () => {
+    setTimeout(setMobileButtonPositions, 100)
+  })
+  
+  // Monitor bottom sheet state
+  const observer = new MutationObserver(() => {
+    updateEffectsButtonVisibility()
+  })
+  
+  observer.observe(bottomSheet, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+  
+  // Event listeners
+  effectsButton.addEventListener('click', toggleEffectsPanel)
+  parametersBoxClose.addEventListener('click', closeParametersBox)
+  
+  // Close panels when clicking outside (but not on mobile effect selector)
+  document.addEventListener('click', (e) => {
+    const target = e.target as Node
+    const clickedOnEffectSelector = target && (target as Element).closest('.mobile-effect-selector-overlay')
+    const clickedOnTrashIcon = target && (target as Element).closest('.mobile-trash-icon')
+    
+    if (isEffectsPanelOpen && 
+        !horizontalEffectsPanel.contains(target) && 
+        !effectsButton.contains(target) &&
+        !clickedOnEffectSelector &&
+        !clickedOnTrashIcon) {
+      closeEffectsPanel()
+    }
+  })
+  
+  // Expose refresh function for effects system integration
+  ;(window as any).refreshHorizontalEffects = refreshHorizontalEffectsChain
+}
+
 // Mobile camera reset button functionality
 function setupMobileCameraReset() {
   const cameraResetContainer = document.getElementById('mobile-camera-reset') as HTMLElement
@@ -385,13 +1081,13 @@ function setupMobileCameraReset() {
   
   // Set position once after DOM is fully loaded
   setTimeout(() => {
-    setCameraButtonPosition()
+    setMobileButtonPositions()
     updateCameraButtonVisibility()
   }, 200)
   
   // Update position only when window resizes (recalculate for new screen size)
   window.addEventListener('resize', () => {
-    setTimeout(setCameraButtonPosition, 100)
+    setTimeout(setMobileButtonPositions, 100)
   })
   
   // Monitor bottom sheet state changes for visibility only
@@ -447,6 +1143,9 @@ function setupMobileCameraReset() {
     isMenuOpen = false
     cameraMenu.classList.remove('show')
   })
+  
+  // Expose camera button positioning function globally
+  ;(window as any).setCameraButtonPosition = setCameraButtonPosition
 }
 
 // Mobile bottom sheet functionality
@@ -908,6 +1607,7 @@ async function initialize() {
     console.log('📱 Setting up mobile bottom sheet...')
     setupMobileBottomSheet()
     setupMobileCameraReset()
+    setupMobileEffectsButton()
     console.log('✅ Mobile bottom sheet setup complete')
     
     console.log('🌫️ Setting up fog control...')

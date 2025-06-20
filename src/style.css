@@ -10,7 +10,7 @@
 .mobile-camera-reset {
   position: fixed;
   bottom: 120px; /* Initial position - will be updated by JavaScript */
-  left: 20px;
+  left: 12px;
   z-index: 800;
   display: flex;
   align-items: center;
@@ -82,6 +82,401 @@
 .camera-menu-option:hover {
   background: rgba(0, 255, 0, 0.1);
   box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+}
+
+/* Mobile Effects Button */
+.mobile-effects-button {
+  position: fixed;
+  bottom: 120px; /* Initial position - will be updated by JavaScript */
+  left: 68px; /* 12px margin + 44px camera button + 12px gap = 68px */
+  z-index: 800;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease, bottom 0.3s ease;
+}
+
+.effects-button {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  color: #00ff00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: 'Space Mono', monospace;
+  padding: 0;
+}
+
+.effects-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.effects-button.active {
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.effects-button svg {
+  width: 24px;
+  height: 24px;
+  stroke: #00ff00;
+  fill: none;
+}
+
+/* Mobile Horizontal Effects Panel */
+.mobile-horizontal-effects-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: rgba(0, 0, 0, 0.9);
+  border-top: 1px solid #00ff00;
+  z-index: 700;
+  transform: translateY(120%);
+  transition: transform 0.3s ease;
+  display: block;
+}
+
+.mobile-horizontal-effects-panel.show {
+  transform: translateY(0);
+}
+
+.horizontal-effects-content {
+  padding: 10px;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.horizontal-effects-chain {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+  align-items: center;
+  min-width: min-content;
+}
+
+/* Horizontal effect cards */
+.horizontal-effect-card {
+  min-width: 120px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff00;
+  border-radius: 6px;
+  padding: 8px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.horizontal-effect-card:hover {
+  background: rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+.horizontal-effect-card.selected {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: #00ff00;
+  box-shadow: 0 0 12px rgba(0, 255, 0, 0.4);
+}
+
+.horizontal-effect-card.disabled {
+  opacity: 0.5;
+  background: rgba(128, 128, 128, 0.3);
+  border-color: #666;
+  color: #999;
+}
+
+.horizontal-effect-card .effect-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.horizontal-effect-card .effect-toggle {
+  font-size: 0.5rem;
+  opacity: 0.8;
+}
+
+.horizontal-effect-card .effect-drag-handle {
+  width: 12px;
+  height: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: grab;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.horizontal-effect-card .effect-drag-handle:active {
+  cursor: grabbing;
+}
+
+.horizontal-effect-card .effect-drag-handle .drag-line {
+  width: 100%;
+  height: 1px;
+  background: #666;
+  border-radius: 1px;
+}
+
+.horizontal-effect-card.dragging {
+  opacity: 0.5;
+  transform: rotate(2deg);
+  z-index: 1000;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Add Effect Button */
+.horizontal-add-effect-button {
+  min-width: 100px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px dashed #00ff00;
+  border-radius: 6px;
+  padding: 8px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.horizontal-add-effect-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-style: solid;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+}
+
+.horizontal-add-effect-button .add-effect-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.horizontal-add-effect-button .add-effect-text {
+  font-size: 0.6rem;
+  opacity: 0.8;
+}
+
+/* Horizontal Reset Button */
+.horizontal-reset-button {
+  width: 50px; /* Square shape - same as height */
+  height: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #999; /* Grey border like trash icon */
+  border-radius: 6px;
+  padding: 8px;
+  color: #999; /* Grey color like trash icon */
+  font-family: 'Space Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.horizontal-reset-button:hover {
+  background: rgba(153, 153, 153, 0.1); /* Light grey hover */
+  border-color: #ccc;
+  color: #ccc;
+  box-shadow: 0 0 8px rgba(153, 153, 153, 0.2);
+}
+
+.horizontal-reset-button .reset-effect-icon {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.horizontal-reset-button .reset-effect-text {
+  font-size: 0.5rem;
+  opacity: 0.8;
+}
+
+/* Mobile Trash Icon */
+.mobile-trash-icon {
+  position: fixed;
+  bottom: 12vh; /* 12% of viewport height from bottom */
+  left: 50%;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateX(-50%) scale(0.8);
+  width: 66px; /* Match button size */
+  height: 66px; /* Match button size */
+  border-radius: 50%; /* Make parent circular to contain blur */
+  backdrop-filter: blur(10px);
+  overflow: hidden; /* Ensure blur is clipped */
+}
+
+.mobile-trash-icon.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) scale(1);
+}
+
+.mobile-trash-icon.drag-over {
+  transform: translateX(-50%) scale(1.3);
+  opacity: 1;
+}
+
+.trash-button {
+  width: 66px; /* 50% larger than 44px */
+  height: 66px;
+  background: rgba(120, 120, 120, 0.5); /* Lighter grey background */
+  border: 2px solid #999; /* Lighter grey border */
+  border-radius: 50%; /* Make it circular */
+  color: #999; /* Lighter grey icon color */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease; /* Simplified transition */
+  font-family: 'Space Mono', monospace;
+  padding: 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.trash-button.drag-over {
+  background: rgba(255, 80, 80, 0.9);
+  border-color: #ff5050;
+  color: #ff5050;
+  box-shadow: 0 0 25px rgba(255, 80, 80, 0.5);
+}
+
+.trash-button svg {
+  width: 30px; /* Larger icon to match bigger button */
+  height: 30px;
+  stroke: currentColor;
+  fill: none;
+}
+
+/* Mobile Effect Parameters Box */
+.mobile-effect-parameters-box {
+  position: fixed;
+  bottom: 90px; /* Above the horizontal effects panel */
+  left: 10px;
+  width: 280px;
+  max-height: 300px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  z-index: 750;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  overflow: hidden;
+}
+
+.mobile-effect-parameters-box.show {
+  transform: translateX(0);
+}
+
+.parameters-box-header {
+  padding: 10px;
+  border-bottom: 1px solid #00ff00;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.parameters-box-title {
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.parameters-box-close {
+  background: none;
+  border: none;
+  color: #00ff00;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.parameters-box-close:hover {
+  background: rgba(255, 0, 0, 0.2);
+}
+
+.parameters-box-content {
+  padding: 10px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.parameters-box-content .parameter-control {
+  margin-bottom: 12px;
+}
+
+.parameters-box-content .parameter-control label {
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.parameters-box-content .parameter-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+  margin-bottom: 4px;
+}
+
+.parameters-box-content .parameter-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #00ff00;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.parameters-box-content .parameter-control .parameter-value {
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  text-align: right;
 }
 
 body, html {

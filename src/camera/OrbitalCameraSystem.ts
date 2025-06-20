@@ -1448,14 +1448,25 @@ export class OrbitalCameraSystem {
     const navigationHelp = document.querySelector('#navigation-help') as HTMLElement
     const topFadeOverlay = document.querySelector('.content-fade-overlay-top') as HTMLElement
     
-    if (controlsContainer) controlsContainer.style.display = 'flex'
-    if (cameraInfo) cameraInfo.style.display = 'flex'
+    // Only show desktop controls on non-touch devices
+    const isTouchDevice = document.body.classList.contains('touch-layout')
+    if (controlsContainer && !isTouchDevice) controlsContainer.style.display = 'flex'
+    if (cameraInfo && !isTouchDevice) cameraInfo.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
       contentArea.classList.remove('fade-in', 'has-scroll', 'reel-mode')
     }
     if (titleHeader) titleHeader.classList.remove('subpage-mode')
     if (navigationHelp) navigationHelp.style.display = 'flex'
+    
+    // Show mobile UI elements
+    const mobileBottomSheet = document.querySelector('#mobile-bottom-sheet') as HTMLElement
+    const mobileCameraReset = document.querySelector('#mobile-camera-reset') as HTMLElement
+    const mobileEffectsButton = document.querySelector('#mobile-effects-button') as HTMLElement
+    
+    if (mobileBottomSheet) mobileBottomSheet.style.display = 'block'
+    if (mobileCameraReset) mobileCameraReset.style.display = 'flex'
+    if (mobileEffectsButton) mobileEffectsButton.style.display = 'block'
     if (topFadeOverlay) topFadeOverlay.classList.remove('visible')
     if (homeNavigation) {
       homeNavigation.style.display = 'flex'
@@ -1493,6 +1504,19 @@ export class OrbitalCameraSystem {
     if (controlsContainer) controlsContainer.style.display = 'none'
     if (cameraInfo) cameraInfo.style.display = 'none'
     if (navigationHelp) navigationHelp.style.display = 'none'
+    
+    // Hide mobile UI elements
+    const mobileBottomSheet = document.querySelector('#mobile-bottom-sheet') as HTMLElement
+    const mobileCameraReset = document.querySelector('#mobile-camera-reset') as HTMLElement
+    const mobileEffectsButton = document.querySelector('#mobile-effects-button') as HTMLElement
+    const mobileHorizontalEffectsPanel = document.querySelector('#mobile-horizontal-effects-panel') as HTMLElement
+    const mobileEffectParametersBox = document.querySelector('#mobile-effect-parameters-box') as HTMLElement
+    
+    if (mobileBottomSheet) mobileBottomSheet.style.display = 'none'
+    if (mobileCameraReset) mobileCameraReset.style.display = 'none'
+    if (mobileEffectsButton) mobileEffectsButton.style.display = 'none'
+    if (mobileHorizontalEffectsPanel) mobileHorizontalEffectsPanel.style.display = 'none'
+    if (mobileEffectParametersBox) mobileEffectParametersBox.style.display = 'none'
     if (contentArea) {
       contentArea.style.display = 'block'
       // Add reel-mode class for full-screen video
@@ -2101,6 +2125,19 @@ export class OrbitalCameraSystem {
     if (navigationHelp) {
       navigationHelp.style.display = 'none'
     }
+    
+    // Hide mobile UI elements immediately
+    const mobileBottomSheet = document.querySelector('#mobile-bottom-sheet') as HTMLElement
+    const mobileCameraReset = document.querySelector('#mobile-camera-reset') as HTMLElement
+    const mobileEffectsButton = document.querySelector('#mobile-effects-button') as HTMLElement
+    const mobileHorizontalEffectsPanel = document.querySelector('#mobile-horizontal-effects-panel') as HTMLElement
+    const mobileEffectParametersBox = document.querySelector('#mobile-effect-parameters-box') as HTMLElement
+    
+    if (mobileBottomSheet) mobileBottomSheet.style.display = 'none'
+    if (mobileCameraReset) mobileCameraReset.style.display = 'none'
+    if (mobileEffectsButton) mobileEffectsButton.style.display = 'none'
+    if (mobileHorizontalEffectsPanel) mobileHorizontalEffectsPanel.style.display = 'none'
+    if (mobileEffectParametersBox) mobileEffectParametersBox.style.display = 'none'
   }
   
   private showNavigationAnimation(mode: InterfaceMode) {
