@@ -56,21 +56,37 @@
       
       <!-- Settings Panel (replaces button when open) -->
       <div id="settings-panel" class="settings-panel" style="display: none;">
-        <div class="point-size-control">
+        <button id="settings-close" class="settings-close-button">
+          ×<span class="esc-hint">esc</span>
+        </button>
+        
+        <div class="point-size-control" id="point-size-control">
           <label for="point-size">Point Size:</label>
           <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
           <span id="point-size-value">0.001</span>
-          <button id="settings-close" class="settings-close-button">×</button>
+        </div>
+        
+        <div class="sphere-radius-control" id="sphere-radius-control" style="display: none;">
+          <label for="sphere-radius">Sphere Radius:</label>
+          <input type="range" id="sphere-radius" min="0.001" max="0.05" step="0.001" value="0.01">
+          <span id="sphere-radius-value">0.01</span>
         </div>
         <div class="focal-length-control">
           <label for="focal-length">Focal Length:</label>
           <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
           <span id="focal-length-value">50</span>
         </div>
+        <div class="fog-control">
+          <label for="fog-density">Fog Density:</label>
+          <input type="range" id="fog-density" min="0" max="0.5" step="0.001" value="0.003">
+          <span id="fog-density-value">0.003</span>
+        </div>
         <div class="sphere-controls">
           <div class="sphere-toggle-control">
             <label for="sphere-toggle">Sphere Mode:</label>
             <input type="checkbox" id="sphere-toggle" class="sphere-toggle-checkbox" checked>
+            <label for="auto-rotate-toggle" class="auto-rotate-label">Auto-Rotate:</label>
+            <input type="checkbox" id="auto-rotate-toggle" class="auto-rotate-checkbox" checked>
           </div>
           <div class="sphere-detail-control" style="display: flex;">
             <label for="sphere-detail">Detail:</label>

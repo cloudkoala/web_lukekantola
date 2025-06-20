@@ -249,14 +249,24 @@ body, html {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  margin-left: 10px;
+  position: absolute;
+  top: 2px;
+  left: 8px;
   flex-shrink: 0;
+  z-index: 10;
 }
 
 .settings-close-button:hover {
   color: #00ff00;
   text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
   transform: scale(1.2);
+}
+
+.esc-hint {
+  font-size: 8px;
+  margin-left: 2px;
+  opacity: 0.6;
+  font-family: monospace;
 }
 
 /* Point Size Control */
@@ -313,6 +323,60 @@ body, html {
   min-width: 40px;
 }
 
+/* Sphere Radius Control (same styling as point size) */
+.sphere-radius-control {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sphere-radius-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.sphere-radius-control input[type="range"] {
+  width: 100px;
+  height: 2px;
+  background: rgba(0, 128, 0, 0.6);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
+}
+
+.sphere-radius-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 40px;
+}
+
 /* Focal Length Control */
 .focal-length-control {
   background: transparent;
@@ -361,6 +425,60 @@ body, html {
 }
 
 .focal-length-control span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.6rem;
+  font-family: monospace;
+  min-width: 40px;
+}
+
+/* Fog Control */
+.fog-control {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fog-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.fog-control input[type="range"] {
+  width: 100px;
+  height: 2px;
+  background: rgba(0, 128, 0, 0.6);
+  border-radius: 1px;
+  outline: none;
+  appearance: none;
+}
+
+.fog-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(0, 255, 0, 0.3);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fog-control input[type="range"]::-webkit-slider-thumb:hover {
+  background: rgba(0, 255, 0, 0.5);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.2);
+}
+
+.fog-control span {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.6rem;
   font-family: monospace;
@@ -422,6 +540,55 @@ body, html {
 }
 
 .sphere-toggle-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #00ff00;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
+}
+
+/* Auto-Rotate Label */
+.auto-rotate-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 20px;
+  min-width: 70px;
+}
+
+/* Auto-Rotate Checkbox */
+.auto-rotate-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.auto-rotate-checkbox:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.auto-rotate-checkbox:checked {
+  background: rgba(0, 255, 0, 0.3);
+  border-color: rgba(0, 255, 0, 0.7);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.auto-rotate-checkbox:checked::after {
   content: '✓';
   position: absolute;
   top: 50%;

@@ -20,7 +20,11 @@ let currentProjectId: string | null = null
 
 // Three.js setup
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x151515)
+const backgroundColor = new THREE.Color(0x151515)
+scene.background = backgroundColor
+
+// Add fog for atmospheric depth - matches background color
+scene.fog = new THREE.FogExp2(backgroundColor.getHex(), 0.003)
 
 const camera = new THREE.PerspectiveCamera(
   75, 
@@ -103,6 +107,9 @@ const modelManager = new ModelManager(
   progressiveLoader,
   null // will be set after orbital camera is created
 )
+
+// Expose modelManager globally for effects system to access
+;(window as any).modelManager = modelManager
 
 const orbitalCamera = new OrbitalCameraSystem(
   camera,
@@ -276,51 +283,144 @@ function setupSettingsButton() {
     settingsButtonContainer.style.display = 'block'
   })
   
-  // Close settings panel when clicking outside
-  document.addEventListener('click', (event) => {
-    const target = event.target as Element
-    if (!settingsPanel.contains(target) && !settingsButtonContainer.contains(target)) {
+  // Close settings panel when pressing Esc
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
       settingsPanel.style.setProperty('display', 'none', 'important')
       settingsButtonContainer.style.display = 'block'
     }
   })
+  
+  // Setup auto-rotate checkbox
+  const autoRotateCheckbox = document.getElementById('auto-rotate-toggle') as HTMLInputElement
+  if (autoRotateCheckbox) {
+    autoRotateCheckbox.addEventListener('change', () => {
+      if (orbitalCamera) {
+        orbitalCamera.setAutoRotationEnabled(autoRotateCheckbox.checked)
+        console.log(`Auto-rotation ${autoRotateCheckbox.checked ? 'enabled' : 'disabled'}`)
+      }
+    })
+  }
+  
+}
+
+// Fog density control setup
+function setupFogControl() {
+  console.log('Setting up fog control...')
+  const fogDensitySlider = document.getElementById('fog-density') as HTMLInputElement
+  const fogDensityValue = document.getElementById('fog-density-value') as HTMLSpanElement
+  
+  console.log('Fog slider:', fogDensitySlider)
+  console.log('Fog value span:', fogDensityValue)
+  
+  if (fogDensitySlider && fogDensityValue) {
+    fogDensitySlider.addEventListener('input', () => {
+      const density = parseFloat(fogDensitySlider.value)
+      fogDensityValue.textContent = density.toFixed(4)
+      
+      // Update scene fog
+      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
+        scene.fog.density = density
+        
+        // Sync fog color with current background color
+        if (scene.background instanceof THREE.Color) {
+          scene.fog.color.copy(scene.background)
+        }
+        
+        // Also update sphere materials if they exist
+        if (modelManager) {
+          const sphereInstancer = modelManager.getSphereInstancer()
+          if (sphereInstancer) {
+            const fogColor = scene.fog.color
+            sphereInstancer.updateFogSettings(fogColor, density)
+          }
+        }
+        
+        console.log(`Fog density updated to: ${density}, color: ${scene.fog.color.getHexString()}`)
+      }
+    })
+    console.log('Fog control setup complete')
+  } else {
+    console.warn('Fog control elements not found')
+  }
 }
 
 // Initialize application
 async function initialize() {
-  console.log('Initialize() called')
-  // Hide loading screen immediately since we start with point clouds
-  progressEl.style.display = 'none'
+  console.log('🚀 Initialize() called')
   
-  await modelManager.loadModelsConfig()
-  await contentLoader.loadProjectsConfig()
-  modelManager.setupModelDropdown()
-  modelManager.setupQualityDropdown()
-  orbitalCamera.updateDisplayNameField()
-  orbitalCamera.loadDefaultPointSize()
-  orbitalCamera.loadDefaultFocalLength()
-  
-  // Setup settings button
-  setupSettingsButton()
-  
-  // Show home navigation indicators on initial load
-  const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
-  if (homeNavigation) {
-    homeNavigation.style.display = 'flex'
-    homeNavigation.style.visibility = 'visible'
+  try {
+    // Hide loading screen immediately since we start with point clouds
+    progressEl.style.display = 'none'
+    console.log('✅ Loading screen hidden')
+    
+    console.log('📁 Loading models config...')
+    await modelManager.loadModelsConfig()
+    console.log('✅ Models config loaded')
+    
+    console.log('📁 Loading projects config...')
+    await contentLoader.loadProjectsConfig()
+    console.log('✅ Projects config loaded')
+    
+    console.log('🔧 Setting up dropdowns...')
+    modelManager.setupModelDropdown()
+    modelManager.setupQualityDropdown()
+    console.log('✅ Dropdowns setup complete')
+    
+    console.log('🎯 Setting up camera system...')
+    orbitalCamera.updateDisplayNameField()
+    orbitalCamera.loadDefaultPointSize()
+    orbitalCamera.loadDefaultFocalLength()
+    console.log('✅ Camera system setup complete')
+    
+    console.log('⚙️ Setting up settings button...')
+    setupSettingsButton()
+    console.log('✅ Settings button setup complete')
+    
+    console.log('🌫️ Setting up fog control...')
+    setupFogControl()
+    console.log('✅ Fog control setup complete')
+    
+    // Show home navigation indicators on initial load
+    console.log('🏠 Setting up navigation...')
+    const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
+    if (homeNavigation) {
+      homeNavigation.style.display = 'flex'
+      homeNavigation.style.visibility = 'visible'
+    }
+    
+    // Setup navigation event listeners
+    orbitalCamera.setupPageNavigation()
+    console.log('✅ Navigation setup complete')
+    
+    // Update initial point size control visibility
+    console.log('📏 Setting up point size controls...')
+    modelManager.updatePointSizeControlVisibility()
+    console.log('✅ Point size controls setup complete')
+    
+    // Start loading animation every time (regardless of caching)
+    console.log('🎬 Starting loading animation...')
+    orbitalCamera.startLoadingAnimation()
+    console.log('✅ Loading animation started')
+    
+    // Load point cloud and initialize sphere mode when it's ready
+    console.log('☁️ Loading point cloud...')
+    modelManager.loadPointCloud().then(() => {
+      console.log('✅ Point cloud loaded, initializing sphere mode...')
+      // Initialize sphere mode immediately after point cloud loads but before it's visible
+      orbitalCamera.initializeSphereMode()
+      console.log('✅ Sphere mode initialization complete')
+    }).catch((error) => {
+      console.error('❌ Point cloud loading failed:', error)
+    })
+    
+    console.log('🎮 Starting animation loop...')
+    animate()
+    console.log('✅ Initialization complete!')
+    
+  } catch (error) {
+    console.error('❌ Initialization failed:', error)
   }
-  
-  // Setup navigation event listeners
-  orbitalCamera.setupPageNavigation()
-  
-  // Update initial point size control visibility
-  modelManager.updatePointSizeControlVisibility()
-  
-  // Start loading animation every time (regardless of caching)
-  orbitalCamera.startLoadingAnimation()
-  
-  modelManager.loadPointCloud().catch(console.error)
-  animate()
 }
 
 // Start the application

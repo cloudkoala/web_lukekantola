@@ -18,9 +18,12 @@ export class SphereInstancer {
    * Convert all point clouds in the scene to sphere instances
    */
   convertPointCloudsToSpheres(): void {
-    if (this.isSpheresEnabled) return
+    if (this.isSpheresEnabled) {
+      console.log('⚠️ Spheres already enabled, skipping conversion')
+      return
+    }
     
-    console.log('Converting point clouds to spheres...')
+    console.log('🔄 Converting point clouds to spheres...')
     
     // Find all point clouds in the scene
     const pointClouds: THREE.Points[] = []
@@ -38,7 +41,11 @@ export class SphereInstancer {
     })
     
     this.isSpheresEnabled = true
-    console.log('Point cloud to sphere conversion complete')
+    console.log('✅ Point cloud to sphere conversion complete:', {
+      totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0),
+      meshCount: this.instancedMeshes.length,
+      originalClouds: this.originalPointClouds.length
+    })
   }
   
   /**
@@ -68,26 +75,40 @@ export class SphereInstancer {
     // Create material - use shader material for proper instance color support
     const material = hasColors ? 
       new THREE.ShaderMaterial({
+        fog: true,
         vertexShader: `
           varying vec3 vColor;
+          varying float vFogDepth;
           
           void main() {
             vColor = instanceColor;
-            gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+            vFogDepth = -mvPosition.z;
+            gl_Position = projectionMatrix * mvPosition;
           }
         `,
         fragmentShader: `
+          uniform vec3 fogColor;
+          uniform float fogDensity;
           varying vec3 vColor;
+          varying float vFogDepth;
           
           void main() {
-            gl_FragColor = vec4(vColor, 1.0);
+            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+            fogFactor = clamp(fogFactor, 0.0, 1.0);
+            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
           }
-        `
+        `,
+        uniforms: {
+          fogColor: { value: new THREE.Color(0x151515) },
+          fogDensity: { value: 0.003 }
+        }
       }) :
       new THREE.MeshBasicMaterial({
         color: 0x888888,
         transparent: true,
-        opacity: 0.8
+        opacity: 0.8,
+        fog: true
       })
     
     // Create instanced mesh
@@ -287,6 +308,24 @@ export class SphereInstancer {
     }
   }
   
+  /**
+   * Update fog settings for all sphere materials
+   */
+  updateFogSettings(fogColor: THREE.Color, fogDensity: number): void {
+    this.instancedMeshes.forEach(mesh => {
+      const material = mesh.material
+      if (material instanceof THREE.ShaderMaterial && material.uniforms) {
+        if (material.uniforms.fogColor) {
+          material.uniforms.fogColor.value.copy(fogColor)
+        }
+        if (material.uniforms.fogDensity) {
+          material.uniforms.fogDensity.value = fogDensity
+        }
+      }
+      // MeshBasicMaterial automatically uses scene fog when fog: true
+    })
+  }
+
   /**
    * Cleanup - dispose of all resources
    */

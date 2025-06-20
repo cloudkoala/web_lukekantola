@@ -6,7 +6,7 @@ import { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
 import { BrushEffect } from './BrushEffect'
 import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'film' | 'dotscreen' | 'bleachbypass' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -26,6 +26,16 @@ export class PostProcessingPass {
   private originalColors: Map<THREE.BufferGeometry, Float32Array> = new Map()
   private connectionLines: THREE.LineSegments | null = null
   private networkAnimationStartTime: number = 0
+  
+  // Afterimage effect state
+  private afterimageRenderTarget: THREE.WebGLRenderTarget | null = null
+  private afterimageMaterial: THREE.ShaderMaterial | null = null
+  
+  // DOF effect state
+  private dofRenderTarget: THREE.WebGLRenderTarget | null = null
+  private dofBlurRenderTarget: THREE.WebGLRenderTarget | null = null
+  private dofMaterial: THREE.ShaderMaterial | null = null
+  private dofBlurMaterial: THREE.ShaderMaterial | null = null
   
   // Material effect state
   private originalMaterials: Map<THREE.Points, THREE.Material | THREE.Material[]> = new Map()
@@ -143,7 +153,7 @@ export class PostProcessingPass {
       uniforms: {
         tDiffuse: { value: null },
         resolution: { value: new THREE.Vector2(width, height) },
-        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=film, 7=dotscreen, 8=bleachbypass, 9=colorify, 10=sobel, 11=sobelthreshold, 12=motionblur, 13=oilpainting, 14=datamosh, 15=pixelsort, 16=glow, 17=pixelate, 18=fog
+        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=crtgrain, 7=film35mm, 8=dotscreen, 9=bleachbypass, 10=invert, 11=colorify, 12=sobel, 13=sobelthreshold, 14=motionblur, 15=oilpainting, 16=datamosh, 17=pixelsort, 18=glow, 19=pixelate, 20=fog
         intensity: { value: this.intensity },
         colorTint: { value: new THREE.Vector3(this.colorR, this.colorG, this.colorB) },
         vignetteOffset: { value: this.vignetteOffset },
@@ -153,6 +163,10 @@ export class PostProcessingPass {
         blurThreshold: { value: 0.0 },
         blurType: { value: 0 },
         filmNoiseSeed: { value: this.filmNoiseSeed },
+        crtScale: { value: 1.0 },
+        film35mmGrainSize: { value: 0.8 },
+        film35mmContrast: { value: 1.2 },
+        film35mmScale: { value: 1.0 },
         dotscreenCenter: { value: new THREE.Vector2(this.dotscreenCenterX, this.dotscreenCenterY) },
         dotscreenScale: { value: this.dotscreenScale },
         motionBlurStrength: { value: this.motionBlurStrength },
@@ -229,6 +243,12 @@ export class PostProcessingPass {
       // Initialize TSL pass for WebGPU/TSL effects
       this.tslPass = new TSLPostProcessingPass(width, height, renderer)
     }
+    
+    // Initialize afterimage effect
+    this.initializeAfterimage(width, height)
+    
+    // Initialize DOF effect
+    this.initializeDOF(width, height)
   }
   
   render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
@@ -385,6 +405,19 @@ export class PostProcessingPass {
       return
     }
     
+    // Handle afterimage effect separately
+    if (effect.type === 'afterimage') {
+      this.renderAfterimageEffect(renderer, inputTexture, effect, outputTarget)
+      return
+    }
+    
+    // Handle DOF effect separately
+    if (effect.type === 'dof') {
+      console.log('🔵 DOF effect detected in rendering pipeline!')
+      this.renderDOFEffect(renderer, inputTexture, effect, outputTarget)
+      return
+    }
+    
     // Handle dithering effects separately
     if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'floydsteinberg') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
@@ -421,8 +454,14 @@ export class PostProcessingPass {
         this.material.uniforms.bloomRadius.value = effect.parameters.radius ?? 0.5
         this.material.uniforms.bloomQuality.value = effect.parameters.quality ?? 2
         break
-      case 'film':
+      case 'crtgrain':
         this.material.uniforms.filmNoiseSeed.value = effect.parameters.noiseSeed ?? 0.35
+        this.material.uniforms.crtScale.value = effect.parameters.scale ?? 1.0
+        break
+      case 'film35mm':
+        this.material.uniforms.film35mmGrainSize.value = effect.parameters.grainSize ?? 0.8
+        this.material.uniforms.film35mmContrast.value = effect.parameters.contrast ?? 1.2
+        this.material.uniforms.film35mmScale.value = effect.parameters.scale ?? 1.0
         break
       case 'dotscreen':
         this.material.uniforms.dotscreenCenter.value.set(
@@ -563,6 +602,19 @@ export class PostProcessingPass {
     if (this.tslPass) {
       this.tslPass.setSize(width, height)
     }
+    
+    // Update afterimage render target
+    if (this.afterimageRenderTarget) {
+      this.afterimageRenderTarget.setSize(width, height)
+    }
+    
+    // Update DOF render targets
+    if (this.dofRenderTarget) {
+      this.dofRenderTarget.setSize(width, height)
+    }
+    if (this.dofBlurRenderTarget) {
+      this.dofBlurRenderTarget.setSize(width, height)
+    }
   }
   
   dispose() {
@@ -584,6 +636,28 @@ export class PostProcessingPass {
     // Clean up material resources
     this.resetMaterials()
     this.originalMaterials.clear()
+    
+    // Clean up afterimage resources
+    if (this.afterimageRenderTarget) {
+      this.afterimageRenderTarget.dispose()
+    }
+    if (this.afterimageMaterial) {
+      this.afterimageMaterial.dispose()
+    }
+    
+    // Clean up DOF resources
+    if (this.dofRenderTarget) {
+      this.dofRenderTarget.dispose()
+    }
+    if (this.dofBlurRenderTarget) {
+      this.dofBlurRenderTarget.dispose()
+    }
+    if (this.dofMaterial) {
+      this.dofMaterial.dispose()
+    }
+    if (this.dofBlurMaterial) {
+      this.dofBlurMaterial.dispose()
+    }
   }
   
   private getEffectTypeIndex(): number {
@@ -598,19 +672,21 @@ export class PostProcessingPass {
       case 'vignette': return 3
       case 'blur': return 4
       case 'bloom': return 5
-      case 'film': return 6
-      case 'dotscreen': return 7
-      case 'bleachbypass': return 8
-      case 'colorify': return 9
-      case 'sobel': return 10
-      case 'sobelthreshold': return 11
-      case 'motionblur': return 12
-      case 'oilpainting': return 13
-      case 'datamosh': return 14
-      case 'pixelsort': return 15
-      case 'glow': return 16
-      case 'pixelate': return 17
-      case 'fog': return 18
+      case 'crtgrain': return 6
+      case 'film35mm': return 7
+      case 'dotscreen': return 8
+      case 'bleachbypass': return 9
+      case 'invert': return 10
+      case 'colorify': return 11
+      case 'sobel': return 12
+      case 'sobelthreshold': return 13
+      case 'motionblur': return 14
+      case 'oilpainting': return 15
+      case 'datamosh': return 16
+      case 'pixelsort': return 17
+      case 'glow': return 18
+      case 'pixelate': return 19
+      case 'fog': return 20
       // Background effects are handled separately in applyBackgroundEffect
       case 'background': return 0
       // Topographic effects are handled separately in applyTopographicEffect
@@ -847,6 +923,17 @@ export class PostProcessingPass {
     
     // Update the main scene background
     this.mainScene.background = color
+    
+    // Update fog color to match background
+    if (this.mainScene.fog && this.mainScene.fog instanceof THREE.FogExp2) {
+      this.mainScene.fog.color.copy(color)
+      
+      // Also update sphere materials if they exist
+      const modelManager = (window as any).modelManager
+      if (modelManager && modelManager.sphereInstancer) {
+        modelManager.sphereInstancer.updateFogSettings(color, this.mainScene.fog.density)
+      }
+    }
     
     console.log(`Background color updated via effects: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
   }
@@ -2152,6 +2239,10 @@ export class PostProcessingPass {
       uniform float blurThreshold;
       uniform float blurType;
       uniform float filmNoiseSeed;
+      uniform float crtScale;
+      uniform float film35mmGrainSize;
+      uniform float film35mmContrast;
+      uniform float film35mmScale;
       uniform vec2 dotscreenCenter;
       uniform float dotscreenScale;
       uniform float motionBlurStrength;
@@ -2400,16 +2491,44 @@ export class PostProcessingPass {
         }
       }
       
-      // Film effect with noise and scanlines
-      vec3 film(vec3 color, vec2 uv) {
-        // Add noise
-        float noise = random(uv + time) * filmNoiseSeed;
+      // CRT grain effect (retro TV-style)
+      vec3 crtgrain(vec3 color, vec2 uv) {
+        vec2 scaledUv = uv * crtScale;
+        
+        // Update at 24 fps for film-like grain animation
+        float filmTime = floor(time * 24.0) / 24.0;
+        
+        // Add noise that updates at 24 fps
+        float noise = random(scaledUv + filmTime) * filmNoiseSeed;
         
         // Add scanlines
-        float scanline = sin(uv.y * resolution.y * 2.0) * 0.1;
+        float scanline = sin(scaledUv.y * resolution.y * 2.0) * 0.1;
         
         // Combine effects
         return color + vec3(noise) + vec3(scanline);
+      }
+      
+      // 35mm film grain effect (organic film grain)
+      vec3 film35mm(vec3 color, vec2 uv) {
+        vec2 scaledUv = uv * film35mmScale;
+        
+        // Update at 24 fps for authentic film grain animation
+        float filmTime = floor(time * 24.0) / 24.0;
+        
+        // Multi-octave noise for more organic grain, animated at 24 fps
+        float grain = 0.0;
+        grain += random(scaledUv * film35mmGrainSize + filmTime) * 0.6;
+        grain += random(scaledUv * film35mmGrainSize * 2.0 + filmTime * 1.3) * 0.3;
+        grain += random(scaledUv * film35mmGrainSize * 4.0 + filmTime * 0.7) * 0.1;
+        
+        // Modulate grain by luminance (darker areas get more grain)
+        float luma = dot(color, vec3(0.299, 0.587, 0.114));
+        grain *= (1.0 - luma * 0.5);
+        
+        // Apply grain with contrast control
+        vec3 grainColor = color + (grain - 0.5) * film35mmContrast * 0.1;
+        
+        return grainColor;
       }
       
       // Dot screen effect
@@ -3143,42 +3262,48 @@ export class PostProcessingPass {
           vec3 bloomResult = bloom(tDiffuse, vUv, resolution, bloomThreshold, bloomIntensity, bloomRadius, bloomQuality);
           color = mix(color, bloomResult, intensity);
         } else if (effectType == 6) {
-          // Film
-          color = mix(color, film(color, vUv), intensity);
+          // CRT Grain
+          color = mix(color, crtgrain(color, vUv), intensity);
         } else if (effectType == 7) {
+          // 35mm Film Grain
+          color = mix(color, film35mm(color, vUv), intensity);
+        } else if (effectType == 8) {
           // Dot screen
           color = mix(color, dotscreen(color, vUv), intensity);
-        } else if (effectType == 8) {
+        } else if (effectType == 9) {
           // Bleach bypass
           color = mix(color, bleachBypass(color), intensity);
-        } else if (effectType == 9) {
+        } else if (effectType == 10) {
+          // Color invert
+          color = mix(color, vec3(1.0) - color, intensity);
+        } else if (effectType == 11) {
           // Colorify
           color = colorify(color);
-        } else if (effectType == 10) {
+        } else if (effectType == 12) {
           // Sobel edge detection
           color = mix(color, sobelFromColor(color, vUv, resolution), intensity);
-        } else if (effectType == 11) {
+        } else if (effectType == 13) {
           // Sobel edge detection with threshold
           color = mix(color, sobelWithThresholdFromColor(color, vUv, resolution, sobelThreshold), intensity);
-        } else if (effectType == 12) {
+        } else if (effectType == 14) {
           // Motion blur
           color = mix(color, motionBlur(tDiffuse, vUv, resolution, motionBlurStrength, motionBlurSamples), intensity);
-        } else if (effectType == 13) {
+        } else if (effectType == 15) {
           // Oil painting
           color = mix(color, oilPainting(tDiffuse, vUv, resolution, oilBrushSize, oilRoughness, oilBrightness, oilTexture), intensity);
-        } else if (effectType == 14) {
+        } else if (effectType == 16) {
           // Data moshing
           color = mix(color, datamosh(tDiffuse, vUv, resolution), intensity);
-        } else if (effectType == 15) {
+        } else if (effectType == 17) {
           // Pixel sorting
           color = pixelsort(tDiffuse, vUv, resolution, color);
-        } else if (effectType == 16) {
+        } else if (effectType == 18) {
           // Glow
           color = glow(tDiffuse, vUv, resolution, color);
-        } else if (effectType == 17) {
+        } else if (effectType == 19) {
           // Pixelation
           color = pixelate(tDiffuse, vUv, resolution, color);
-        } else if (effectType == 18) {
+        } else if (effectType == 20) {
           // Distance Fog
           color = fog(tDiffuse, vUv, resolution, color);
         }
@@ -3186,5 +3311,245 @@ export class PostProcessingPass {
         gl_FragColor = vec4(color, originalColor.a);
       }
     `
+  }
+  
+  // Afterimage effect methods
+  private initializeAfterimage(width: number, height: number): void {
+    this.afterimageRenderTarget = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType
+    })
+    
+    this.afterimageMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        tAfterimage: { value: null },
+        damping: { value: 0.96 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform sampler2D tAfterimage;
+        uniform float damping;
+        varying vec2 vUv;
+        
+        void main() {
+          vec4 current = texture2D(tDiffuse, vUv);
+          vec4 afterimage = texture2D(tAfterimage, vUv);
+          
+          // Blend current frame with damped previous frame
+          vec4 result = max(current, afterimage * damping);
+          
+          gl_FragColor = result;
+        }
+      `
+    })
+  }
+  
+  private renderAfterimageEffect(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null): void {
+    if (!this.afterimageRenderTarget || !this.afterimageMaterial) return
+    
+    const damping = effect.parameters.damping ?? 0.96
+    
+    // Set up materials
+    this.afterimageMaterial.uniforms.tDiffuse.value = inputTexture
+    this.afterimageMaterial.uniforms.tAfterimage.value = this.afterimageRenderTarget.texture
+    this.afterimageMaterial.uniforms.damping.value = damping
+    
+    // Create temporary mesh for rendering
+    const tempMaterial = this.material
+    this.material = this.afterimageMaterial
+    
+    // Render to output
+    renderer.setRenderTarget(outputTarget || null)
+    renderer.clear()
+    renderer.render(this.scene, this.camera)
+    
+    // Copy result to afterimage buffer for next frame
+    renderer.setRenderTarget(this.afterimageRenderTarget)
+    renderer.clear()
+    renderer.render(this.scene, this.camera)
+    
+    // Restore original material
+    this.material = tempMaterial
+  }
+  
+  // DOF effect methods
+  private initializeDOF(_width: number, _height: number): void {
+    // For the simplified DOF approach, we don't need complex initialization
+    // The effect creates materials dynamically during rendering
+    this.dofMaterial = new THREE.ShaderMaterial({
+      // Placeholder material - actual DOF material is created during render
+      uniforms: {},
+      vertexShader: 'void main() { gl_Position = vec4(0.0); }',
+      fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }'
+    })
+  }
+  
+  private renderDOFEffect(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null): void {
+    if (!this.dofMaterial) {
+      console.warn('DOF material not initialized')
+      return
+    }
+    
+    const focusDistance = effect.parameters.focusDistance ?? 5.0
+    const aperture = effect.parameters.aperture ?? 0.1
+    const maxBlur = effect.parameters.maxBlur ?? 0.5
+    
+    // Create depth buffer render target if it doesn't exist
+    if (!this.dofRenderTarget) {
+      this.dofRenderTarget = new THREE.WebGLRenderTarget(
+        this.renderTargets[0].width,
+        this.renderTargets[0].height,
+        {
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType
+        }
+      )
+    }
+    
+    // First pass: Render depth buffer
+    const depthMaterial = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking
+    })
+    
+    // Store original materials and apply depth material
+    const originalMaterials = new Map<THREE.Object3D, THREE.Material | THREE.Material[]>()
+    
+    if (this.mainScene) {
+      this.mainScene.traverse((object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.InstancedMesh) {
+          originalMaterials.set(object, object.material)
+          object.material = depthMaterial
+        }
+      })
+      
+      // Render depth to buffer
+      renderer.setRenderTarget(this.dofRenderTarget)
+      renderer.render(this.mainScene, this.camera!)
+      
+      // Restore original materials
+      originalMaterials.forEach((material, object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.InstancedMesh) {
+          object.material = material
+        }
+      })
+    }
+    
+    // Second pass: Apply DOF based on depth
+    const dofMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: inputTexture },
+        tDepth: { value: this.dofRenderTarget.texture },
+        focusDistance: { value: focusDistance },
+        aperture: { value: aperture },
+        maxBlur: { value: maxBlur },
+        cameraNear: { value: this.camera?.near || 0.01 },
+        cameraFar: { value: this.camera?.far || 500 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform sampler2D tDepth;
+        uniform float focusDistance;
+        uniform float aperture;
+        uniform float maxBlur;
+        uniform float cameraNear;
+        uniform float cameraFar;
+        varying vec2 vUv;
+        
+        float readDepth(sampler2D depthSampler, vec2 coord) {
+          vec4 rgbaDepth = texture2D(depthSampler, coord);
+          const vec4 bitShift = vec4(1.0, 1.0/256.0, 1.0/(256.0*256.0), 1.0/(256.0*256.0*256.0));
+          return dot(rgbaDepth, bitShift);
+        }
+        
+        float perspectiveDepthToViewZ(float invClipZ, float near, float far) {
+          return (near * far) / ((far - near) * invClipZ - far);
+        }
+        
+        float getViewZ(float depth) {
+          return perspectiveDepthToViewZ(depth, cameraNear, cameraFar);
+        }
+        
+        void main() {
+          vec4 color = texture2D(tDiffuse, vUv);
+          
+          // Read depth and convert to view space Z
+          float depth = readDepth(tDepth, vUv);
+          float viewZ = abs(getViewZ(depth));
+          
+          // Debug: visualize depth
+          if (vUv.x < 0.2) {
+            gl_FragColor = vec4(viewZ / 50.0, 0.0, 0.0, 1.0);
+            return;
+          }
+          
+          // Calculate blur amount based on distance from focus
+          float depthDiff = abs(viewZ - focusDistance);
+          float blurAmount = depthDiff * aperture * 0.1; // Scale down aperture effect
+          blurAmount = clamp(blurAmount, 0.0, maxBlur);
+          
+          // Apply blur
+          if (blurAmount > 0.001) {
+            vec4 blurredColor = vec4(0.0);
+            float totalWeight = 0.0;
+            
+            // Circular blur sampling
+            int samples = 12;
+            float step = blurAmount * 0.01;
+            
+            for (int i = 0; i < samples; i++) {
+              float angle = float(i) * 6.28318 / float(samples);
+              vec2 offset = vec2(cos(angle), sin(angle)) * step;
+              vec2 sampleUv = vUv + offset;
+              
+              if (sampleUv.x >= 0.0 && sampleUv.x <= 1.0 && 
+                  sampleUv.y >= 0.0 && sampleUv.y <= 1.0) {
+                blurredColor += texture2D(tDiffuse, sampleUv);
+                totalWeight += 1.0;
+              }
+            }
+            
+            if (totalWeight > 0.0) {
+              blurredColor /= totalWeight;
+              
+              // Blend based on blur amount
+              float blendFactor = clamp(blurAmount / maxBlur, 0.0, 1.0);
+              color = mix(color, blurredColor, blendFactor);
+            }
+          }
+          
+          gl_FragColor = color;
+        }
+      `
+    })
+    
+    // Apply DOF material to mesh
+    this.mesh.material = dofMaterial
+    
+    // Render DOF effect to output
+    renderer.setRenderTarget(outputTarget || null)
+    renderer.clear()
+    renderer.render(this.scene, this.camera)
+    
+    // Clean up temporary material
+    dofMaterial.dispose()
   }
 }

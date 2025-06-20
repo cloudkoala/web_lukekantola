@@ -46,10 +46,8 @@ export class EffectsPanel {
     // Initialize collapsed state
     this.initializeCollapsedState()
     
-    // Delay default preset loading to ensure all connections are established
-    setTimeout(() => {
-      this.loadDefaultPreset()
-    }, 200)
+    // Load default preset immediately - all connections should be established
+    this.loadDefaultPreset()
   }
 
   private setupEventListeners(): void {
@@ -235,7 +233,7 @@ export class EffectsPanel {
         },
         {
           id: "effect_4",
-          type: "film",
+          type: "crtgrain",
           enabled: true,
           parameters: {
             intensity: 0.14,
@@ -313,7 +311,7 @@ export class EffectsPanel {
         },
         {
           id: "effect_4",
-          type: "film",
+          type: "crtgrain",
           enabled: false,
           parameters: {
             intensity: 0.14,
@@ -403,7 +401,7 @@ export class EffectsPanel {
         },
         {
           id: "effect_31",
-          type: "film",
+          type: "crtgrain",
           enabled: true,
           parameters: {
             intensity: 0.13,
@@ -473,7 +471,7 @@ export class EffectsPanel {
         },
         {
           id: "effect_31",
-          type: "film",
+          type: "crtgrain",
           enabled: true,
           parameters: {
             intensity: 0.13,
@@ -570,9 +568,20 @@ export class EffectsPanel {
       // Clear current effects
       this.chainManager.clearEffects()
       
-      // Load preset effects
+      // Load preset effects with fallback for renamed effects
       preset.forEach(effect => {
-        this.chainManager.addEffect(effect.type, effect.parameters)
+        try {
+          // Handle legacy effect type renames
+          let effectType = effect.type
+          if ((effectType as string) === 'film') {
+            console.warn('Converting legacy "film" effect to "crtgrain"')
+            effectType = 'crtgrain'
+          }
+          
+          this.chainManager.addEffect(effectType, effect.parameters)
+        } catch (error) {
+          console.warn(`Failed to load effect ${effect.type}:`, error)
+        }
       })
       
       // Refresh display

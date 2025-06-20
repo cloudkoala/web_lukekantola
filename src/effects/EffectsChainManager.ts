@@ -188,12 +188,24 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     }
   },
   {
-    type: 'film',
-    name: 'Film Grain',
-    defaultParameters: { intensity: 0.5, noiseSeed: 0.35 },
+    type: 'crtgrain',
+    name: 'CRT Grain',
+    defaultParameters: { intensity: 0.5, noiseSeed: 0.35, scale: 1.0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      noiseSeed: { min: 0.1, max: 1.0, step: 0.05, label: 'Noise Seed' }
+      noiseSeed: { min: 0.1, max: 1.0, step: 0.05, label: 'Noise Seed' },
+      scale: { min: 0.1, max: 5.0, step: 0.1, label: 'Scale' }
+    }
+  },
+  {
+    type: 'film35mm',
+    name: '35mm Film Grain',
+    defaultParameters: { intensity: 0.3, grainSize: 0.8, contrast: 1.2, scale: 1.0 },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      grainSize: { min: 0.1, max: 2.0, step: 0.1, label: 'Grain Size' },
+      contrast: { min: 0.5, max: 3.0, step: 0.1, label: 'Contrast' },
+      scale: { min: 0.1, max: 5.0, step: 0.1, label: 'Scale' }
     }
   },
   {
@@ -213,6 +225,22 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     defaultParameters: { intensity: 0.5 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' }
+    }
+  },
+  {
+    type: 'invert',
+    name: 'Color Invert',
+    defaultParameters: { intensity: 1.0 },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' }
+    }
+  },
+  {
+    type: 'afterimage',
+    name: 'Afterimage',
+    defaultParameters: { damping: 0.96 },
+    parameterDefinitions: {
+      damping: { min: 0.8, max: 0.99, step: 0.01, label: 'Damping' }
     }
   },
   {
@@ -411,6 +439,22 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       fogMode: { min: 0, max: 2, step: 1, label: 'Fog Mode' },
       yMax: { min: -10.0, max: 50.0, step: 0.5, label: 'Y Max Height' }
     }
+  },
+  {
+    type: 'dof',
+    name: 'Depth of Field',
+    defaultParameters: { 
+      intensity: 1.0,
+      focusDistance: 5.0,
+      aperture: 0.1,
+      maxBlur: 0.5
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      focusDistance: { min: 0.1, max: 50.0, step: 0.1, label: 'Focus Distance' },
+      aperture: { min: 0.001, max: 1.0, step: 0.001, label: 'Aperture (Blur Size)' },
+      maxBlur: { min: 0.0, max: 10.0, step: 0.01, label: 'Max Blur Amount' }
+    }
   }
 ]
 
@@ -427,8 +471,10 @@ export class EffectsChainManager {
 
   // Chain management
   addEffect(effectType: EffectType, parameters?: Record<string, number>): EffectInstance {
+    console.log('Adding effect:', effectType)
     const definition = EFFECT_DEFINITIONS.find(def => def.type === effectType)
     if (!definition) {
+      console.error(`Unknown effect type: ${effectType}`)
       throw new Error(`Unknown effect type: ${effectType}`)
     }
 
@@ -439,6 +485,7 @@ export class EffectsChainManager {
       parameters: parameters ? { ...definition.defaultParameters, ...parameters } : { ...definition.defaultParameters }
     }
 
+    console.log('Created effect instance:', newEffect)
     this.effectsChain.push(newEffect)
     this.notifyChainUpdated()
     return newEffect

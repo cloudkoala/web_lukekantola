@@ -732,4 +732,8 @@ export class ModelManager {
   getSphereStats(): { totalSpheres: number, meshCount: number } {
     return this.sphereInstancer.getStats()
   }
+
+  getSphereInstancer(): SphereInstancer {
+    return this.sphereInstancer
+  }
 }

@@ -105,10 +105,8 @@ export class OrbitalCameraSystem {
     this.setupNavigation()
     this.setupClickToCopy()
     
-    // Setup effects panel after a short delay to ensure DOM is ready
-    setTimeout(() => {
-      this.setupEffectsPanel()
-    }, 100)
+    // Setup effects panel immediately - DOM should be ready at this point
+    this.setupEffectsPanel()
     
     // Initialize orbit center at target point
     this.clickedPoint = new THREE.Vector3(0.08, 0.80, -0.21)
@@ -309,11 +307,13 @@ export class OrbitalCameraSystem {
     const rotationSpeedSlider = document.querySelector('#rotation-speed') as HTMLInputElement
     const rotationRadiusSlider = document.querySelector('#rotation-radius') as HTMLInputElement
     const pointSizeSlider = document.querySelector('#point-size') as HTMLInputElement
+    const sphereRadiusSlider = document.querySelector('#sphere-radius') as HTMLInputElement
     const focalLengthSlider = document.querySelector('#focal-length') as HTMLInputElement
     
     const rotationSpeedValue = document.querySelector('#rotation-speed-value') as HTMLSpanElement
     const rotationRadiusValue = document.querySelector('#rotation-radius-value') as HTMLSpanElement
     const pointSizeValue = document.querySelector('#point-size-value') as HTMLSpanElement
+    const sphereRadiusValue = document.querySelector('#sphere-radius-value') as HTMLSpanElement
     const focalLengthValue = document.querySelector('#focal-length-value') as HTMLSpanElement
     
     modeSelect?.addEventListener('change', (e) => {
@@ -332,12 +332,15 @@ export class OrbitalCameraSystem {
     
     pointSizeSlider?.addEventListener('input', (e) => {
       this.pointSize = parseFloat((e.target as HTMLInputElement).value)
-      pointSizeValue.textContent = this.pointSize.toFixed(3)
+      if (pointSizeValue) pointSizeValue.textContent = this.pointSize.toFixed(3)
       this.updatePointSize()
-      
-      // Also update sphere radius if spheres are active
+    })
+    
+    sphereRadiusSlider?.addEventListener('input', (e) => {
+      const sphereRadius = parseFloat((e.target as HTMLInputElement).value)
+      if (sphereRadiusValue) sphereRadiusValue.textContent = sphereRadius.toFixed(3)
       if (this.modelManager) {
-        this.modelManager.setSphereRadius(this.pointSize)
+        this.modelManager.setSphereRadius(sphereRadius)
       }
     })
     
@@ -526,6 +529,9 @@ export class OrbitalCameraSystem {
         // Update checkbox state
         sphereToggleCheckbox.checked = isEnabled
         
+        // Toggle between point size and sphere radius controls
+        this.toggleSizeControls(isEnabled)
+        
         // Show/hide detail controls
         const detailControl = document.querySelector('.sphere-detail-control') as HTMLElement
         
@@ -550,6 +556,9 @@ export class OrbitalCameraSystem {
         this.modelManager.setSphereDetail(detail)
       }
     })
+    
+    // Don't initialize spheres here - modelManager might not be set yet
+    // This will be handled in initializeSphereMode() method
     
   }
   
@@ -1045,6 +1054,77 @@ export class OrbitalCameraSystem {
     }
   }
 
+  public setAutoRotationEnabled(enabled: boolean) {
+    this.autoRotationEnabled = enabled
+    console.log('Auto-rotation enabled:', enabled)
+    
+    // Reset rotation intensity when toggling
+    if (!enabled) {
+      this.autoRotationIntensity = 0
+    }
+  }
+
+  // Toggle between point size and sphere radius controls based on sphere mode
+  private toggleSizeControls(sphereMode: boolean): void {
+    const pointSizeControl = document.querySelector('#point-size-control') as HTMLElement
+    const sphereRadiusControl = document.querySelector('#sphere-radius-control') as HTMLElement
+    
+    if (pointSizeControl && sphereRadiusControl) {
+      if (sphereMode) {
+        pointSizeControl.style.display = 'none'
+        sphereRadiusControl.style.display = 'block'
+      } else {
+        pointSizeControl.style.display = 'block'
+        sphereRadiusControl.style.display = 'none'
+      }
+    }
+  }
+
+  // Initialize sphere mode after ModelManager is available
+  initializeSphereMode(): void {
+    const sphereToggleCheckbox = document.querySelector('#sphere-toggle') as HTMLInputElement
+    if (sphereToggleCheckbox?.checked && this.modelManager) {
+      console.log('🔵 Initializing spheres because checkbox is checked (delayed)')
+      
+      const isSphereMode = this.modelManager.isSphereMode()
+      const sphereStats = this.modelManager.getSphereStats()
+      
+      console.log('🔍 Current sphere state:', {
+        isSphereMode,
+        sphereStats,
+        totalSpheres: sphereStats.totalSpheres,
+        meshCount: sphereStats.meshCount
+      })
+      
+      // Force toggle spheres regardless of current state to ensure they're visible
+      console.log('🔵 Force toggling spheres to ensure they are created')
+      
+      // Set sphere radius BEFORE creating spheres to avoid visual pop
+      // Use the default sphere radius from the slider
+      const sphereRadiusSlider = document.querySelector('#sphere-radius') as HTMLInputElement
+      const defaultSphereRadius = sphereRadiusSlider ? parseFloat(sphereRadiusSlider.value) : 0.01
+      console.log('🔧 Pre-setting sphere radius to default:', defaultSphereRadius)
+      this.modelManager.setSphereRadius(defaultSphereRadius)
+      
+      this.modelManager.toggleSpheres() // Turn off if on
+      setTimeout(() => {
+        console.log('🔵 Toggling spheres back ON')
+        this.modelManager.toggleSpheres() // Turn back on
+        
+        // Show sphere radius control instead of point size control
+        this.toggleSizeControls(true)
+        
+        const finalStats = this.modelManager.getSphereStats()
+        console.log('🎯 Final sphere stats:', finalStats)
+      }, 100)
+      
+    } else {
+      console.log('🔴 Not initializing spheres:', { 
+        checkboxChecked: sphereToggleCheckbox?.checked, 
+        hasModelManager: !!this.modelManager 
+      })
+    }
+  }
 
   private calculateDensityAwarePointSize(geometry: THREE.BufferGeometry, baseSize: number): number {
     // Get vertex count and bounding box
@@ -2320,6 +2400,11 @@ export class OrbitalCameraSystem {
         this.updatePostProcessingChain()
       })
       
+      // Initial update to sync any effects that were loaded during initialization
+      setTimeout(() => {
+        this.updatePostProcessingChain()
+      }, 50)
+      
       // Effects toggle is now handled by the EffectsPanel dropdown
       
       
@@ -2336,6 +2421,8 @@ export class OrbitalCameraSystem {
       const enabledEffects = this.effectsChainManager.getEnabledEffects()
       postProcessingPass.setEffectsChain(enabledEffects)
       console.log('Effects chain updated:', enabledEffects.length, 'effects')
+    } else {
+      console.warn('PostProcessingPass not available for effects chain update')
     }
   }
 
