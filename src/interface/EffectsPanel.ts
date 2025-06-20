@@ -15,11 +15,17 @@ export class EffectsPanel {
   private mainDropdown: HTMLSelectElement
   private savePresetButton: HTMLElement
   private isCollapsed: boolean = true
+  
+  // Mobile elements
+  private mobileChainContainer: HTMLElement | null = null
+  private mobileParametersContainer: HTMLElement | null = null
+  private mobileMainDropdown: HTMLSelectElement | null = null
+  private mobileSavePresetButton: HTMLElement | null = null
 
   constructor(chainManager: EffectsChainManager) {
     this.chainManager = chainManager
     
-    // Get DOM elements
+    // Get desktop DOM elements
     this.panelElement = document.getElementById('effects-panel') as HTMLElement
     this.chainContainer = document.getElementById('effects-chain') as HTMLElement
     this.parametersContainer = document.getElementById('effect-parameters') as HTMLElement
@@ -27,6 +33,12 @@ export class EffectsPanel {
     this.panelCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
     this.mainDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
     this.savePresetButton = document.getElementById('save-preset') as HTMLElement
+
+    // Get mobile DOM elements (optional - may not exist on all pages)
+    this.mobileChainContainer = document.getElementById('mobile-effects-chain')
+    this.mobileParametersContainer = document.getElementById('mobile-effect-parameters')
+    this.mobileMainDropdown = document.getElementById('mobile-effects-main-dropdown') as HTMLSelectElement
+    this.mobileSavePresetButton = document.getElementById('mobile-save-preset')
 
     if (!this.panelElement || !this.chainContainer || !this.parametersContainer) {
       const missing = []
@@ -65,6 +77,7 @@ export class EffectsPanel {
   }
 
   private setupCollapseToggle(): void {
+    // Desktop collapse toggle
     this.collapseArrow.addEventListener('click', () => {
       this.toggleCollapse()
     })
@@ -77,22 +90,28 @@ export class EffectsPanel {
         this.toggleCollapse()
       })
     }
+    
+    // Mobile doesn't have collapse functionality - always expanded
   }
 
   private initializeCollapsedState(): void {
     // Wrap arrow content in span for rotation
     this.collapseArrow.innerHTML = '<span>▼</span>'
     
+    // Desktop starts collapsed, mobile is always expanded
     if (this.isCollapsed) {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
       this.collapseArrow.classList.add('collapsed')
     }
+    
+    // Mobile elements don't have collapsed state - always visible
   }
 
   private toggleCollapse(): void {
     this.isCollapsed = !this.isCollapsed
     
+    // Only toggle desktop elements - mobile is always expanded
     if (this.isCollapsed) {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
@@ -114,16 +133,37 @@ export class EffectsPanel {
     // Initialize dropdown with presets
     this.loadPresetsIntoDropdown()
     
-    // Set up main dropdown change handler
+    // Set up desktop dropdown change handler
     this.mainDropdown.addEventListener('change', () => {
       const value = this.mainDropdown.value
       this.handleDropdownChange(value)
+      // Sync mobile dropdown
+      if (this.mobileMainDropdown) {
+        this.mobileMainDropdown.value = value
+      }
     })
     
-    // Set up save preset button
+    // Set up mobile dropdown change handler
+    if (this.mobileMainDropdown) {
+      this.mobileMainDropdown.addEventListener('change', () => {
+        const value = this.mobileMainDropdown!.value
+        this.handleDropdownChange(value)
+        // Sync desktop dropdown
+        this.mainDropdown.value = value
+      })
+    }
+    
+    // Set up desktop save preset button
     this.savePresetButton.addEventListener('click', () => {
       this.showSavePresetDialog()
     })
+    
+    // Set up mobile save preset button
+    if (this.mobileSavePresetButton) {
+      this.mobileSavePresetButton.addEventListener('click', () => {
+        this.showSavePresetDialog()
+      })
+    }
   }
   
   private handleDropdownChange(value: string): void {
@@ -168,45 +208,56 @@ export class EffectsPanel {
   private loadPresetsIntoDropdown(): void {
     const presets = this.getSavedPresets()
     
-    // Clear existing options except "None"
-    while (this.mainDropdown.children.length > 1) {
-      this.mainDropdown.removeChild(this.mainDropdown.lastChild!)
-    }
-    
-    // Add "Custom" option first
-    const customOption = document.createElement('option')
-    customOption.value = 'custom'
-    customOption.textContent = 'Custom'
-    this.mainDropdown.appendChild(customOption)
-    
-    // Create presets section
-    if (Object.keys(presets).length > 0) {
-      const presetsGroup = document.createElement('optgroup')
-      presetsGroup.label = '── Presets ──'
+    // Helper function to populate a dropdown
+    const populateDropdown = (dropdown: HTMLSelectElement) => {
+      // Clear existing options except "None"
+      while (dropdown.children.length > 1) {
+        dropdown.removeChild(dropdown.lastChild!)
+      }
       
-      Object.keys(presets).forEach(name => {
+      // Add "Custom" option first
+      const customOption = document.createElement('option')
+      customOption.value = 'custom'
+      customOption.textContent = 'Custom'
+      dropdown.appendChild(customOption)
+      
+      // Create presets section
+      if (Object.keys(presets).length > 0) {
+        const presetsGroup = document.createElement('optgroup')
+        presetsGroup.label = '── Presets ──'
+        
+        Object.keys(presets).forEach(name => {
+          const option = document.createElement('option')
+          option.value = name
+          option.textContent = `📋 ${name}`
+          presetsGroup.appendChild(option)
+        })
+        
+        dropdown.appendChild(presetsGroup)
+      }
+      
+      // Create effects section
+      const effectsGroup = document.createElement('optgroup')
+      effectsGroup.label = '── Effects ──'
+      
+      // Add individual effects
+      EFFECT_DEFINITIONS.forEach(definition => {
         const option = document.createElement('option')
-        option.value = name
-        option.textContent = `📋 ${name}`
-        presetsGroup.appendChild(option)
+        option.value = `effect:${definition.type}`
+        option.textContent = `⚡ ${definition.name}`
+        effectsGroup.appendChild(option)
       })
       
-      this.mainDropdown.appendChild(presetsGroup)
+      dropdown.appendChild(effectsGroup)
     }
     
-    // Create effects section
-    const effectsGroup = document.createElement('optgroup')
-    effectsGroup.label = '── Effects ──'
+    // Populate desktop dropdown
+    populateDropdown(this.mainDropdown)
     
-    // Add individual effects
-    EFFECT_DEFINITIONS.forEach(definition => {
-      const option = document.createElement('option')
-      option.value = `effect:${definition.type}`
-      option.textContent = `⚡ ${definition.name}`
-      effectsGroup.appendChild(option)
-    })
-    
-    this.mainDropdown.appendChild(effectsGroup)
+    // Populate mobile dropdown if it exists
+    if (this.mobileMainDropdown) {
+      populateDropdown(this.mobileMainDropdown)
+    }
   }
   
 
@@ -625,6 +676,12 @@ export class EffectsPanel {
   }
 
   private createAddEffectModal(): void {
+    // Check if mobile for responsive layout decisions
+    const isMobile = document.body.classList.contains('touch-layout') || 
+                     document.body.classList.contains('hybrid-layout') ||
+                     window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
+                     'ontouchstart' in window
+    
     // Create dropdown for effect selection
     this.addEffectModal = document.createElement('div')
     this.addEffectModal.className = 'add-effect-dropdown'
@@ -636,6 +693,25 @@ export class EffectsPanel {
     // Add search input (no title needed for compact dropdown)
     const searchContainer = document.createElement('div')
     searchContainer.className = 'add-effect-search-container'
+    if (isMobile) {
+      // Add title and close button for mobile
+      const headerContainer = document.createElement('div')
+      headerContainer.className = 'mobile-modal-header'
+      
+      const modalTitle = document.createElement('h3')
+      modalTitle.className = 'mobile-modal-title'
+      modalTitle.textContent = 'Add Effect'
+      
+      const closeButton = document.createElement('button')
+      closeButton.className = 'mobile-modal-close'
+      closeButton.innerHTML = '×'
+      closeButton.title = 'Close'
+      closeButton.onclick = () => this.hideAddEffectModal()
+      
+      headerContainer.appendChild(modalTitle)
+      headerContainer.appendChild(closeButton)
+      dropdownContent.appendChild(headerContainer)
+    }
     
     const searchInput = document.createElement('input')
     searchInput.type = 'text'
@@ -741,8 +817,15 @@ export class EffectsPanel {
     
     this.addEffectModal.appendChild(dropdownContent)
     
-    // Position dropdown relative to the effects panel
-    this.panelElement.appendChild(this.addEffectModal)
+    // Position dropdown relative to the effects panel, or body for mobile
+    if (isMobile) {
+      // On mobile, append to body and position as full-screen modal
+      document.body.appendChild(this.addEffectModal)
+      this.addEffectModal.classList.add('mobile-modal')
+    } else {
+      // On desktop, append to panel as before
+      this.panelElement.appendChild(this.addEffectModal)
+    }
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
@@ -785,44 +868,71 @@ export class EffectsPanel {
   }
 
   private updateChainDisplay(): void {
-    // Clear existing chain display
-    this.chainContainer.innerHTML = ''
-
     const effects = this.chainManager.getEffectsChain()
     
-    // Update dropdown to "Custom" if there are effects and it's not set to a specific preset
-    if (effects.length > 0 && this.mainDropdown.value === 'none') {
-      this.mainDropdown.value = 'custom'
-    } else if (effects.length === 0 && this.mainDropdown.value === 'custom') {
-      this.mainDropdown.value = 'none'
-    }
-    
-    if (effects.length === 0) {
-      // Show add effect button when empty
-      const addButton = document.createElement('button')
-      addButton.className = 'add-effect-button empty-state'
-      addButton.innerHTML = `
-        <span class="add-effect-icon">+</span>
-        <span class="add-effect-text">Add Effect</span>
-      `
-      addButton.onclick = () => this.showAddEffectModal()
-      this.chainContainer.appendChild(addButton)
-      return
-    }
+    // Helper function to update a chain container
+    const updateContainer = (container: HTMLElement, dropdown: HTMLSelectElement) => {
+      // Clear existing chain display
+      container.innerHTML = ''
+      
+      // Update dropdown to "Custom" if there are effects and it's not set to a specific preset
+      if (effects.length > 0 && dropdown.value === 'none') {
+        dropdown.value = 'custom'
+      } else if (effects.length === 0 && dropdown.value === 'custom') {
+        dropdown.value = 'none'
+      }
+      
+      if (effects.length === 0) {
+        // Show add effect button when empty
+        const addButton = document.createElement('button')
+        addButton.className = 'add-effect-button empty-state'
+        addButton.innerHTML = `
+          <span class="add-effect-icon">+</span>
+          <span class="add-effect-text">Add Effect</span>
+        `
+        addButton.onclick = () => this.showAddEffectModal()
+        container.appendChild(addButton)
+        return
+      }
 
-    // Create effect cards
-    effects.forEach((effect, index) => {
-      const card = this.createEffectCard(effect, index)
-      this.chainContainer.appendChild(card)
-    })
+      // Create effect cards
+      effects.forEach((effect, index) => {
+        const card = this.createEffectCard(effect, index)
+        container.appendChild(card)
+      })
+      
+      // Create container for action buttons
+      const actionButtonsContainer = document.createElement('div')
+      actionButtonsContainer.className = 'chain-action-buttons'
+      
+      // Add a "+" button at the end of the chain
+      const addButton = document.createElement('button')
+      addButton.className = 'add-effect-button chain-end'
+      addButton.innerHTML = `<span class="add-effect-icon">+</span>`
+      addButton.title = 'Add Effect'
+      addButton.onclick = () => this.showAddEffectModal()
+      actionButtonsContainer.appendChild(addButton)
+      
+      // Add a reset button (only show if there are effects)
+      if (effects.length > 0) {
+        const resetButton = document.createElement('button')
+        resetButton.className = 'reset-effects-button chain-end'
+        resetButton.innerHTML = `<span class="reset-effect-icon">↻</span>`
+        resetButton.title = 'Clear All Effects'
+        resetButton.onclick = () => this.clearAllEffects()
+        actionButtonsContainer.appendChild(resetButton)
+      }
+      
+      container.appendChild(actionButtonsContainer)
+    }
     
-    // Add a "+" button at the end of the chain
-    const addButton = document.createElement('button')
-    addButton.className = 'add-effect-button chain-end'
-    addButton.innerHTML = `<span class="add-effect-icon">+</span>`
-    addButton.title = 'Add Effect'
-    addButton.onclick = () => this.showAddEffectModal()
-    this.chainContainer.appendChild(addButton)
+    // Update desktop container
+    updateContainer(this.chainContainer, this.mainDropdown)
+    
+    // Update mobile container if it exists
+    if (this.mobileChainContainer && this.mobileMainDropdown) {
+      updateContainer(this.mobileChainContainer, this.mobileMainDropdown)
+    }
   }
 
   private createEffectCard(effect: EffectInstance, index: number): HTMLElement {
@@ -949,80 +1059,123 @@ export class EffectsPanel {
   private updateParametersDisplay(): void {
     const selectedEffect = this.chainManager.getSelectedEffect()
     
-    // Clear existing parameters
-    this.parametersContainer.innerHTML = ''
+    // Helper function to update a parameters container
+    const updateContainer = (container: HTMLElement, idSuffix: string = '') => {
+      // Clear existing parameters
+      container.innerHTML = ''
 
-    if (!selectedEffect) {
-      const noSelectionMessage = document.createElement('div')
-      noSelectionMessage.className = 'no-effect-selected'
-      noSelectionMessage.textContent = 'Select an effect card to adjust its parameters'
-      this.parametersContainer.appendChild(noSelectionMessage)
-      return
-    }
-
-    const definition = this.chainManager.getEffectDefinition(selectedEffect.type)
-    if (!definition) return
-
-    // Create parameter header
-    const header = document.createElement('div')
-    header.className = 'parameters-header'
-    header.textContent = `${definition.name} Parameters`
-    this.parametersContainer.appendChild(header)
-
-    // Create parameter controls
-    Object.entries(definition.parameterDefinitions).forEach(([paramName, paramDef]) => {
-      const currentValue = selectedEffect.parameters[paramName] || paramDef.min
-
-      if (paramName === 'angle') {
-        console.log('Creating angle slider:', {
-          paramName,
-          currentValue,
-          paramDefMin: paramDef.min,
-          paramDefMax: paramDef.max,
-          effectParameters: selectedEffect.parameters
-        })
+      if (!selectedEffect) {
+        const noSelectionMessage = document.createElement('div')
+        noSelectionMessage.className = 'no-effect-selected'
+        noSelectionMessage.textContent = 'Select an effect card to adjust its parameters'
+        container.appendChild(noSelectionMessage)
+        return
       }
 
-      const controlGroup = document.createElement('div')
-      controlGroup.className = 'parameter-control'
+      const definition = this.chainManager.getEffectDefinition(selectedEffect.type)
+      if (!definition) return
 
-      const label = document.createElement('label')
-      label.textContent = `${paramDef.label}:`
-      label.setAttribute('for', `param-${selectedEffect.id}-${paramName}`)
+      // Create parameter header
+      const header = document.createElement('div')
+      header.className = 'parameters-header'
+      header.textContent = `${definition.name} Parameters`
+      container.appendChild(header)
 
-      const slider = document.createElement('input')
-      slider.type = 'range'
-      slider.id = `param-${selectedEffect.id}-${paramName}`
-      slider.min = paramDef.min.toString()
-      slider.max = paramDef.max.toString()
-      slider.step = paramDef.step.toString()
-      slider.value = currentValue.toString()
+      // Create parameter controls
+      Object.entries(definition.parameterDefinitions).forEach(([paramName, paramDef]) => {
+        const currentValue = selectedEffect.parameters[paramName] || paramDef.min
 
-      if (paramName === 'angle') {
-        console.log('Angle slider created with:', {
-          min: slider.min,
-          max: slider.max,
-          step: slider.step,
-          value: slider.value
+        if (paramName === 'angle') {
+          console.log('Creating angle slider:', {
+            paramName,
+            currentValue,
+            paramDefMin: paramDef.min,
+            paramDefMax: paramDef.max,
+            effectParameters: selectedEffect.parameters
+          })
+        }
+
+        const controlGroup = document.createElement('div')
+        controlGroup.className = 'parameter-control'
+
+        const label = document.createElement('label')
+        label.textContent = `${paramDef.label}:`
+        label.setAttribute('for', `param-${selectedEffect.id}-${paramName}${idSuffix}`)
+
+        const slider = document.createElement('input')
+        slider.type = 'range'
+        slider.id = `param-${selectedEffect.id}-${paramName}${idSuffix}`
+        slider.min = paramDef.min.toString()
+        slider.max = paramDef.max.toString()
+        slider.step = paramDef.step.toString()
+        slider.value = currentValue.toString()
+
+        if (paramName === 'angle') {
+          console.log('Angle slider created with:', {
+            min: slider.min,
+            max: slider.max,
+            step: slider.step,
+            value: slider.value
+          })
+        }
+
+        const valueDisplay = document.createElement('span')
+        valueDisplay.className = 'parameter-value'
+        valueDisplay.textContent = currentValue.toFixed(2)
+
+        // Update parameter on change
+        slider.addEventListener('input', () => {
+          const newValue = parseFloat(slider.value)
+          this.chainManager.updateEffectParameter(selectedEffect.id, paramName, newValue)
+          valueDisplay.textContent = newValue.toFixed(2)
+          
+          // Sync with other container's slider if it exists
+          const otherSliderId = idSuffix === '-mobile' ? 
+            `param-${selectedEffect.id}-${paramName}` : 
+            `param-${selectedEffect.id}-${paramName}-mobile`
+          const otherSlider = document.getElementById(otherSliderId) as HTMLInputElement
+          const otherValueDisplay = otherSlider?.parentElement?.querySelector('.parameter-value') as HTMLElement
+          if (otherSlider) {
+            otherSlider.value = newValue.toString()
+            if (otherValueDisplay) {
+              otherValueDisplay.textContent = newValue.toFixed(2)
+            }
+          }
         })
-      }
 
-      const valueDisplay = document.createElement('span')
-      valueDisplay.className = 'parameter-value'
-      valueDisplay.textContent = currentValue.toFixed(2)
-
-      // Update parameter on change
-      slider.addEventListener('input', () => {
-        const newValue = parseFloat(slider.value)
-        this.chainManager.updateEffectParameter(selectedEffect.id, paramName, newValue)
-        valueDisplay.textContent = newValue.toFixed(2)
+        controlGroup.appendChild(label)
+        controlGroup.appendChild(slider)
+        controlGroup.appendChild(valueDisplay)
+        container.appendChild(controlGroup)
       })
+    }
+    
+    // Update desktop container
+    updateContainer(this.parametersContainer)
+    
+    // Update mobile container if it exists
+    if (this.mobileParametersContainer) {
+      updateContainer(this.mobileParametersContainer, '-mobile')
+    }
+  }
 
-      controlGroup.appendChild(label)
-      controlGroup.appendChild(slider)
-      controlGroup.appendChild(valueDisplay)
-      this.parametersContainer.appendChild(controlGroup)
-    })
+  private clearAllEffects(): void {
+    // Clear all effects from the chain
+    this.chainManager.clearEffects()
+    
+    // Set dropdown to "None"
+    this.mainDropdown.value = 'none'
+    if (this.mobileMainDropdown) {
+      this.mobileMainDropdown.value = 'none'
+    }
+    
+    // Disable effects pipeline
+    this.updateEffectsEnabled(false)
+    
+    // Refresh the display
+    this.refreshChain()
+    
+    console.log('All effects cleared')
   }
 
   // Public methods for external control

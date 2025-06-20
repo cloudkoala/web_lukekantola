@@ -805,6 +805,27 @@ export class OrbitalCameraSystem {
     console.log(`From: ${JSON.stringify(animConfig.startPosition)} To: ${JSON.stringify(animConfig.endPosition)}`)
   }
   
+  public resetToAnimationEnd() {
+    // Get current model's animation configuration
+    const modelsConfig = this.modelsConfig()
+    const currentModel = modelsConfig.models[modelsConfig.currentModel]
+    if (!currentModel) {
+      console.error('No current model configuration found')
+      return
+    }
+    
+    const animConfig = currentModel.loadingAnimation
+    
+    // Set camera to animation end position
+    const endPosition = new THREE.Vector3(animConfig.endPosition.x, animConfig.endPosition.y, animConfig.endPosition.z)
+    const endTarget = new THREE.Vector3(animConfig.target.x, animConfig.target.y, animConfig.target.z)
+    
+    // Animate to the end position with a quick duration
+    this.animateToPosition(endPosition, endTarget, 1000) // 1 second animation
+    
+    console.log(`Resetting camera to animation end position for ${currentModel.displayName}`)
+    console.log(`End position: ${JSON.stringify(animConfig.endPosition)}, Target: ${JSON.stringify(animConfig.target)}`)
+  }
   
   private saveCameraPosition() {
     this.savedCameraPosition = this.camera.position.clone()

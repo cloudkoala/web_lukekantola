@@ -6,12 +6,110 @@
   box-sizing: border-box;
 }
 
+/* Mobile Camera Reset Button */
+.mobile-camera-reset {
+  position: fixed;
+  bottom: 120px; /* Initial position - will be updated by JavaScript */
+  left: 20px;
+  z-index: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease, bottom 0.3s ease; /* Smooth transitions */
+}
+
+.camera-reset-button {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  color: #00ff00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-family: 'Space Mono', monospace;
+}
+
+.camera-reset-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.camera-reset-button svg {
+  width: 24px;
+  height: 24px;
+  stroke: #00ff00;
+  fill: none;
+}
+
+.camera-menu {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+}
+
+.camera-menu.show {
+  display: flex;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.camera-menu-option {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff00;
+  border-radius: 6px;
+  color: #00ff00;
+  padding: 8px 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.camera-menu-option:hover {
+  background: rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+}
+
 body, html {
   width: 100%;
   height: 100%;
   background: #151515;
   overflow: hidden;
   font-family: 'Orbitron', 'Courier New', monospace;
+}
+
+/* Input-specific layout classes */
+.touch-layout {
+  /* Touch-specific base styles will be applied through media queries */
+  -webkit-touch-callout: none; /* Disable iOS callout menu */
+  -webkit-user-select: none; /* Prevent text selection on touch */
+  user-select: none;
+}
+
+.mouse-layout {
+  /* Mouse-specific base styles will be applied through media queries */
+  user-select: text; /* Allow text selection with mouse */
+}
+
+.hybrid-layout {
+  /* Hybrid device styles will use touch-safe defaults */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #canvas {
@@ -62,10 +160,10 @@ body, html {
 
 .title-header h1 {
   color: white;
-  font-size: 1.45rem;
+  font-size: 1.1rem; /* Mobile-first: smaller font */
   font-weight: 700;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  letter-spacing: 4px;
+  letter-spacing: 2px; /* Mobile-first: tighter spacing */
   margin: 0;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
   text-transform: uppercase;
@@ -498,8 +596,7 @@ body, html {
 }
 
 .sphere-toggle-control,
-.sphere-radius-control,
-.sphere-detail-control {
+.sphere-radius-control {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -600,8 +697,7 @@ body, html {
   text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
 }
 
-.sphere-radius-control input[type="range"],
-.sphere-detail-control input[type="range"] {
+.sphere-radius-control input[type="range"] {
   width: 100px;
   height: 2px;
   background: rgba(0, 128, 0, 0.6);
@@ -610,8 +706,7 @@ body, html {
   appearance: none;
 }
 
-.sphere-radius-control input[type="range"]::-webkit-slider-thumb,
-.sphere-detail-control input[type="range"]::-webkit-slider-thumb {
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 12px;
   height: 12px;
@@ -622,15 +717,13 @@ body, html {
   transition: all 0.2s ease;
 }
 
-.sphere-radius-control input[type="range"]::-webkit-slider-thumb:hover,
-.sphere-detail-control input[type="range"]::-webkit-slider-thumb:hover {
+.sphere-radius-control input[type="range"]::-webkit-slider-thumb:hover {
   background: rgba(0, 255, 0, 0.5);
   border-color: rgba(0, 255, 0, 0.5);
   transform: scale(1.2);
 }
 
-.sphere-radius-control span,
-.sphere-detail-control span {
+.sphere-radius-control span {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.6rem;
   font-family: monospace;
@@ -1212,7 +1305,7 @@ body, html {
   bottom: 80px;
   background: transparent;
   color: white;
-  padding: 40px;
+  padding: 20px 20px 240px 20px; /* Mobile-first: mobile padding */
   overflow-x: hidden;
   overflow-y: auto;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
@@ -1337,7 +1430,7 @@ body, html {
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 20px;
+  padding: 15px; /* Mobile-first: smaller padding */
   margin-bottom: 30px;
 }
 
@@ -1643,8 +1736,9 @@ body, html {
 
 .project-item {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 15px;
+  grid-template-columns: 1fr; /* Mobile-first: single column */
+  gap: 5px; /* Mobile-first: smaller gap */
+  text-align: left; /* Mobile-first: left aligned */
   margin-bottom: 8px;
   padding: 5px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -1680,8 +1774,9 @@ body, html {
 
 .project-desc {
   color: rgba(255, 255, 255, 0.7);
-  font-style: italic;
-  text-align: right;
+  font-style: normal; /* Mobile-first: normal style */
+  text-align: left; /* Mobile-first: left aligned */
+  opacity: 0.8; /* Mobile-first: mobile opacity */
 }
 
 /* Project Detail Page Styles */
@@ -2057,7 +2152,7 @@ body, html {
 /* Home page navigation indicators */
 .home-navigation {
   position: fixed;
-  bottom: 20px;
+  bottom: 15px; /* Mobile-first: closer to bottom */
   left: 0;
   right: 0;
   display: none;
@@ -2067,6 +2162,7 @@ body, html {
   pointer-events: none;
   font-family: 'Space Mono', monospace;
   padding: 0 20px;
+  gap: 20px; /* Mobile-first: smaller gap */
 }
 
 .nav-indicator {
@@ -2075,7 +2171,7 @@ body, html {
   font-size: 0.9rem;
   font-weight: 400;
   letter-spacing: 1px;
-  padding: 8px 16px;
+  padding: 6px 10px; /* Mobile-first: smaller padding */
   border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 4px;
   background: rgba(0, 255, 0, 0.1);
@@ -2099,19 +2195,19 @@ body, html {
   color: #00ff00;
   font-weight: 400;
   text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
-  font-size: 0.9rem;
+  font-size: 0.9rem; /* Mobile-first: keep as is */
 }
 
 .nav-label {
   color: #00ff00;
-  font-size: 0.9rem;
+  font-size: 0.7rem; /* Mobile-first: smaller font */
   letter-spacing: 1px;
 }
 
 /* Subpage navigation at bottom (similar to home navigation) */
 .subpage-navigation {
   position: fixed;
-  bottom: 20px;
+  bottom: 15px; /* Mobile-first: closer to bottom */
   left: 0;
   right: 0;
   display: flex;
@@ -2133,8 +2229,8 @@ body, html {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 60px;
-  padding: 20px 0;
+  margin-top: 40px; /* Mobile-first: smaller margin */
+  padding: 15px 0; /* Mobile-first: smaller padding */
   border-top: 1px solid rgba(0, 255, 0, 0.2);
   font-family: 'Space Mono', monospace;
 }
@@ -2142,10 +2238,10 @@ body, html {
 .nav-link {
   color: #00ff00;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Mobile-first: smaller font */
   font-weight: 400;
   letter-spacing: 1px;
-  padding: 8px 16px;
+  padding: 6px 12px; /* Mobile-first: smaller padding */
   border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 4px;
   background: rgba(0, 255, 0, 0.1);
@@ -2176,61 +2272,648 @@ body, html {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Responsive adjustments for content */
-@media (max-width: 768px) {
+/* Desktop enhancements - min-width approach */
+@media (min-width: 769px) {
   .project-item {
-    grid-template-columns: 1fr;
-    gap: 5px;
-    text-align: left;
+    grid-template-columns: auto 1fr auto; /* Desktop: three column layout */
+    gap: 15px; /* Desktop: larger gap */
+    text-align: initial; /* Desktop: reset text alignment */
   }
   
   .project-desc {
-    text-align: left;
-    font-style: normal;
-    opacity: 0.8;
-  }
-  
-  .interest-listing {
-    gap: 10px;
+    text-align: right; /* Desktop: right aligned */
+    font-style: italic; /* Desktop: italic style */
+    opacity: 1; /* Desktop: full opacity */
   }
   
   .terminal-section {
-    padding: 15px;
+    padding: 20px; /* Desktop: larger padding */
   }
   
   #content-area {
-    padding: 20px 20px 240px 20px;
+    padding: 40px; /* Desktop: larger padding */
   }
   
   .page-navigation {
-    margin-top: 40px;
-    padding: 15px 0;
+    margin-top: 60px; /* Desktop: larger margin */
+    padding: 20px 0; /* Desktop: larger padding */
   }
   
   .nav-link {
-    font-size: 0.8rem;
-    padding: 6px 12px;
+    font-size: 0.9rem; /* Desktop: larger font */
+    padding: 8px 16px; /* Desktop: larger padding */
   }
   
   .home-navigation {
-    gap: 20px;
-    bottom: 15px;
+    gap: initial; /* Desktop: reset gap */
+    bottom: 20px; /* Desktop: further from bottom */
   }
   
   .subpage-navigation {
-    bottom: 15px;
+    bottom: 20px; /* Desktop: further from bottom */
   }
   
   .nav-indicator {
-    padding: 6px 10px;
+    padding: 8px 16px; /* Desktop: larger padding */
   }
   
   .nav-key {
-    font-size: 0.9rem;
+    font-size: 0.9rem; /* Desktop: keep same size */
   }
   
   .nav-label {
-    font-size: 0.7rem;
+    font-size: 0.9rem; /* Desktop: larger font */
+  }
+  
+  .title-header h1 {
+    font-size: 1.45rem; /* Desktop: larger font */
+    letter-spacing: 4px; /* Desktop: wider spacing */
+  }
+  
+  /* Desktop project card enhancements */
+  .projects-grid {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Desktop: responsive columns */
+    gap: 30px; /* Desktop: larger gap */
+    padding: 0; /* Desktop: no side padding */
+  }
+  
+  .project-card-image {
+    height: 200px; /* Desktop: larger height */
+  }
+  
+  .project-card-content {
+    padding: 25px; /* Desktop: larger padding */
+  }
+  
+  .project-card-title {
+    font-size: 1.4rem; /* Desktop: larger font */
+  }
+  
+  .project-card-description {
+    font-size: 0.9rem; /* Desktop: larger font */
+  }
+  
+  .project-read-more {
+    padding: 10px 20px; /* Desktop: larger padding */
+    font-size: 0.9rem; /* Desktop: larger font */
+  }
+  
+  /* Desktop form and control enhancements */
+  .form-field {
+    margin-bottom: 20px; /* Desktop: larger margin */
+  }
+  
+  .form-field input,
+  .form-field textarea {
+    padding: 12px 16px; /* Desktop: larger padding */
+    font-size: 0.9rem; /* Desktop: larger font */
+  }
+  
+  .terminal-submit {
+    padding: 15px 30px; /* Desktop: larger padding */
+    font-size: 1rem; /* Desktop: larger font */
+  }
+  
+  .navigation-help {
+    bottom: 85px; /* Desktop: further from bottom */
+    left: 20px; /* Desktop: further from edge */
+  }
+  
+  .navigation-help span {
+    font-size: 0.6rem; /* Desktop: visible text */
+  }
+}
+
+/* Mobile/Desktop visibility classes */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+/* Mobile Bottom Sheet Styles */
+.mobile-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 20, 0, 0.95);
+  border-top: 2px solid rgba(0, 255, 0, 0.4);
+  border-radius: 20px 20px 0 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  transform: translateY(calc(100% - 45px)); /* Show only thinner handle initially */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 80vh;
+  font-family: 'Space Mono', monospace;
+}
+
+.mobile-bottom-sheet.expanded {
+  transform: translateY(0);
+}
+
+.bottom-sheet-handle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 20px; /* Reduced padding for thinner handle */
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.handle-bar {
+  width: 40px;
+  height: 4px;
+  background: rgba(0, 255, 0, 0.6);
+  border-radius: 2px;
+  margin-bottom: 6px; /* Reduced margin for thinner handle */
+  transition: background 0.2s ease;
+}
+
+.bottom-sheet-handle:active .handle-bar {
+  background: rgba(0, 255, 0, 0.8);
+}
+
+.handle-text {
+  color: white; /* Changed to white like esc-hint */
+  font-size: 0.6rem; /* Made much smaller */
+  font-weight: 400; /* Reduced weight */
+  letter-spacing: 0.5px; /* Reduced spacing */
+  text-transform: uppercase;
+  opacity: 0.6; /* Applied same opacity as esc-hint */
+  text-shadow: none; /* Removed glow effect */
+}
+
+.bottom-sheet-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 45px);
+}
+
+.bottom-sheet-section {
+  margin-bottom: 15px; /* Reduced from 30px */
+}
+
+.mobile-dropdown-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 10px; /* Reduced from 20px */
+}
+
+.mobile-model-selector,
+.mobile-quality-selector {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-model-selector select,
+.mobile-quality-selector select {
+  background: rgba(0, 40, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 6px;
+  padding: 12px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  min-height: 44px;
+}
+
+/* Mobile Control Styles */
+.mobile-point-size-control,
+.mobile-sphere-radius-control,
+.mobile-focal-length-control,
+.mobile-fog-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px; /* Reduced from 20px */
+  padding: 10px; /* Reduced from 15px */
+  background: rgba(0, 30, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 8px;
+}
+
+.mobile-point-size-control label,
+.mobile-sphere-radius-control label,
+.mobile-focal-length-control label,
+.mobile-fog-control label {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.mobile-point-size-control input[type="range"],
+.mobile-sphere-radius-control input[type="range"],
+.mobile-focal-length-control input[type="range"],
+.mobile-fog-control input[type="range"] {
+  flex: 1;
+  margin: 0 15px;
+  height: 6px;
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.mobile-point-size-control input[type="range"]::-webkit-slider-thumb,
+.mobile-sphere-radius-control input[type="range"]::-webkit-slider-thumb,
+.mobile-focal-length-control input[type="range"]::-webkit-slider-thumb,
+.mobile-fog-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #00ff00;
+  border: 2px solid rgba(0, 100, 0, 0.8);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.4);
+}
+
+.mobile-point-size-control span,
+.mobile-sphere-radius-control span,
+.mobile-focal-length-control span,
+.mobile-fog-control span {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 50px;
+  text-align: right;
+}
+
+.mobile-sphere-controls {
+  background: rgba(0, 30, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px; /* Reduced from 15px */
+  margin-bottom: 10px; /* Reduced from 20px */
+}
+
+.mobile-sphere-toggle-control {
+  display: grid;
+  grid-template-columns: auto auto auto auto;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 10px; /* Reduced from 15px */
+}
+
+.mobile-sphere-toggle-control label {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+/* Mobile Effects Panel */
+.mobile-effects-panel {
+  background: rgba(0, 30, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 8px;
+  padding: 10px; /* Reduced from 15px */
+}
+
+.mobile-effects-panel-header {
+  margin-bottom: 10px; /* Reduced from 15px */
+}
+
+.mobile-effects-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.mobile-effects-panel-title-row label {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0; /* Don't shrink the label */
+}
+
+.mobile-effects-main-dropdown {
+  flex: 1;
+  min-width: 0; /* Allow flex item to shrink below content size */
+  max-width: 100%;
+  background: rgba(0, 40, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 6px;
+  padding: 8px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-save-preset-button {
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 6px;
+  padding: 8px;
+  color: #00ff00;
+  cursor: pointer;
+  font-size: 0.75rem; /* 25% smaller */
+  min-height: 44px;
+  width: 44px; /* Fixed width instead of min-width */
+  flex-shrink: 0; /* Don't shrink */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-effects-panel-content {
+  padding: 10px;
+  background: rgba(0, 40, 0, 0.4);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.mobile-effects-chain-container {
+  margin-bottom: 10px;
+}
+
+.mobile-effects-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-effect-parameters-container {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(0, 30, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px;
+}
+
+.mobile-effect-parameters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-effect-parameters label {
+  color: #00ff00;
+  font-size: 0.8rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.mobile-effect-parameters .parameter-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 8px;
+  background: rgba(0, 30, 0, 0.4);
+  border: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px;
+}
+
+.mobile-effect-parameters .parameter-value {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: 'Space Mono', monospace;
+  min-width: 50px;
+  text-align: right;
+}
+
+.mobile-effect-parameters .parameters-header {
+  color: #00ff00;
+  font-size: 0.9rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.mobile-effect-parameters .no-effect-selected {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-family: 'Space Mono', monospace;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Show mobile UI, hide desktop UI */
+  .mobile-only {
+    display: block;
+  }
+  
+  .desktop-only {
+    display: none;
+  }
+  
+  /* Hide home navigation buttons on mobile */
+  .home-navigation {
+    display: none !important;
+  }
+  
+  /* Touch-specific: larger touch targets */
+  .touch-layout button,
+  .touch-layout .nav-link,
+  .touch-layout .nav-indicator,
+  .touch-layout .project-read-more,
+  .touch-layout .terminal-submit,
+  .touch-layout .hamburger-button,
+  .touch-layout .add-effect-button,
+  .touch-layout .reset-effects-button {
+    min-height: 44px; /* Apple recommended minimum */
+    min-width: 44px;
+  }
+
+  /* Make mobile add effect buttons square */
+  .touch-layout .add-effect-button.chain-end {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-top: 5px;
+  }
+
+  /* Make mobile reset effect buttons square */
+  .touch-layout .reset-effects-button.chain-end {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-top: 5px;
+  }
+  
+  /* Touch-specific: larger form inputs */
+  .touch-layout .form-field input,
+  .touch-layout .form-field textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 14px 16px;
+  }
+
+  /* Mobile add effect modal */
+  .touch-layout .add-effect-dropdown.mobile-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    margin-top: 0;
+  }
+
+  .touch-layout .add-effect-dropdown.mobile-modal .add-effect-dropdown-content {
+    max-width: 90vw;
+    max-height: 80vh;
+    width: 100%;
+    border-radius: 12px;
+    padding: 20px;
+  }
+
+  /* Mobile-friendly grid layout */
+  .touch-layout .add-effect-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+
+  /* Mobile-friendly touch targets */
+  .touch-layout .add-effect-option {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Mobile search input */
+  .touch-layout .add-effect-search {
+    min-height: 44px;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border-radius: 8px;
+  }
+
+  /* Mobile modal header */
+  .mobile-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+  }
+
+  .mobile-modal-title {
+    color: #00ff00;
+    font-family: 'Space Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .mobile-modal-close {
+    background: rgba(255, 80, 80, 0.1);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    border-radius: 50%;
+    color: rgba(255, 80, 80, 0.8);
+    font-size: 1.5rem;
+    font-weight: bold;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .mobile-modal-close:hover {
+    background: rgba(255, 80, 80, 0.2);
+    border-color: rgba(255, 80, 80, 0.6);
+    color: rgba(255, 80, 80, 1);
+  }
+  
+  /* Touch-specific: enhanced control visibility */
+  .touch-layout .settings-button {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+  
+  /* Touch-specific: better controls positioning */
+  .touch-layout .controls-container {
+    top: 80px; /* Closer to top for thumb reach */
+    left: 15px; /* Closer to edge */
+    gap: 12px;
+  }
+  
+  .touch-layout .settings-panel {
+    max-height: 60vh; /* Prevent panel from being too tall */
+    overflow-y: auto;
+  }
+  
+  /* Touch-specific: enhanced hamburger menu */
+  .touch-layout .hamburger-button {
+    padding: 12px;
+    width: 48px;
+    height: 48px;
+  }
+  
+  .touch-layout .hamburger-dropdown {
+    padding: 15px 0;
+  }
+  
+  .touch-layout .hamburger-dropdown a {
+    padding: 15px 20px;
+    font-size: 1rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Touch-specific: no hover states */
+  .touch-layout .nav-link:hover,
+  .touch-layout .nav-indicator:hover,
+  .touch-layout .project-read-more:hover,
+  .touch-layout .hamburger-button:hover {
+    transform: none;
+    box-shadow: none;
+    background: none;
+  }
+}
+
+/* Mouse device optimizations */
+@media (hover: hover) and (pointer: fine) {
+  /* Mouse-specific: enhanced hover effects */
+  .mouse-layout .nav-link:hover,
+  .mouse-layout .nav-indicator:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 255, 0, 0.2);
+  }
+  
+  /* Mouse-specific: smaller precise targets are okay */
+  .mouse-layout button {
+    min-height: 32px;
+  }
+  
+  /* Mouse-specific: show tooltips and hover details */
+  .mouse-layout .tooltip {
+    display: block;
   }
 }
 
@@ -2293,14 +2976,14 @@ body, html {
 }
 
 .form-field {
-  margin-bottom: 20px;
+  margin-bottom: 15px; /* Mobile-first: smaller margin */
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .form-field label {
-  color: white;
+  color: #00ff00;
   font-size: 0.9rem;
   font-weight: 400;
   letter-spacing: 1px;
@@ -2313,10 +2996,10 @@ body, html {
   background: rgba(0, 20, 0, 0.6);
   border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 4px;
-  padding: 12px 16px;
+  padding: 10px 12px; /* Mobile-first: smaller padding */
   color: #00ff00;
   font-family: 'Space Mono', monospace;
-  font-size: 0.9rem;
+  font-size: 0.85rem; /* Mobile-first: smaller font */
   outline: none;
   transition: all 0.3s ease;
   resize: vertical;
@@ -2340,10 +3023,10 @@ body, html {
   background: rgba(0, 20, 0, 0.8);
   border: 2px solid rgba(0, 255, 0, 0.4);
   border-radius: 6px;
-  padding: 15px 30px;
+  padding: 12px 24px; /* Mobile-first: smaller padding */
   color: whitesmoke;
   font-family: 'Space Mono', monospace;
-  font-size: 1rem;
+  font-size: 0.9rem; /* Mobile-first: smaller font */
   font-weight: 700;
   letter-spacing: 1px;
   cursor: pointer;
@@ -2393,10 +3076,11 @@ body, html {
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 30px;
+  grid-template-columns: 1fr; /* Mobile-first: single column */
+  gap: 20px; /* Mobile-first: smaller gap */
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 10px; /* Mobile-first: side padding */
 }
 
 .project-card {
@@ -2419,7 +3103,7 @@ body, html {
 
 .project-card-image {
   width: 100%;
-  height: 200px;
+  height: 150px; /* Mobile-first: smaller height */
   background: rgba(0, 40, 0, 0.6);
   border-bottom: 1px solid rgba(0, 255, 0, 0.2);
   display: flex;
@@ -2434,7 +3118,7 @@ body, html {
 }
 
 .project-card-content {
-  padding: 25px;
+  padding: 20px; /* Mobile-first: smaller padding */
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -2461,7 +3145,7 @@ body, html {
 
 .project-card-title {
   color: #00ff00;
-  font-size: 1.4rem;
+  font-size: 1.2rem; /* Mobile-first: smaller font */
   font-weight: 700;
   margin: 0 0 15px 0;
   text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
@@ -2470,7 +3154,7 @@ body, html {
 
 .project-card-description {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 0.9rem;
+  font-size: 0.85rem; /* Mobile-first: smaller font */
   line-height: 1.6;
   margin-bottom: 20px;
   flex: 1;
@@ -2508,10 +3192,10 @@ body, html {
   background: rgba(0, 20, 0, 0.8);
   border: 2px solid rgba(0, 255, 0, 0.4);
   border-radius: 6px;
-  padding: 10px 20px;
+  padding: 8px 16px; /* Mobile-first: smaller padding */
   color: #00ff00;
   font-family: 'Space Mono', monospace;
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* Mobile-first: smaller font */
   font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -2545,89 +3229,12 @@ body, html {
   font-family: 'Space Mono', monospace;
 }
 
-/* Responsive adjustments for project cards */
-@media (max-width: 768px) {
-  .projects-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    padding: 0 10px;
-  }
-  
-  .project-card-image {
-    height: 150px;
-  }
-  
-  .project-card-content {
-    padding: 20px;
-  }
-  
-  .project-card-title {
-    font-size: 1.2rem;
-  }
-  
-  .project-card-description {
-    font-size: 0.85rem;
-  }
-  
-  .project-read-more {
-    padding: 8px 16px;
-    font-size: 0.8rem;
-  }
-  
-  /* Custom video controls mobile adjustments */
-  .play-button {
-    width: 60px;
-    height: 60px;
-  }
-  
-  .fullscreen-box {
-    width: 45px;
-    height: 45px;
-  }
-  
-  .corner-top-left,
-  .corner-top-right,
-  .corner-bottom-left,
-  .corner-bottom-right {
-    font-size: 1rem;
-  }
-  
-  .fullscreen-box .play-arrow {
-    font-size: 1.4rem;
-  }
-  
-  .normal-play {
-    width: 45px;
-    height: 45px;
-  }
-  
-  .normal-play .play-arrow {
-    font-size: 1.3rem;
-  }
-  
-  .tooltip-text {
-    font-size: 0.7rem;
-    padding: 6px 10px;
-    left: calc(100% + 10px);
-  }
-  
-  .terminal-section.reel-section h3 {
-    top: 60px;
-    padding: 15px 20px;
-    font-size: 0.9rem;
-  }
-  
-  .headshot-image {
-    width: 160px;
-    height: 160px;
-  }
-}
 
 /* Navigation Help Text */
 .navigation-help {
   position: fixed;
-  bottom: 85px;
-  left: 20px;
+  bottom: 80px; /* Mobile-first: closer to bottom */
+  left: 15px; /* Mobile-first: closer to edge */
   z-index: 998;
   background: transparent;
   padding: 0;
@@ -2642,57 +3249,13 @@ body, html {
 
 .navigation-help span {
   color: rgba(255, 255, 255, 0.8);
-  font-size: 0.6rem;
+  font-size: 0rem; /* Mobile-first: hidden on mobile */
   font-weight: 800;
   letter-spacing: 0;
   text-transform: none;
   line-height: 1.2;
 }
 
-/* Responsive form adjustments */
-@media (max-width: 768px) {
-  .title-header h1 {
-    font-size: 1.1rem;
-    letter-spacing: 2px;
-  }
-  
-  .model-selector-container {
-    top: 70px;
-  }
-  
-  .point-size-control {
-    top: 110px;
-  }
-  
-  .point-size-control input[type="range"]::-webkit-slider-thumb {
-    width: 16px;
-    height: 16px;
-  }
-  
-  .form-field {
-    margin-bottom: 15px;
-  }
-  
-  .form-field input,
-  .form-field textarea {
-    padding: 10px 12px;
-    font-size: 0.85rem;
-  }
-  
-  .terminal-submit {
-    padding: 12px 24px;
-    font-size: 0.9rem;
-  }
-  
-  .navigation-help {
-    bottom: 80px;
-    left: 15px;
-  }
-  
-  .navigation-help span {
-    font-size: 0rem;
-  }
-}
 
 /* ASCII Dithering Controls */
 .ascii-dithering-controls {
@@ -3499,6 +4062,49 @@ body, html {
 }
 
 .add-effect-button.chain-end {
+  padding: 4px;
+  min-height: 17px;
+  width: 17px;
+  height: 17px;
+  border-radius: 3px;
+  align-self: center;
+  margin-top: 2px;
+}
+
+/* Chain action buttons container */
+.chain-action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 5px;
+}
+
+/* Reset effects button */
+.reset-effects-button {
+  background: rgba(255, 80, 80, 0.1);
+  border: 2px dashed rgba(255, 80, 80, 0.4);
+  border-radius: 6px;
+  color: rgba(255, 80, 80, 0.8);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reset-effects-button:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: rgba(255, 80, 80, 0.6);
+  color: rgba(255, 80, 80, 1);
+  transform: translateY(-1px);
+}
+
+.reset-effects-button.chain-end {
   padding: 4px;
   min-height: 17px;
   width: 17px;
