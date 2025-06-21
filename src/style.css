@@ -9,7 +9,7 @@
 /* Mobile Camera Reset Button */
 .mobile-camera-reset {
   position: fixed;
-  bottom: 12px; /* Fixed position since bottom sheet is hidden */
+  bottom: 12px;
   left: 12px;
   z-index: 800;
   display: flex;
@@ -17,7 +17,6 @@
   gap: 10px;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.3s ease; /* Removed bottom transition to prevent positioning conflicts */ /* Smooth transitions */
 }
 
 .camera-reset-button {
@@ -99,12 +98,11 @@
 /* Mobile Effects Button */
 .mobile-effects-button {
   position: fixed;
-  bottom: 12px; /* Fixed position since bottom sheet is hidden */
-  left: 68px; /* 12px margin + 44px camera button + 12px gap = 68px */
+  bottom: 12px;
+  left: 68px;
   z-index: 800;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.3s ease; /* Removed bottom transition to prevent positioning conflicts */
 }
 
 .effects-button {
@@ -151,12 +149,11 @@
 /* Mobile Settings Button - Hidden on desktop */
 .mobile-settings-button {
   position: fixed;
-  bottom: 12px; /* Fixed position since bottom sheet is hidden */
-  left: 124px; /* 12px + 44px camera + 12px + 44px effects + 12px gap = 124px */
+  bottom: 12px;
+  left: 124px;
   z-index: 800;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.3s ease; /* Removed bottom transition to prevent positioning conflicts */
   display: none; /* Hidden on desktop by default */
 }
 
@@ -242,6 +239,7 @@
   transition: transform 0.3s ease;
   display: block;
   visibility: hidden; /* Ensure hidden by default */
+  overflow: visible;
 }
 
 .mobile-horizontal-effects-panel.show {
@@ -253,7 +251,7 @@
   padding: 10px;
   height: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
 }
 
 .horizontal-effects-chain {
@@ -262,6 +260,7 @@
   height: 100%;
   align-items: center;
   min-width: min-content;
+  overflow: visible;
 }
 
 /* Horizontal effect cards */
@@ -276,7 +275,7 @@
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: none !important;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -288,6 +287,9 @@
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: element;
 }
 
 .horizontal-effect-card:hover {
@@ -527,17 +529,22 @@
 }
 
 .horizontal-effect-card.drag-ready {
-  transform: scale(1.05);
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
-  z-index: 999;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5) !important;
+  z-index: 999 !important;
+  transition: none !important;
+  transform: none !important;
 }
 
 .horizontal-effect-card.dragging {
   opacity: 0.5;
-  transform: rotate(2deg);
   z-index: 1000;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  transition: none; /* Disable transition during drag for immediate response */
+  transition: none !important;
+}
+
+.horizontal-effect-card.drop-target {
+  border: 2px dashed #00ff00 !important;
+  background: rgba(0, 255, 0, 0.1) !important;
 }
 
 /* Mobile Horizontal Effects Controls */
@@ -826,15 +833,14 @@
 /* Mobile Preset Selector */
 .mobile-preset-selector {
   position: fixed;
-  bottom: 12px; /* Default position, will be updated dynamically */
-  right: 80px; /* To the right of settings button */
+  bottom: 12px;
+  right: 80px;
   z-index: 800;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   opacity: 1;
   pointer-events: auto;
-  transition: opacity 0.3s ease, bottom 0.3s ease;
 }
 
 .preset-label {

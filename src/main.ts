@@ -886,6 +886,313 @@ function setupMobileEffectsButton() {
     })
   }
   
+  // Clean mobile drag system
+  function setupMobileDrag(card: HTMLElement, effect: any) {
+    let longPressTimer: number | null = null
+    let isDragging = false
+    let startX = 0
+    let startY = 0
+    let dragClone: HTMLElement | null = null
+    
+    card.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0]
+      startX = touch.clientX
+      startY = touch.clientY
+      
+      // Start long press detection
+      longPressTimer = setTimeout(() => {
+        startDrag(touch.clientX, touch.clientY)
+      }, 150)
+    })
+    
+    card.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0]
+      const deltaX = Math.abs(touch.clientX - startX)
+      const deltaY = Math.abs(touch.clientY - startY)
+      
+      // Cancel long press if user moves > 10px (scrolling)
+      if (!isDragging && (deltaX > 10 || deltaY > 10)) {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer)
+          longPressTimer = null
+        }
+        return
+      }
+      
+      // Update drag position if dragging
+      if (isDragging && dragClone) {
+        e.preventDefault()
+        updateDragPosition(touch.clientX, touch.clientY)
+        checkDropZones(touch.clientX, touch.clientY)
+      }
+    })
+    
+    card.addEventListener('touchend', (e) => {
+      // Clean up long press timer
+      if (longPressTimer) {
+        clearTimeout(longPressTimer)
+        longPressTimer = null
+      }
+      
+      if (isDragging) {
+        const touch = e.changedTouches[0]
+        handleDrop(touch.clientX, touch.clientY)
+      } else {
+        // Quick tap - select effect
+        selectEffect(effect.id)
+      }
+    })
+    
+    function startDrag(x: number, y: number) {
+      isDragging = true
+      
+      // Create visual clone
+      dragClone = card.cloneNode(true) as HTMLElement
+      dragClone.style.position = 'fixed'
+      dragClone.style.pointerEvents = 'none'
+      dragClone.style.zIndex = '9999'
+      dragClone.style.opacity = '0.8'
+      dragClone.style.transform = 'rotate(5deg)'
+      dragClone.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.5)'
+      
+      // Position clone at touch point
+      const rect = card.getBoundingClientRect()
+      dragClone.style.width = rect.width + 'px'
+      dragClone.style.height = rect.height + 'px'
+      dragClone.style.left = (x - rect.width/2) + 'px'
+      dragClone.style.top = (y - rect.height/2) + 'px'
+      
+      document.body.appendChild(dragClone)
+      
+      // Hide original card
+      card.style.opacity = '0.3'
+      
+      // Show trash icon
+      showTrashIconPermanent()
+      
+      // Haptic feedback
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+    }
+    
+    function updateDragPosition(x: number, y: number) {
+      if (!dragClone) return
+      
+      const rect = dragClone.getBoundingClientRect()
+      dragClone.style.left = (x - rect.width/2) + 'px'
+      dragClone.style.top = (y - rect.height/2) + 'px'
+    }
+    
+    function checkDropZones(x: number, y: number) {
+      // Check trash icon
+      const trashIcon = document.getElementById('mobile-trash-icon')
+      if (trashIcon) {
+        const trashRect = trashIcon.getBoundingClientRect()
+        const isOverTrash = (
+          x >= trashRect.left && x <= trashRect.right &&
+          y >= trashRect.top && y <= trashRect.bottom
+        )
+        
+        if (isOverTrash) {
+          trashIcon.classList.add('drag-over')
+          const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+          if (trashButton) {
+            trashButton.style.backgroundColor = 'rgba(255, 0, 0, 0.8)'
+          }
+        } else {
+          trashIcon.classList.remove('drag-over')
+          const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+          if (trashButton) {
+            trashButton.style.backgroundColor = ''
+          }
+        }
+      }
+      
+      // Check reorder zones (between other cards)
+      const effectCards = horizontalEffectsChain.querySelectorAll('.horizontal-effect-card')
+      
+      // Clear any existing insertion indicators
+      document.querySelectorAll('.insertion-indicator').forEach(indicator => {
+        indicator.remove()
+      })
+      
+      let insertionIndex = -1
+      let insertionX = -1
+      
+      effectCards.forEach((otherCard, index) => {
+        if (otherCard === card) return
+        
+        const rect = otherCard.getBoundingClientRect()
+        const isOver = (
+          x >= rect.left && x <= rect.right &&
+          y >= rect.top && y <= rect.bottom
+        )
+        
+        if (isOver) {
+          otherCard.classList.add('drop-target')
+          insertionIndex = index
+          
+          // Determine if we're moving left or right
+          const currentIndex = parseInt(card.dataset.effectIndex || '0')
+          const targetIndex = index
+          
+          if (currentIndex < targetIndex) {
+            // Moving right (downstream) - bar goes after the target card
+            // Position exactly between target card and next card
+            const nextCard = effectCards[index + 1] as HTMLElement
+            if (nextCard && nextCard !== card) {
+              const nextRect = nextCard.getBoundingClientRect()
+              insertionX = rect.right + ((nextRect.left - rect.right) / 2)
+            } else {
+              insertionX = rect.right + 5 // fallback if no next card
+            }
+          } else {
+            // Moving left (upstream) - bar goes before the target card
+            // Position exactly between previous card and target card
+            const prevCard = effectCards[index - 1] as HTMLElement
+            if (prevCard && prevCard !== card) {
+              const prevRect = prevCard.getBoundingClientRect()
+              insertionX = prevRect.right + ((rect.left - prevRect.right) / 2)
+            } else {
+              insertionX = rect.left - 5 // fallback if no previous card
+            }
+          }
+        } else {
+          otherCard.classList.remove('drop-target')
+        }
+      })
+      
+      // Create insertion indicator if we have a valid position
+      if (insertionIndex >= 0 && insertionX > 0) {
+        const panelRect = horizontalEffectsChain.getBoundingClientRect()
+        
+        const indicator = document.createElement('div')
+        indicator.className = 'insertion-indicator'
+        indicator.style.position = 'fixed'
+        indicator.style.left = insertionX + 'px'
+        indicator.style.top = panelRect.top + 'px'
+        indicator.style.width = '2px'
+        indicator.style.height = panelRect.height + 'px'
+        indicator.style.backgroundColor = '#00ff00'
+        indicator.style.zIndex = '9998'
+        indicator.style.pointerEvents = 'none'
+        indicator.style.borderRadius = '2px'
+        indicator.style.boxShadow = '0 0 10px rgba(0, 255, 0, 0.8)'
+        
+        document.body.appendChild(indicator)
+      }
+    }
+    
+    function handleDrop(x: number, y: number) {
+      // Check if dropped on trash
+      const trashIcon = document.getElementById('mobile-trash-icon')
+      if (trashIcon) {
+        const trashRect = trashIcon.getBoundingClientRect()
+        const isOverTrash = (
+          x >= trashRect.left && x <= trashRect.right &&
+          y >= trashRect.top && y <= trashRect.bottom
+        )
+        
+        if (isOverTrash) {
+          // Animate trash deletion
+          trashIcon.style.transition = 'opacity 0.2s ease, transform 0.2s ease'
+          trashIcon.style.opacity = '0'
+          trashIcon.style.transform = 'translateX(-50%) scale(0.8)'
+          
+          // Delete effect after brief delay
+          setTimeout(() => {
+            if (window.effectsChainManager) {
+              window.effectsChainManager.removeEffect(effect.id)
+              refreshHorizontalEffectsChain()
+            }
+            
+            // Reset trash icon for next use
+            setTimeout(() => {
+              trashIcon.style.transition = ''
+              trashIcon.style.opacity = ''
+              trashIcon.style.transform = ''
+              trashIcon.style.display = 'none' // Hide until next drag
+            }, 50)
+          }, 150)
+          
+          cleanup()
+          return
+        }
+        
+        trashIcon.classList.remove('drag-over')
+        const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+        if (trashButton) {
+          trashButton.style.backgroundColor = ''
+        }
+      }
+      
+      // Check if dropped on another card for reordering
+      const effectCards = horizontalEffectsChain.querySelectorAll('.horizontal-effect-card')
+      let targetIndex = -1
+      
+      effectCards.forEach((otherCard, index) => {
+        if (otherCard === card) return
+        
+        const rect = otherCard.getBoundingClientRect()
+        const isOver = (
+          x >= rect.left && x <= rect.right &&
+          y >= rect.top && y <= rect.bottom
+        )
+        
+        if (isOver) {
+          targetIndex = index
+        }
+        
+        otherCard.classList.remove('drop-target')
+      })
+      
+      // Perform reorder if valid target
+      if (targetIndex >= 0 && window.effectsChainManager) {
+        const currentIndex = parseInt(card.dataset.effectIndex || '0')
+        window.effectsChainManager.moveEffect(currentIndex, targetIndex)
+        refreshHorizontalEffectsChain()
+      }
+      
+      cleanup()
+    }
+    
+    function cleanup() {
+      // Remove clone
+      if (dragClone && dragClone.parentNode) {
+        dragClone.parentNode.removeChild(dragClone)
+      }
+      
+      // Restore original card
+      card.style.opacity = ''
+      
+      // Reset state
+      isDragging = false
+      dragClone = null
+      
+      // Clear any remaining drop targets and insertion indicators
+      document.querySelectorAll('.drop-target').forEach(el => {
+        el.classList.remove('drop-target')
+      })
+      
+      document.querySelectorAll('.insertion-indicator').forEach(indicator => {
+        indicator.remove()
+      })
+      
+      // Hide and reset trash can
+      const trashIcon = document.getElementById('mobile-trash-icon')
+      if (trashIcon) {
+        trashIcon.classList.remove('drag-over')
+        trashIcon.style.display = 'none'
+        
+        const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+        if (trashButton) {
+          trashButton.style.backgroundColor = ''
+        }
+      }
+    }
+  }
+
   function refreshHorizontalEffectsChain() {
     horizontalEffectsChain.innerHTML = ''
     
@@ -919,77 +1226,8 @@ function setupMobileEffectsButton() {
         card.addEventListener('drop', handleDrop)
         card.addEventListener('dragend', handleDragEnd)
         
-        // Press-and-hold drag system for mobile
-        let touchStarted = false
-        // let touchStartTime = 0 // Removed - not used
-        let touchStartX = 0
-        let touchStartY = 0
-        let dragTimeout: number | null = null
-        let isDragMode = false
-        
-        const HOLD_TIME = 150 // 150ms press to start drag
-        const MOVE_THRESHOLD = 10 // 10px movement cancels drag
-        
-        card.addEventListener('touchstart', (e) => {
-          touchStarted = true
-          // touchStartTime = Date.now() // Removed - not used
-          touchStartX = e.touches[0].clientX
-          touchStartY = e.touches[0].clientY
-          isDragMode = false
-          
-          // Start press-and-hold timer
-          dragTimeout = setTimeout(() => {
-            if (touchStarted && !isDragMode) {
-              // Enter drag mode after hold time
-              isDragMode = true
-              card.classList.add('drag-ready')
-              
-              // Immediately start drag state
-              draggedElement = card
-              card.classList.add('dragging')
-              showTrashIconPermanent()
-              
-              // Also dispatch the drag event for compatibility
-              const dragEvent = new DragEvent('dragstart', {
-                bubbles: true,
-                cancelable: true,
-                dataTransfer: new DataTransfer()
-              })
-              card.dispatchEvent(dragEvent)
-              
-              // Haptic feedback if available
-              if (navigator.vibrate) {
-                navigator.vibrate(50)
-              }
-            }
-          }, HOLD_TIME)
-        })
-        
-        card.addEventListener('touchmove', (e) => {
-          if (!touchStarted) return
-          
-          const deltaX = Math.abs(e.touches[0].clientX - touchStartX)
-          const deltaY = Math.abs(e.touches[0].clientY - touchStartY)
-          
-          // If moved too much before hold time, cancel drag and allow scroll
-          if (!isDragMode && (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD)) {
-            touchStarted = false
-            if (dragTimeout) {
-              clearTimeout(dragTimeout)
-              dragTimeout = null
-            }
-          }
-        })
-        
-        card.addEventListener('touchend', () => {
-          touchStarted = false
-          isDragMode = false
-          card.classList.remove('drag-ready')
-          if (dragTimeout) {
-            clearTimeout(dragTimeout)
-            dragTimeout = null
-          }
-        })
+        // Mobile drag system - clean implementation
+        setupMobileDrag(card, effect)
         
         card.addEventListener('click', (e) => {
           // Only select effect if not clicking on drag handle
@@ -1005,6 +1243,7 @@ function setupMobileEffectsButton() {
     // Add the plus button at the end (far right)
     const addButton = document.createElement('div')
     addButton.className = 'horizontal-add-effect-button'
+    addButton.draggable = false
     addButton.innerHTML = `
       <div class="add-effect-icon">+</div>
       <div class="add-effect-text">Add Effect</div>
@@ -1020,6 +1259,7 @@ function setupMobileEffectsButton() {
     // Add the reset button after the add button
     const resetButton = document.createElement('div')
     resetButton.className = 'horizontal-reset-button'
+    resetButton.draggable = false
     resetButton.innerHTML = `
       <div class="reset-effect-icon">×</div>
       <div class="reset-effect-text">Reset</div>
@@ -1095,6 +1335,18 @@ function setupMobileEffectsButton() {
       if (trashIconHideTimeout) {
         clearTimeout(trashIconHideTimeout)
         trashIconHideTimeout = null
+      }
+      
+      // Reset trash icon state for new drag
+      trashIcon.style.transition = ''
+      trashIcon.style.opacity = ''
+      trashIcon.style.transform = ''
+      trashIcon.style.display = ''
+      
+      // Reset button background
+      const trashButton = trashIcon.querySelector('.trash-button') as HTMLElement
+      if (trashButton) {
+        trashButton.style.backgroundColor = ''
       }
       
       trashIcon.classList.add('show')
@@ -1686,6 +1938,7 @@ function createPanelManager() {
     requestAnimationFrame(() => {
       // Calculate how high the buttons should be positioned based on open panels
       const openPanels = Array.from(panels.values()).filter(panel => panel.isOpen)
+      
       if (openPanels.length === 0) {
         // No panels open, use default position
         const defaultPosition = 12
@@ -1974,7 +2227,7 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
     startX = e.touches[0].clientX
     startValue = currentSliderValue
     
-    card.style.transform = 'scale(1.05)'
+    // Visual feedback without scale animation
     card.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.5)'
     card.style.zIndex = '999'
   })
@@ -1995,7 +2248,6 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
     e.preventDefault()
     isDragging = false
     
-    card.style.transform = ''
     card.style.boxShadow = ''
     card.style.zIndex = ''
   })
@@ -2004,7 +2256,6 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
     e.preventDefault()
     isDragging = false
     
-    card.style.transform = ''
     card.style.boxShadow = ''
     card.style.zIndex = ''
   })
