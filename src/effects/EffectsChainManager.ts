@@ -455,6 +455,20 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       aperture: { min: 0.001, max: 1.0, step: 0.001, label: 'Aperture (Blur Size)' },
       maxBlur: { min: 0.0, max: 10.0, step: 0.01, label: 'Max Blur Amount' }
     }
+  },
+  {
+    type: 'threshold',
+    name: 'Threshold',
+    defaultParameters: { 
+      intensity: 1.0,
+      threshold: 0.5,
+      hardness: 1.0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      threshold: { min: 0, max: 1, step: 0.01, label: 'Threshold' },
+      hardness: { min: 0, max: 2, step: 0.1, label: 'Edge Hardness' }
+    }
   }
 ]
 

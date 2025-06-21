@@ -265,7 +265,7 @@
 
 /* Horizontal effect cards */
 .horizontal-effect-card {
-  min-width: 120px;
+  min-width: 90px;
   height: 40px;
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid #00ff00;
@@ -284,6 +284,7 @@
   white-space: nowrap;
   flex-shrink: 0;
   -webkit-touch-callout: none;
+  touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -524,11 +525,18 @@
   border-radius: 1px;
 }
 
+.horizontal-effect-card.drag-ready {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+  z-index: 999;
+}
+
 .horizontal-effect-card.dragging {
   opacity: 0.5;
   transform: rotate(2deg);
   z-index: 1000;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  transition: none; /* Disable transition during drag for immediate response */
 }
 
 /* Add Effect Button */
@@ -575,7 +583,7 @@
   background: rgba(0, 0, 0, 0.6);
   border: 2px solid #999; /* Grey border like trash icon */
   border-radius: 6px;
-  padding: 8px;
+  padding: 3px;
   color: #999; /* Grey color like trash icon */
   font-family: 'Space Mono', monospace;
   cursor: pointer;
@@ -596,13 +604,13 @@
 }
 
 .horizontal-reset-button .reset-effect-icon {
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   font-weight: bold;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .horizontal-reset-button .reset-effect-text {
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   opacity: 0.8;
 }
 
@@ -1730,11 +1738,10 @@ body, html {
   opacity: 0.6;
 }
 
-/* Mobile positioning - move to bottom right corner */
+/* Mobile - hide camera info */
 @media (max-width: 768px) {
   .camera-info {
-    bottom: 20px;
-    right: 20px;
+    display: none;
   }
 }
 
@@ -1791,6 +1798,62 @@ body, html {
 #camera-target-display:hover,
 #rotation-center-display:hover {
   color: rgba(255, 255, 255, 1);
+}
+
+/* Scene Share Button */
+.scene-share-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  pointer-events: all;
+}
+
+.share-scene-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff00;
+  border-radius: 6px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.share-scene-button:hover {
+  background: rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+.share-scene-button svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+}
+
+.share-feedback {
+  background: rgba(0, 255, 0, 0.9);
+  color: #000;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.5rem;
+  font-family: 'Space Mono', monospace;
+  text-align: center;
+  animation: fadeInOut 2s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-5px); }
+  20% { opacity: 1; transform: translateY(0); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-5px); }
 }
 
 

@@ -67,3 +67,56 @@ export const InterfaceMode = {
 } as const
 
 export type InterfaceMode = typeof InterfaceMode[keyof typeof InterfaceMode]
+
+// Scene sharing and state management
+export interface Vector3State {
+  x: number
+  y: number
+  z: number
+}
+
+export interface EffectInstanceState {
+  id: string
+  type: string
+  enabled: boolean
+  parameters: { [key: string]: number }
+}
+
+export interface SceneState {
+  // Core model and quality
+  modelKey: string
+  quality: 'low' | 'high'
+  
+  // Camera state
+  cameraPosition: Vector3State
+  cameraTarget: Vector3State
+  focalLength: number
+  
+  // Effects chain
+  effectsChain: EffectInstanceState[]
+  
+  // Scene settings
+  pointSize: number
+  sphereMode: boolean
+  sphereRadius?: number
+  fogDensity: number
+  autoRotation: boolean
+  
+  // Metadata
+  timestamp: number
+  version: string
+}
+
+export interface SceneCollection {
+  scenes: { [key: string]: SceneDefinition }
+  randomScenes: string[]
+  defaultScene?: string
+}
+
+export interface SceneDefinition extends SceneState {
+  name: string
+  description?: string
+  thumbnail?: string
+  tags?: string[]
+  creator?: string
+}

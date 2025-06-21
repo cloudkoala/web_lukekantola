@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { SplatMesh } from '@sparkjsdev/spark'
-import type { ModelsConfig, InterfaceMode, ProjectsConfig } from '../types'
+import type { ModelsConfig, InterfaceMode, ProjectsConfig, SceneState, Vector3State } from '../types'
 import { EffectsChainManager } from '../effects/EffectsChainManager'
+import type { EffectType } from '../effects/PostProcessingPass'
 import { EffectsPanel } from '../interface/EffectsPanel'
 
 export class OrbitalCameraSystem {
@@ -2492,6 +2493,358 @@ export class OrbitalCameraSystem {
 
   public getEffectsPanel(): EffectsPanel | null {
     return this.effectsPanel
+  }
+
+  // Scene State Management for Comprehensive Scene Sharing
+  
+  /**
+   * Captures the complete current scene state including model, camera position, effects, and settings
+   */
+  public captureCurrentSceneState(): SceneState {
+    const modelsConfig = this.modelsConfig()
+    
+    // Get current fog density from scene
+    let fogDensity = 0.003 // default
+    if (this.scene.fog && this.scene.fog instanceof THREE.FogExp2) {
+      fogDensity = this.scene.fog.density
+    }
+    
+    // Get current auto-rotation state
+    const autoRotateCheckbox = document.getElementById('auto-rotate-toggle') as HTMLInputElement
+    const autoRotation = autoRotateCheckbox ? autoRotateCheckbox.checked : this.autoRotationEnabled
+    
+    // Get sphere mode state and radius
+    const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
+    const sphereRadiusSlider = document.getElementById('sphere-radius') as HTMLInputElement
+    const sphereMode = sphereToggle ? sphereToggle.checked : false
+    const sphereRadius = sphereRadiusSlider ? parseFloat(sphereRadiusSlider.value) : 0.01
+    
+    // Get current quality from model manager
+    const currentQuality = this.modelManager ? this.modelManager.getCurrentQuality() : 'low'
+    
+    const sceneState: SceneState = {
+      // Core model and quality
+      modelKey: modelsConfig.currentModel,
+      quality: currentQuality,
+      
+      // Camera state
+      cameraPosition: this.vector3ToState(this.camera.position),
+      cameraTarget: this.vector3ToState(this.controls.target),
+      focalLength: this.camera.fov,
+      
+      // Effects chain
+      effectsChain: this.effectsChainManager.getEffectsChain().map(effect => ({
+        id: effect.id,
+        type: effect.type,
+        enabled: effect.enabled,
+        parameters: { ...effect.parameters }
+      })),
+      
+      // Scene settings
+      pointSize: this.pointSize,
+      sphereMode: sphereMode,
+      sphereRadius: sphereMode ? sphereRadius : undefined,
+      fogDensity: fogDensity,
+      autoRotation: autoRotation,
+      
+      // Metadata
+      timestamp: Date.now(),
+      version: '1.0'
+    }
+    
+    return sceneState
+  }
+
+  /**
+   * Applies a complete scene state to restore a shared scene
+   */
+  public async applySceneState(sceneState: SceneState): Promise<void> {
+    console.log('Applying scene state:', sceneState)
+    
+    try {
+      // 1. Apply model and quality
+      if (this.modelManager && sceneState.modelKey) {
+        const modelsConfig = this.modelsConfig()
+        if (modelsConfig.models[sceneState.modelKey]) {
+          // Switch model if different
+          if (modelsConfig.currentModel !== sceneState.modelKey) {
+            await this.modelManager.switchToModel(sceneState.modelKey)
+          }
+          
+          // Switch quality if different
+          if (this.modelManager.getCurrentQuality() !== sceneState.quality) {
+            this.modelManager.switchToQuality(sceneState.quality)
+          }
+        }
+      }
+      
+      // 2. Apply camera position and target
+      this.camera.position.copy(this.stateToVector3(sceneState.cameraPosition))
+      this.controls.target.copy(this.stateToVector3(sceneState.cameraTarget))
+      this.camera.fov = sceneState.focalLength
+      this.camera.updateProjectionMatrix()
+      this.controls.update()
+      
+      // 3. Apply effects chain
+      this.effectsChainManager.clearEffects()
+      for (const effectState of sceneState.effectsChain) {
+        const effect = this.effectsChainManager.addEffect(effectState.type as EffectType)
+        if (effect) {
+          effect.enabled = effectState.enabled
+          // Apply parameters
+          Object.entries(effectState.parameters).forEach(([key, value]) => {
+            this.effectsChainManager.updateEffectParameter(effect.id, key, value)
+          })
+        }
+      }
+      
+      // 4. Apply scene settings
+      this.pointSize = sceneState.pointSize
+      this.updatePointSize()
+      
+      // Apply sphere mode and radius
+      const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
+      if (sphereToggle) {
+        sphereToggle.checked = sceneState.sphereMode
+        sphereToggle.dispatchEvent(new Event('change'))
+      }
+      
+      if (sceneState.sphereMode && sceneState.sphereRadius) {
+        const sphereRadiusSlider = document.getElementById('sphere-radius') as HTMLInputElement
+        if (sphereRadiusSlider) {
+          sphereRadiusSlider.value = sceneState.sphereRadius.toString()
+          sphereRadiusSlider.dispatchEvent(new Event('input'))
+        }
+      }
+      
+      // Apply fog density
+      const fogDensitySlider = document.getElementById('fog-density') as HTMLInputElement
+      if (fogDensitySlider) {
+        fogDensitySlider.value = sceneState.fogDensity.toString()
+        fogDensitySlider.dispatchEvent(new Event('input'))
+      }
+      
+      // Apply auto-rotation
+      const autoRotateCheckbox = document.getElementById('auto-rotate-toggle') as HTMLInputElement
+      if (autoRotateCheckbox) {
+        autoRotateCheckbox.checked = sceneState.autoRotation
+        autoRotateCheckbox.dispatchEvent(new Event('change'))
+      }
+      
+      // Update UI elements
+      this.updateDisplayNameField()
+      
+      console.log('Scene state applied successfully')
+      
+    } catch (error) {
+      console.error('Failed to apply scene state:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Generates a shareable URL containing the complete scene state
+   */
+  public generateShareableLink(): string {
+    const sceneState = this.captureCurrentSceneState()
+    
+    // Compress and encode the scene state
+    const sceneData = JSON.stringify(sceneState)
+    const encodedScene = btoa(sceneData) // Base64 encoding
+    
+    // Create URL with scene parameter
+    const baseUrl = window.location.origin + window.location.pathname
+    const shareUrl = `${baseUrl}?scene=${encodedScene}`
+    
+    return shareUrl
+  }
+
+  /**
+   * Copies the current scene as a shareable link to clipboard
+   */
+  public async copySceneToClipboard(): Promise<boolean> {
+    try {
+      const shareUrl = this.generateShareableLink()
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl)
+        console.log('Scene link copied to clipboard (modern API):', shareUrl)
+        return true
+      }
+      
+      // Fallback to older document.execCommand method
+      if (this.fallbackCopyToClipboard(shareUrl)) {
+        console.log('Scene link copied to clipboard (fallback):', shareUrl)
+        return true
+      }
+      
+      // If both fail, return false but don't throw
+      console.warn('Clipboard access not available, copy failed')
+      return false
+      
+    } catch (error) {
+      console.error('Failed to copy scene link to clipboard:', error)
+      return false
+    }
+  }
+
+  /**
+   * Fallback clipboard copy method using document.execCommand
+   */
+  private fallbackCopyToClipboard(text: string): boolean {
+    try {
+      // Create a temporary textarea element
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.left = '-999999px'
+      textArea.style.top = '-999999px'
+      document.body.appendChild(textArea)
+      
+      // Select and copy the text
+      textArea.focus()
+      textArea.select()
+      
+      const successful = document.execCommand('copy')
+      document.body.removeChild(textArea)
+      
+      return successful
+    } catch (error) {
+      console.error('Fallback clipboard copy failed:', error)
+      return false
+    }
+  }
+
+  /**
+   * Parses and applies scene state from URL parameters
+   */
+  public async loadSceneFromUrl(): Promise<boolean> {
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      const sceneParam = urlParams.get('scene')
+      
+      if (!sceneParam) {
+        return false // No scene parameter found
+      }
+      
+      // Decode and parse scene state
+      const sceneData = atob(sceneParam) // Base64 decoding
+      const sceneState: SceneState = JSON.parse(sceneData)
+      
+      // Validate scene state has required properties
+      if (!sceneState.modelKey || !sceneState.cameraPosition || !sceneState.cameraTarget) {
+        console.warn('Invalid scene state in URL:', sceneState)
+        return false
+      }
+      
+      // Apply the scene state
+      await this.applySceneState(sceneState)
+      
+      // Remove scene parameter from URL to clean it up
+      urlParams.delete('scene')
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '')
+      window.history.replaceState({}, '', newUrl)
+      
+      console.log('Scene loaded from URL successfully')
+      return true
+      
+    } catch (error) {
+      console.error('Failed to load scene from URL:', error)
+      return false
+    }
+  }
+
+  /**
+   * Helper method to convert THREE.Vector3 to serializable state
+   */
+  private vector3ToState(vector: THREE.Vector3): Vector3State {
+    return {
+      x: Math.round(vector.x * 1000) / 1000, // Round to 3 decimal places
+      y: Math.round(vector.y * 1000) / 1000,
+      z: Math.round(vector.z * 1000) / 1000
+    }
+  }
+
+  /**
+   * Helper method to convert serializable state to THREE.Vector3
+   */
+  private stateToVector3(state: Vector3State): THREE.Vector3 {
+    return new THREE.Vector3(state.x, state.y, state.z)
+  }
+
+  /**
+   * Loads scenes collection from config file
+   */
+  public async loadScenesCollection(): Promise<any> {
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}scenes-config.json`)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch scenes config: ${response.status}`)
+      }
+      const scenesCollection = await response.json()
+      console.log('Scenes collection loaded:', Object.keys(scenesCollection.scenes).length, 'scenes')
+      return scenesCollection
+    } catch (error) {
+      console.warn('Failed to load scenes collection:', error)
+      return null
+    }
+  }
+
+  /**
+   * Loads a random scene from the collection
+   */
+  public async loadRandomScene(): Promise<boolean> {
+    try {
+      const scenesCollection = await this.loadScenesCollection()
+      if (!scenesCollection || !scenesCollection.randomScenes || scenesCollection.randomScenes.length === 0) {
+        console.log('No random scenes available')
+        return false
+      }
+
+      // Pick a random scene from the collection
+      const randomSceneKey = scenesCollection.randomScenes[
+        Math.floor(Math.random() * scenesCollection.randomScenes.length)
+      ]
+      
+      const sceneDefinition = scenesCollection.scenes[randomSceneKey]
+      if (!sceneDefinition) {
+        console.warn('Random scene not found:', randomSceneKey)
+        return false
+      }
+
+      console.log('Loading random scene:', sceneDefinition.name)
+      
+      // Apply the scene
+      await this.applySceneState(sceneDefinition)
+      
+      return true
+    } catch (error) {
+      console.error('Failed to load random scene:', error)
+      return false
+    }
+  }
+
+  /**
+   * Loads a specific scene by key from the collection
+   */
+  public async loadSceneByKey(sceneKey: string): Promise<boolean> {
+    try {
+      const scenesCollection = await this.loadScenesCollection()
+      if (!scenesCollection || !scenesCollection.scenes[sceneKey]) {
+        console.warn('Scene not found:', sceneKey)
+        return false
+      }
+
+      const sceneDefinition = scenesCollection.scenes[sceneKey]
+      console.log('Loading scene:', sceneDefinition.name)
+      
+      await this.applySceneState(sceneDefinition)
+      return true
+    } catch (error) {
+      console.error('Failed to load scene:', error)
+      return false
+    }
   }
   
 }

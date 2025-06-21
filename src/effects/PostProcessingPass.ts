@@ -6,7 +6,7 @@ import { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
 import { BrushEffect } from './BrushEffect'
 import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -121,6 +121,9 @@ export class PostProcessingPass {
   public fogColorB: number = 1.0
   public fogMode: number = 0
   public fogYMax: number = 10.0
+  public thresholdIntensity: number = 1.0
+  public thresholdThreshold: number = 0.5
+  public thresholdHardness: number = 1.0
   
   // Camera matrices for velocity calculation
   private previousViewProjectionMatrix: THREE.Matrix4 = new THREE.Matrix4()
@@ -215,7 +218,10 @@ export class PostProcessingPass {
         fogFar: { value: this.fogFar },
         fogColor: { value: new THREE.Vector3(this.fogColorR, this.fogColorG, this.fogColorB) },
         fogMode: { value: this.fogMode },
-        fogYMax: { value: this.fogYMax }
+        fogYMax: { value: this.fogYMax },
+        thresholdIntensity: { value: this.thresholdIntensity },
+        thresholdThreshold: { value: this.thresholdThreshold },
+        thresholdHardness: { value: this.thresholdHardness }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -539,6 +545,12 @@ export class PostProcessingPass {
         
         // Fog parameters updated above
         break
+      
+      case 'threshold':
+        this.material.uniforms.thresholdIntensity.value = effect.parameters.intensity ?? 1.0
+        this.material.uniforms.thresholdThreshold.value = effect.parameters.threshold ?? 0.5
+        this.material.uniforms.thresholdHardness.value = effect.parameters.hardness ?? 1.0
+        break
     }
     
     this.material.uniforms.time.value = performance.now() * 0.001
@@ -687,6 +699,7 @@ export class PostProcessingPass {
       case 'glow': return 18
       case 'pixelate': return 19
       case 'fog': return 20
+      case 'threshold': return 21
       // Background effects are handled separately in applyBackgroundEffect
       case 'background': return 0
       // Topographic effects are handled separately in applyTopographicEffect
@@ -2292,6 +2305,9 @@ export class PostProcessingPass {
       uniform vec3 fogColor;
       uniform float fogMode;
       uniform float fogYMax;
+      uniform float thresholdIntensity;
+      uniform float thresholdThreshold;
+      uniform float thresholdHardness;
       
       varying vec2 vUv;
       
@@ -3238,6 +3254,32 @@ export class PostProcessingPass {
         return mix(currentColor, atmosphericColor, fogFactor * fogIntensity);
       }
       
+      vec3 thresholdEffect(sampler2D tex, vec2 uv, vec2 resolution, vec3 currentColor) {
+        // Calculate luminance using standard weights
+        float luminance = dot(currentColor, vec3(0.299, 0.587, 0.114));
+        
+        // Apply threshold with adjustable hardness
+        float thresholdValue = thresholdThreshold;
+        float hardness = thresholdHardness;
+        
+        // Create smooth or hard threshold based on hardness parameter
+        float thresholdFactor;
+        if (hardness >= 1.0) {
+          // Hard threshold (step function)
+          thresholdFactor = step(thresholdValue, luminance);
+        } else {
+          // Soft threshold (smoothstep)
+          float edge = hardness * 0.1; // Scale hardness to smoothstep range
+          thresholdFactor = smoothstep(thresholdValue - edge, thresholdValue + edge, luminance);
+        }
+        
+        // Create black and white result
+        vec3 blackAndWhite = vec3(thresholdFactor);
+        
+        // Mix with original color based on intensity
+        return mix(currentColor, blackAndWhite, thresholdIntensity);
+      }
+      
       void main() {
         vec4 originalColor = texture2D(tDiffuse, vUv);
         
@@ -3306,6 +3348,9 @@ export class PostProcessingPass {
         } else if (effectType == 20) {
           // Distance Fog
           color = fog(tDiffuse, vUv, resolution, color);
+        } else if (effectType == 21) {
+          // Threshold Effect
+          color = thresholdEffect(tDiffuse, vUv, resolution, color);
         }
         
         gl_FragColor = vec4(color, originalColor.a);

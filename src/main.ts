@@ -554,36 +554,72 @@ function setupMobileEffectsButton() {
         card.addEventListener('drop', handleDrop)
         card.addEventListener('dragend', handleDragEnd)
         
-        // Add faster touch-based drag for mobile
+        // Press-and-hold drag system for mobile
         let touchStarted = false
-        let touchMoved = false
+        // let touchStartTime = 0 // Removed - not used
+        let touchStartX = 0
+        let touchStartY = 0
         let dragTimeout: number | null = null
+        let isDragMode = false
         
-        card.addEventListener('touchstart', () => {
+        const HOLD_TIME = 150 // 150ms press to start drag
+        const MOVE_THRESHOLD = 10 // 10px movement cancels drag
+        
+        card.addEventListener('touchstart', (e) => {
           touchStarted = true
-          touchMoved = false
+          // touchStartTime = Date.now() // Removed - not used
+          touchStartX = e.touches[0].clientX
+          touchStartY = e.touches[0].clientY
+          isDragMode = false
           
-          // Only start drag if touch is held and moved
+          // Start press-and-hold timer
           dragTimeout = setTimeout(() => {
-            if (touchStarted && touchMoved) {
-              // Trigger drag start only after movement is detected
+            if (touchStarted && !isDragMode) {
+              // Enter drag mode after hold time
+              isDragMode = true
+              card.classList.add('drag-ready')
+              
+              // Immediately start drag state
+              draggedElement = card
+              card.classList.add('dragging')
+              showTrashIconPermanent()
+              
+              // Also dispatch the drag event for compatibility
               const dragEvent = new DragEvent('dragstart', {
                 bubbles: true,
                 cancelable: true,
                 dataTransfer: new DataTransfer()
               })
               card.dispatchEvent(dragEvent)
+              
+              // Haptic feedback if available
+              if (navigator.vibrate) {
+                navigator.vibrate(50)
+              }
             }
-          }, 20)
+          }, HOLD_TIME)
         })
         
-        card.addEventListener('touchmove', () => {
-          touchMoved = true
+        card.addEventListener('touchmove', (e) => {
+          if (!touchStarted) return
+          
+          const deltaX = Math.abs(e.touches[0].clientX - touchStartX)
+          const deltaY = Math.abs(e.touches[0].clientY - touchStartY)
+          
+          // If moved too much before hold time, cancel drag and allow scroll
+          if (!isDragMode && (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD)) {
+            touchStarted = false
+            if (dragTimeout) {
+              clearTimeout(dragTimeout)
+              dragTimeout = null
+            }
+          }
         })
         
         card.addEventListener('touchend', () => {
           touchStarted = false
-          touchMoved = false
+          isDragMode = false
+          card.classList.remove('drag-ready')
           if (dragTimeout) {
             clearTimeout(dragTimeout)
             dragTimeout = null
@@ -616,25 +652,12 @@ function setupMobileEffectsButton() {
     })
     horizontalEffectsChain.appendChild(addButton)
     
-    // Add the preset selector button between add and reset
-    const presetButton = document.createElement('div')
-    presetButton.className = 'horizontal-preset-button'
-    presetButton.innerHTML = `
-      <div class="add-effect-icon">+</div>
-      <div class="add-effect-text">Select Preset</div>
-    `
-    presetButton.addEventListener('click', () => {
-      // Show mobile preset selector
-      showMobilePresetSelector()
-    })
-    horizontalEffectsChain.appendChild(presetButton)
-    
-    // Add the reset button to the right of the preset button
+    // Add the reset button after the add button
     const resetButton = document.createElement('div')
     resetButton.className = 'horizontal-reset-button'
     resetButton.innerHTML = `
       <div class="reset-effect-icon">×</div>
-      <div class="reset-effect-text">Reset All</div>
+      <div class="reset-effect-text">Reset</div>
     `
     resetButton.addEventListener('click', () => {
       // Clear all effects
@@ -929,7 +952,7 @@ function setupMobileEffectsButton() {
         },
         'Post-Process': {
           color: '#96CEB4',
-          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
         },
         '3D Effects': {
           color: '#FECA57',
@@ -1083,10 +1106,10 @@ function setupMobileEffectsButton() {
     })
   }
   
-  function showMobilePresetSelector() {
-    // TODO: Implement preset selector functionality
-    console.log('Mobile preset selector clicked - functionality to be implemented')
-  }
+  // function showMobilePresetSelector() {
+  //   // TODO: Implement preset selector functionality
+  //   console.log('Mobile preset selector clicked - functionality to be implemented')
+  // }
 
   // Setup mobile preset selector
   function setupMobilePresetSelector() {
@@ -1135,8 +1158,10 @@ function setupMobileEffectsButton() {
       option.textContent = preset.name
       option.dataset.presetId = preset.id
       
-      if (preset.id === 'none') {
+      // Set default active preset to "Delicate Noir" to match the system default
+      if (preset.id === 'Delicate Noir') {
         option.classList.add('active')
+        presetName.textContent = preset.name // Set initial display name
       }
       
       option.addEventListener('click', () => {
@@ -1163,6 +1188,11 @@ function setupMobileEffectsButton() {
           const changeEvent = new Event('change', { bubbles: true })
           desktopDropdown.dispatchEvent(changeEvent)
         }
+        
+        // Refresh mobile effects display to show the new effects
+        setTimeout(() => {
+          refreshHorizontalEffectsChain()
+        }, 100) // Small delay to ensure preset is fully loaded
         
         console.log(`Applied preset: ${preset.name}`)
       })
@@ -1931,6 +1961,113 @@ function setupFogControl() {
   }
 }
 
+// Scene sharing functionality
+function setupSceneSharing() {
+  console.log('Setting up scene sharing...')
+  const shareButton = document.getElementById('share-scene-button') as HTMLButtonElement
+  const shareFeedback = document.getElementById('share-feedback') as HTMLElement
+  
+  if (!shareButton || !shareFeedback) {
+    console.warn('Scene sharing elements not found', { shareButton, shareFeedback })
+    return
+  }
+  
+  shareButton.addEventListener('click', async () => {
+    try {
+      console.log('Share scene button clicked')
+      
+      // Disable button temporarily to prevent spam
+      shareButton.disabled = true
+      
+      // Copy scene link to clipboard
+      const success = await orbitalCamera.copySceneToClipboard()
+      
+      if (success) {
+        // Show success feedback
+        const feedbackText = shareFeedback.querySelector('.feedback-text') as HTMLElement
+        if (feedbackText) {
+          feedbackText.textContent = 'Link copied to clipboard!'
+        }
+        shareFeedback.style.display = 'block'
+        
+        // Hide feedback after animation completes
+        setTimeout(() => {
+          shareFeedback.style.display = 'none'
+        }, 2000)
+        
+        console.log('Scene shared successfully')
+      } else {
+        // Show URL in a more user-friendly way
+        const shareUrl = orbitalCamera.generateShareableLink()
+        console.log('Share URL (manual copy required):', shareUrl)
+        
+        // Show the URL in a text area for manual copying
+        const urlDisplay = document.createElement('div')
+        urlDisplay.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0, 0, 0, 0.9);
+          border: 1px solid #00ff00;
+          border-radius: 8px;
+          padding: 20px;
+          z-index: 9999;
+          font-family: 'Space Mono', monospace;
+          color: #00ff00;
+          max-width: 80vw;
+        `
+        urlDisplay.innerHTML = `
+          <div style="margin-bottom: 10px; font-size: 0.9rem;">Share URL (click to select all):</div>
+          <textarea readonly style="
+            width: 100%;
+            height: 60px;
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            padding: 8px;
+            resize: none;
+            border-radius: 4px;
+          ">${shareUrl}</textarea>
+          <button onclick="this.parentElement.remove()" style="
+            margin-top: 10px;
+            background: rgba(0, 255, 0, 0.2);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+          ">Close</button>
+        `
+        
+        // Auto-select text when clicked
+        const textarea = urlDisplay.querySelector('textarea') as HTMLTextAreaElement
+        textarea.addEventListener('click', () => textarea.select())
+        
+        document.body.appendChild(urlDisplay)
+        
+        // Auto-select the text
+        setTimeout(() => textarea.select(), 100)
+      }
+      
+    } catch (error) {
+      console.error('Failed to share scene:', error)
+      alert('Failed to share scene. Please try again.')
+    } finally {
+      // Re-enable button
+      setTimeout(() => {
+        shareButton.disabled = false
+      }, 1000)
+    }
+  })
+  
+  console.log('Scene sharing setup complete')
+}
+
 // Initialize application
 async function initialize() {
   console.log('🚀 Initialize() called')
@@ -1977,6 +2114,10 @@ async function initialize() {
     setupFogControl()
     console.log('✅ Fog control setup complete')
     
+    console.log('🔗 Setting up scene sharing...')
+    setupSceneSharing()
+    console.log('✅ Scene sharing setup complete')
+    
     // Show home navigation indicators on initial load
     console.log('🏠 Setting up navigation...')
     const homeNavigation = document.querySelector('#home-navigation') as HTMLElement
@@ -1999,16 +2140,36 @@ async function initialize() {
     orbitalCamera.startLoadingAnimation()
     console.log('✅ Loading animation started')
     
-    // Load point cloud and initialize sphere mode when it's ready
-    console.log('☁️ Loading point cloud...')
-    modelManager.loadPointCloud().then(() => {
-      console.log('✅ Point cloud loaded, initializing sphere mode...')
-      // Initialize sphere mode immediately after point cloud loads but before it's visible
+    // Check for scene URL parameter and load if present
+    console.log('🔗 Checking for shared scene URL...')
+    const hasSceneUrl = await orbitalCamera.loadSceneFromUrl()
+    
+    if (!hasSceneUrl) {
+      // No shared scene, try to load a random scene
+      console.log('🎲 Attempting to load random scene...')
+      const hasRandomScene = await orbitalCamera.loadRandomScene()
+      
+      if (!hasRandomScene) {
+        // No random scene available, load default point cloud
+        console.log('☁️ Loading default point cloud...')
+        modelManager.loadPointCloud().then(() => {
+          console.log('✅ Point cloud loaded, initializing sphere mode...')
+          // Initialize sphere mode immediately after point cloud loads but before it's visible
+          orbitalCamera.initializeSphereMode()
+          console.log('✅ Sphere mode initialization complete')
+        }).catch((error) => {
+          console.error('❌ Point cloud loading failed:', error)
+        })
+      } else {
+        console.log('✅ Random scene loaded')
+        // Initialize sphere mode for random scene
+        orbitalCamera.initializeSphereMode()
+      }
+    } else {
+      console.log('✅ Shared scene loaded from URL')
+      // Initialize sphere mode for shared scene
       orbitalCamera.initializeSphereMode()
-      console.log('✅ Sphere mode initialization complete')
-    }).catch((error) => {
-      console.error('❌ Point cloud loading failed:', error)
-    })
+    }
     
     console.log('🎮 Starting animation loop...')
     animate()

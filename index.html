@@ -136,6 +136,18 @@
         <label>Target:</label>
         <div id="camera-target-display">X: 0.00, Y: 0.00, Z: 0.00</div>
       </div>
+      <div class="scene-share-info">
+        <button id="share-scene-button" class="share-scene-button" title="Copy shareable link to current scene">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          Share Scene
+        </button>
+        <div id="share-feedback" class="share-feedback" style="display: none;">
+          <span class="feedback-text">Link copied to clipboard!</span>
+        </div>
+      </div>
     </div>
     
     <!-- Navigation indicators for home page (separate from controls) -->

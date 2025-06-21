@@ -1,0 +1,198 @@
+{
+  "scenes": {
+    "cheeky_castleton": {
+      "name": "Cheeky Castleton",
+      "description": "Castleton Tower with vibrant sepia and vignette effects, capturing a vintage film aesthetic",
+      "modelKey": "castleton",
+      "quality": "high",
+      "cameraPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
+      "cameraTarget": { "x": -0.13, "y": 0.87, "z": -0.29 },
+      "focalLength": 85,
+      "effectsChain": [
+        {
+          "id": "sepia_001",
+          "type": "sepia", 
+          "enabled": true,
+          "parameters": { "intensity": 0.75 }
+        },
+        {
+          "id": "vignette_001",
+          "type": "vignette",
+          "enabled": true,
+          "parameters": { "intensity": 0.6, "radius": 0.8 }
+        }
+      ],
+      "pointSize": 0.005,
+      "sphereMode": false,
+      "fogDensity": 0.003,
+      "autoRotation": true,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["vintage", "sepia", "tower"],
+      "creator": "System"
+    },
+    "fisher_two_tone": {
+      "name": "Fisher Two-Tone",
+      "description": "Fisher Towers with dramatic edge detection and halftone effects for a graphic novel look",
+      "modelKey": "fisher",
+      "quality": "low",
+      "cameraPosition": { "x": 7.73, "y": 2.01, "z": 7.13 },
+      "cameraTarget": { "x": 0.07, "y": 0.63, "z": -0.39 },
+      "focalLength": 76,
+      "effectsChain": [
+        {
+          "id": "sobel_001",
+          "type": "sobelthreshold",
+          "enabled": true,
+          "parameters": { "intensity": 0.8, "threshold": 0.3 }
+        },
+        {
+          "id": "halftone_001", 
+          "type": "halftone",
+          "enabled": true,
+          "parameters": { "intensity": 0.6, "dotSize": 4 }
+        }
+      ],
+      "pointSize": 0.019,
+      "sphereMode": false,
+      "fogDensity": 0.001,
+      "autoRotation": false,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["graphic", "edges", "halftone"],
+      "creator": "System"
+    },
+    "delicate_disco": {
+      "name": "Delicate Disco",
+      "description": "Delicate Arch with colorful background and material effects creating a psychedelic atmosphere",
+      "modelKey": "delicate_arch",
+      "quality": "low",
+      "cameraPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
+      "cameraTarget": { "x": -0.04, "y": 4.15, "z": -0.08 },
+      "focalLength": 135,
+      "effectsChain": [
+        {
+          "id": "background_001",
+          "type": "background",
+          "enabled": true,
+          "parameters": { "hue": 0.85, "saturation": 80, "lightness": 15 }
+        },
+        {
+          "id": "material_001",
+          "type": "material",
+          "enabled": true,
+          "parameters": { 
+            "colorCycling": 1,
+            "pulseEffect": 1,
+            "animationSpeed": 1.5,
+            "sizeMultiplier": 150
+          }
+        }
+      ],
+      "pointSize": 0.046,
+      "sphereMode": false,
+      "fogDensity": 0.008,
+      "autoRotation": true,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["colorful", "psychedelic", "arch"],
+      "creator": "System"
+    },
+    "delicate_noir": {
+      "name": "Delicate Noir",
+      "description": "Delicate Arch in dramatic noir style with deep vignette and high contrast",
+      "modelKey": "delicate_arch",
+      "quality": "low",
+      "cameraPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
+      "cameraTarget": { "x": -0.04, "y": 4.15, "z": -0.08 },
+      "focalLength": 135,
+      "effectsChain": [
+        {
+          "id": "vignette_001",
+          "type": "vignette",
+          "enabled": true,
+          "parameters": { "intensity": 0.9, "radius": 0.5 }
+        },
+        {
+          "id": "gamma_001",
+          "type": "gamma",
+          "enabled": true,
+          "parameters": { "intensity": 1.8 }
+        }
+      ],
+      "pointSize": 0.046,
+      "sphereMode": false,
+      "fogDensity": 0.015,
+      "autoRotation": false,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["noir", "dramatic", "contrast"],
+      "creator": "System"
+    },
+    "corona_network": {
+      "name": "Corona Network",
+      "description": "Corona Arch with animated point network connections creating a sci-fi visualization",
+      "modelKey": "corona_arch",
+      "quality": "low",
+      "cameraPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
+      "cameraTarget": { "x": 0.36, "y": 0.36, "z": -0.22 },
+      "focalLength": 120,
+      "effectsChain": [
+        {
+          "id": "pointnetwork_001",
+          "type": "pointnetwork",
+          "enabled": true,
+          "parameters": {
+            "showConnections": 1,
+            "connectionDistance": 15,
+            "maxConnections": 8,
+            "lineOpacity": 70,
+            "enableAnimation": 1,
+            "movementSpeed": 0.05,
+            "movementRange": 20
+          }
+        },
+        {
+          "id": "background_001",
+          "type": "background",
+          "enabled": true,
+          "parameters": { "hue": 0.6, "saturation": 30, "lightness": 5 }
+        }
+      ],
+      "pointSize": 0.002,
+      "sphereMode": false,
+      "fogDensity": 0.002,
+      "autoRotation": false,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["network", "sci-fi", "animated"],
+      "creator": "System"
+    },
+    "castleton_minimalist": {
+      "name": "Castleton Minimalist",
+      "description": "Clean, minimalist view of Castleton Tower with subtle fog and perfect framing",
+      "modelKey": "castleton",
+      "quality": "high",
+      "cameraPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
+      "cameraTarget": { "x": -0.13, "y": 0.87, "z": -0.29 },
+      "focalLength": 50,
+      "effectsChain": [],
+      "pointSize": 0.005,
+      "sphereMode": false,
+      "fogDensity": 0.004,
+      "autoRotation": true,
+      "timestamp": 1735081200000,
+      "version": "1.0",
+      "tags": ["minimalist", "clean", "natural"],
+      "creator": "System"
+    }
+  },
+  "randomScenes": [
+    "cheeky_castleton",
+    "fisher_two_tone", 
+    "delicate_disco",
+    "delicate_noir",
+    "corona_network"
+  ],
+  "defaultScene": "delicate_noir"
+}
