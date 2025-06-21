@@ -3977,7 +3977,9 @@ body, html {
   .touch-layout .nav-link:hover,
   .touch-layout .nav-indicator:hover,
   .touch-layout .project-read-more:hover,
-  .touch-layout .hamburger-button:hover {
+  .touch-layout .hamburger-button:hover,
+  .touch-layout .effects-button:hover,
+  .touch-layout .settings-button:hover {
     transform: none;
     box-shadow: none;
     background: none;

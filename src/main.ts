@@ -2009,7 +2009,7 @@ function createPanelManager() {
     const cameraButton = document.getElementById('camera-reset-button') as HTMLElement
     const cameraPanel = panels.get('camera')
     
-    const effectsButton = document.getElementById('effects-button') as HTMLElement
+    const effectsButton = document.getElementById('mobile-effects-button-element') as HTMLElement
     const effectsPanel = panels.get('effects')
     
     const settingsButton = document.getElementById('mobile-settings-button-element') as HTMLElement
