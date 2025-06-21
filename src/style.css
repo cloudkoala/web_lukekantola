@@ -644,6 +644,101 @@
 }
 
 
+/* Mobile Preset Selector */
+.mobile-preset-selector {
+  position: fixed;
+  bottom: 12px; /* Default position, will be updated dynamically */
+  right: 80px; /* To the right of settings button */
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease, bottom 0.3s ease;
+}
+
+.preset-label {
+  color: #888888;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.5rem;
+  margin-bottom: 2px;
+  text-align: right;
+}
+
+.preset-dropdown {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: white;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 80px;
+  transition: all 0.3s ease;
+}
+
+.preset-dropdown:hover {
+  background: rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.preset-name {
+  color: white;
+}
+
+.preset-arrow {
+  color: white;
+  font-size: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.preset-dropdown.open .preset-arrow {
+  transform: rotate(180deg);
+}
+
+.preset-dropdown-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: rgba(21, 21, 21, 0.95);
+  border: 1px solid #00ff00;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  min-width: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.preset-option {
+  padding: 8px 12px;
+  color: white;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.preset-option:last-child {
+  border-bottom: none;
+}
+
+.preset-option:hover {
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.preset-option.active {
+  background: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
+}
+
 /* Mobile Trash Icon */
 .mobile-trash-icon {
   position: fixed;
@@ -725,12 +820,13 @@
 }
 
 .parameters-box-header {
-  padding: 3px;
+  padding: 2px 3px;
   border-bottom: 1px solid #00ff00;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 255, 0, 0.1);
+  min-height: 0;
 }
 
 .parameters-box-title {
@@ -739,23 +835,38 @@
   font-size: 0.6rem;
   font-weight: 600;
   margin-left: 6px;
+  line-height: 1;
 }
 
 .parameters-box-close {
   background: none;
   border: none;
   color: #00ff00;
-  font-size: 1.2rem;
   cursor: pointer;
-  padding: 0;
+  padding: 1px;
   margin: 0;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 3px;
   transition: background 0.2s ease;
+}
+
+.parameters-box-close svg {
+  width: 12px;
+  height: 12px;
+  stroke: #00ff00;
+}
+
+/* Override global button min-height for this specific close button */
+.mouse-layout .parameters-box-close {
+  min-height: 20px;
+}
+
+.touch-layout .parameters-box-close {
+  min-height: 20px;
 }
 
 .parameters-box-close:hover {

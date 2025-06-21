@@ -191,6 +191,18 @@
       </button>
     </div>
 
+    <!-- Mobile Preset Selector -->
+    <div class="mobile-preset-selector mobile-only" id="mobile-preset-selector">
+      <div class="preset-label">Effect Preset:</div>
+      <div class="preset-dropdown" id="mobile-preset-dropdown">
+        <span class="preset-name" id="mobile-preset-name">None</span>
+        <span class="preset-arrow">▼</span>
+      </div>
+      <div class="preset-dropdown-menu" id="mobile-preset-dropdown-menu" style="display: none;">
+        <!-- Preset options will be dynamically added here -->
+      </div>
+    </div>
+
     <!-- Mobile Trash Icon -->
     <div class="mobile-trash-icon mobile-only" id="mobile-trash-icon">
       <button class="trash-button" id="trash-button">
@@ -250,7 +262,12 @@
     <div class="mobile-effect-parameters-box mobile-only" id="mobile-effect-parameters-box" style="display: none;">
       <div class="parameters-box-header">
         <span class="parameters-box-title" id="parameters-box-title">Effect Parameters</span>
-        <button class="parameters-box-close" id="parameters-box-close">×</button>
+        <button class="parameters-box-close" id="parameters-box-close">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
       <div class="parameters-box-content" id="parameters-box-content">
         <!-- Dynamic parameter controls will be added here -->

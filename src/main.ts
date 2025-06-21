@@ -1087,11 +1087,116 @@ function setupMobileEffectsButton() {
     // TODO: Implement preset selector functionality
     console.log('Mobile preset selector clicked - functionality to be implemented')
   }
+
+  // Setup mobile preset selector
+  function setupMobilePresetSelector() {
+    const presetDropdown = document.getElementById('mobile-preset-dropdown')
+    const presetDropdownMenu = document.getElementById('mobile-preset-dropdown-menu')
+    const presetName = document.getElementById('mobile-preset-name')
+    
+    if (!presetDropdown || !presetDropdownMenu || !presetName) return
+
+    // Get actual presets from localStorage and default presets
+    function getAvailablePresets() {
+      const presets = [{ id: 'none', name: 'None' }]
+      
+      try {
+        // Get saved user presets
+        const saved = localStorage.getItem('effects-presets')
+        const userPresets = saved ? JSON.parse(saved) : {}
+        
+        // Add actual default presets (matching EffectsPanel.ts)
+        const defaultPresets = {
+          'Cheeky Castleton': [],
+          'Fisher Two-Tone': [],
+          'Delicate Disco': [],
+          'Delicate Noir': []
+        }
+        
+        // Merge and add to preset list
+        const allPresets = { ...defaultPresets, ...userPresets }
+        Object.keys(allPresets).forEach(name => {
+          presets.push({ id: name, name: name })
+        })
+      } catch (error) {
+        console.error('Failed to load presets:', error)
+      }
+      
+      return presets
+    }
+
+    const presets = getAvailablePresets()
+
+    // Populate preset options
+    presetDropdownMenu.innerHTML = ''
+    presets.forEach(preset => {
+      const option = document.createElement('div')
+      option.className = 'preset-option'
+      option.textContent = preset.name
+      option.dataset.presetId = preset.id
+      
+      if (preset.id === 'none') {
+        option.classList.add('active')
+      }
+      
+      option.addEventListener('click', () => {
+        // Update selected preset
+        presetName.textContent = preset.name
+        
+        // Remove active class from all options
+        presetDropdownMenu.querySelectorAll('.preset-option').forEach(opt => {
+          opt.classList.remove('active')
+        })
+        
+        // Add active class to selected option
+        option.classList.add('active')
+        
+        // Close dropdown
+        presetDropdown.classList.remove('open')
+        presetDropdownMenu.style.display = 'none'
+        
+        // Apply preset effects
+        const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
+        if (desktopDropdown) {
+          desktopDropdown.value = preset.id
+          // Trigger change event to apply preset
+          const changeEvent = new Event('change', { bubbles: true })
+          desktopDropdown.dispatchEvent(changeEvent)
+        }
+        
+        console.log(`Applied preset: ${preset.name}`)
+      })
+      
+      presetDropdownMenu.appendChild(option)
+    })
+
+    // Toggle dropdown on click
+    presetDropdown.addEventListener('click', () => {
+      const isOpen = presetDropdown.classList.contains('open')
+      
+      if (isOpen) {
+        presetDropdown.classList.remove('open')
+        presetDropdownMenu.style.display = 'none'
+      } else {
+        presetDropdown.classList.add('open')
+        presetDropdownMenu.style.display = 'block'
+      }
+    })
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!presetDropdown.contains(e.target as Node)) {
+        presetDropdown.classList.remove('open')
+        presetDropdownMenu.style.display = 'none'
+      }
+    })
+  }
   
   // Set initial position
   setTimeout(() => {
     setMobileButtonPositions()
     updateEffectsButtonVisibility()
+    setupMobilePresetSelector()
   }, 50)
   
   // No need to monitor bottom sheet state (removed)
@@ -1184,11 +1289,13 @@ function createPanelManager() {
       const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
       const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
       const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
       if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
       if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
       if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+      if (presetSelector) presetSelector.style.bottom = `${defaultPosition}px`
       if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
       return
     }
@@ -1205,6 +1312,7 @@ function createPanelManager() {
     const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
     const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
     const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+    const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
     const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
     
     if (cameraButtonContainer) {
@@ -1215,6 +1323,9 @@ function createPanelManager() {
     }
     if (settingsButtonContainer) {
       settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+    }
+    if (presetSelector) {
+      presetSelector.style.bottom = `${buttonBottomPosition}px`
     }
     if (trashIcon) {
       trashIcon.style.bottom = `${trashBottomPosition}px`
