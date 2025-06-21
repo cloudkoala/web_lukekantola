@@ -171,6 +171,9 @@ const orbitalCamera = new OrbitalCameraSystem(
 // Expose effects chain manager globally for mobile effects system
 ;(window as any).effectsChainManager = orbitalCamera.getEffectsChainManager()
 
+// Expose mobile rotation fill function globally for scene state updates
+;(window as any).updateMobileRotationFill = null // Will be set when mobile camera is initialized
+
 // Main render loop
 function animate() {
   requestAnimationFrame(animate)
@@ -372,25 +375,386 @@ function setMobileButtonPositions() {
   console.log('🔧 Mobile button positioning initialized')
 }
 
+// Color conversion utilities
+function hexToRgb(hex: string) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 0, b: 0 }
+}
+
+function rgbToHsv(r: number, g: number, b: number) {
+  r /= 255; g /= 255; b /= 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const diff = max - min
+  const s = max === 0 ? 0 : diff / max
+  const v = max
+  
+  let h = 0
+  if (diff !== 0) {
+    if (max === r) h = ((g - b) / diff + (g < b ? 6 : 0)) / 6
+    else if (max === g) h = ((b - r) / diff + 2) / 6
+    else h = ((r - g) / diff + 4) / 6
+  }
+  
+  return { h: h * 360, s, v }
+}
+
+function hsvToRgb(h: number, s: number, v: number) {
+  h /= 360
+  const c = v * s
+  const x = c * (1 - Math.abs((h * 6) % 2 - 1))
+  const m = v - c
+  
+  let r = 0, g = 0, b = 0
+  if (h < 1/6) { r = c; g = x; b = 0 }
+  else if (h < 2/6) { r = x; g = c; b = 0 }
+  else if (h < 3/6) { r = 0; g = c; b = x }
+  else if (h < 4/6) { r = 0; g = x; b = c }
+  else if (h < 5/6) { r = x; g = 0; b = c }
+  else { r = c; g = 0; b = x }
+  
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255)
+  }
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+}
+
+
+function showMobileColorPicker(initialHex: string, onColorChange: (hex: string) => void) {
+  // Find the mobile parameters box to position relative to it
+  const parametersBox = document.getElementById('mobile-effect-parameters-box') as HTMLElement
+  if (!parametersBox) return
+  
+  const rect = parametersBox.getBoundingClientRect()
+  
+  // Create small popup positioned at bottom left of parameters box
+  const popup = document.createElement('div')
+  popup.className = 'color-picker-popup'
+  popup.style.cssText = `
+    position: fixed;
+    left: ${rect.left}px;
+    top: ${rect.bottom + 10}px;
+    background: rgba(0, 20, 0, 0.95);
+    border: 1px solid #00ff00;
+    border-radius: 6px;
+    padding: 12px;
+    width: 200px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 255, 0, 0.3);
+    transform: translateY(-10px);
+    opacity: 0;
+    transition: all 0.2s ease;
+  `
+  
+  // Convert initial color to HSV
+  const rgb = hexToRgb(initialHex)
+  const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b)
+  
+  popup.innerHTML = `
+    <div class="color-controls-compact" style="display: flex; gap: 8px; align-items: flex-start;">
+      <div class="sat-lum-square" style="
+        width: 140px;
+        height: 100px;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 3px;
+        cursor: crosshair;
+        flex-shrink: 0;
+      ">
+        <div class="sat-lum-overlay"></div>
+        <div class="sat-lum-cursor" style="left: ${hsv.s * 100}%; top: ${(1 - hsv.v) * 100}%;"></div>
+      </div>
+      <div class="hue-slider" style="
+        width: 32px;
+        height: 100px;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 3px;
+        cursor: pointer;
+        flex-shrink: 0;
+        background: linear-gradient(to bottom, 
+          #ff0000 0%, 
+          #ffff00 16.666%, 
+          #00ff00 33.333%, 
+          #00ffff 50%, 
+          #0000ff 66.666%, 
+          #ff00ff 83.333%, 
+          #ff0000 100%);
+      ">
+        <div class="hue-cursor" style="top: ${hsv.h / 360 * 100}%;"></div>
+      </div>
+    </div>
+    <div class="color-picker-buttons-compact" style="
+      position: relative;
+      margin-top: 8px;
+      height: 20px;
+    ">
+      <button class="color-picker-confirm" style="
+        background: rgba(0, 255, 0, 0.2);
+        border: 0.5px solid #00ff00;
+        color: #00ff00;
+        padding: 2px;
+        border-radius: 50%;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.7rem;
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        position: absolute;
+        left: 33%;
+        transform: translateX(-50%);
+      ">✓</button>
+      <button class="color-picker-cancel" style="
+        background: rgba(255, 0, 0, 0.2);
+        border: 0.5px solid #ff0000;
+        color: #ff0000;
+        padding: 2px;
+        border-radius: 50%;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.7rem;
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        min-height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        position: absolute;
+        left: 66%;
+        transform: translateX(-50%);
+      ">×</button>
+    </div>
+  `
+  
+  document.body.appendChild(popup)
+  
+  // Animate in
+  setTimeout(() => {
+    popup.style.transform = 'translateY(0)'
+    popup.style.opacity = '1'
+  }, 10)
+  
+  // Set up color picker interaction
+  let currentHsv = { ...hsv }
+  const satLumSquare = popup.querySelector('.sat-lum-square') as HTMLElement
+  const satLumCursor = popup.querySelector('.sat-lum-cursor') as HTMLElement
+  const hueSlider = popup.querySelector('.hue-slider') as HTMLElement
+  const hueCursor = popup.querySelector('.hue-cursor') as HTMLElement
+  
+  function updateModalColor() {
+    const rgb = hsvToRgb(currentHsv.h, currentHsv.s, currentHsv.v)
+    const hex = rgbToHex(rgb.r, rgb.g, rgb.b)
+    
+    // Update square background based on hue
+    const hueRgb = hsvToRgb(currentHsv.h, 1, 1)
+    const hueHex = rgbToHex(hueRgb.r, hueRgb.g, hueRgb.b)
+    satLumSquare.style.backgroundColor = hueHex
+    
+    // Automatically apply the color change in real-time
+    onColorChange(hex)
+  }
+  
+  // Saturation/Luminance square interaction
+  function handleSatLumInteraction(e: MouseEvent | TouchEvent) {
+    const rect = satLumSquare.getBoundingClientRect()
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+    
+    currentHsv.s = x
+    currentHsv.v = 1 - y
+    
+    satLumCursor.style.left = `${x * 100}%`
+    satLumCursor.style.top = `${y * 100}%`
+    
+    updateModalColor()
+  }
+  
+  // Hue slider interaction (vertical)
+  function handleHueInteraction(e: MouseEvent | TouchEvent) {
+    const rect = hueSlider.getBoundingClientRect()
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+    
+    currentHsv.h = y * 360
+    
+    hueCursor.style.top = `${y * 100}%`
+    
+    updateModalColor()
+  }
+  
+  // Event listeners
+  let isMouseDown = false
+  let isHueMouseDown = false
+  
+  satLumSquare.addEventListener('mousedown', (e) => {
+    isMouseDown = true
+    handleSatLumInteraction(e)
+    e.preventDefault()
+  })
+  
+  satLumSquare.addEventListener('touchstart', (e) => {
+    handleSatLumInteraction(e)
+    e.preventDefault()
+  })
+  
+  document.addEventListener('mousemove', (e) => {
+    if (isMouseDown) handleSatLumInteraction(e)
+  })
+  
+  document.addEventListener('mouseup', () => {
+    isMouseDown = false
+  })
+  
+  satLumSquare.addEventListener('touchmove', handleSatLumInteraction)
+  
+  hueSlider.addEventListener('mousedown', (e) => {
+    isHueMouseDown = true
+    handleHueInteraction(e)
+    e.preventDefault()
+  })
+  
+  hueSlider.addEventListener('touchstart', (e) => {
+    handleHueInteraction(e)
+    e.preventDefault()
+  })
+  
+  document.addEventListener('mousemove', (e) => {
+    if (isHueMouseDown) handleHueInteraction(e)
+  })
+  
+  document.addEventListener('mouseup', () => {
+    isHueMouseDown = false
+  })
+  
+  hueSlider.addEventListener('touchmove', handleHueInteraction)
+  
+  // Button handlers
+  const cancelButton = popup.querySelector('.color-picker-cancel') as HTMLElement
+  const confirmButton = popup.querySelector('.color-picker-confirm') as HTMLElement
+  
+  function acceptAndClose() {
+    popup.style.transform = 'translateY(-10px)'
+    popup.style.opacity = '0'
+    setTimeout(() => {
+      if (popup.parentNode) {
+        document.body.removeChild(popup)
+      }
+    }, 200)
+    // Color is already applied in real-time, so we just close
+  }
+  
+  function cancelAndClose() {
+    // Revert to original color
+    onColorChange(initialHex)
+    popup.style.transform = 'translateY(-10px)'
+    popup.style.opacity = '0'
+    setTimeout(() => {
+      if (popup.parentNode) {
+        document.body.removeChild(popup)
+      }
+    }, 200)
+  }
+  
+  // Checkmark button accepts current color
+  confirmButton.addEventListener('click', (e) => {
+    e.stopPropagation()
+    acceptAndClose()
+  })
+  
+  // X button cancels and reverts
+  cancelButton.addEventListener('click', (e) => {
+    e.stopPropagation()
+    cancelAndClose()
+  })
+  
+  // Accept current value when clicking outside the popup
+  setTimeout(() => {
+    document.addEventListener('click', function closeOnClickOutside(e) {
+      if (!popup.contains(e.target as Node)) {
+        acceptAndClose()
+        document.removeEventListener('click', closeOnClickOutside)
+      }
+    })
+  }, 100)
+  
+  // Initialize color
+  updateModalColor()
+}
+
 // Shared parameter slider card creation function
-function createParameterSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
+function createParameterSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void, paramType?: string) {
   const card = document.createElement('div')
   card.className = 'parameter-control'
   
-  const normalizedValue = (parseFloat(currentValue) - min) / (max - min)
-  const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
+  if (paramType === 'color') {
+    // Create color swatch for mobile (popup on click)
+    const hexValue = '#' + Math.floor(parseFloat(currentValue)).toString(16).padStart(6, '0')
+    
+    card.innerHTML = `
+      <label>${label}</label>
+      <div class="mobile-color-swatch" style="
+        width: 24px;
+        height: 24px;
+        background-color: ${hexValue};
+        border: 1px solid #ffffff;
+        border-radius: 50%;
+        cursor: pointer;
+        margin-left: auto;
+        flex-shrink: 0;
+      " data-color="${hexValue}"></div>
+    `
+    
+    // Add click handler to show popup color picker
+    const colorSwatch = card.querySelector('.mobile-color-swatch') as HTMLElement
+    colorSwatch.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      showMobileColorPicker(hexValue, (newHex) => {
+        const numericValue = parseInt(newHex.replace('#', ''), 16)
+        colorSwatch.style.backgroundColor = newHex
+        colorSwatch.setAttribute('data-color', newHex)
+        onChange(numericValue)
+      })
+    })
+  } else {
+    // Create slider for numeric parameters
+    const normalizedValue = (parseFloat(currentValue) - min) / (max - min)
+    const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
+    
+    card.innerHTML = `
+      <label>${label}</label>
+      <div class="parameter-value">${parseFloat(currentValue).toFixed(3)}</div>
+      <div class="parameter-fill" style="width: ${fillPercentage}%"></div>
+    `
+  }
   
-  card.innerHTML = `
-    <label>${label}</label>
-    <div class="parameter-value">${parseFloat(currentValue).toFixed(3)}</div>
-    <div class="parameter-fill" style="width: ${fillPercentage}%"></div>
-  `
-  
-  // Touch interaction for slider - relative movement only
-  let isDragging = false
-  let startX = 0
-  let startValue = parseFloat(currentValue)
-  let currentSliderValue = parseFloat(currentValue)
+  // Only add slider interaction for non-color parameters
+  if (paramType !== 'color') {
+    // Touch interaction for slider - relative movement only
+    let isDragging = false
+    let startX = 0
+    let startValue = parseFloat(currentValue)
+    let currentSliderValue = parseFloat(currentValue)
   
   const handleStart = (clientX: number) => {
     isDragging = true
@@ -462,6 +826,7 @@ function createParameterSliderCard(label: string, currentValue: string, min: num
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)
   })
+  }
   
   return card
 }
@@ -921,7 +1286,8 @@ function setupMobileEffectsButton() {
         paramDef.step,
         (value) => {
           window.effectsChainManager.updateEffectParameter(effectId, paramName, value)
-        }
+        },
+        paramDef.type
       )
       
       parametersBoxContent.appendChild(parameterCard)
@@ -940,7 +1306,7 @@ function setupMobileEffectsButton() {
       const categories = {
         'Color': {
           color: '#FF6B6B',
-          effects: ['background', 'gamma', 'sepia', 'colorify', 'invert', 'bleachbypass']
+          effects: ['background', 'gamma', 'sepia', 'colorify', 'colorgradient', 'invert', 'bleachbypass']
         },
         'Blur': {
           color: '#4ECDC4',
@@ -1506,6 +1872,73 @@ function setupMobileCameraReset() {
     }
   }
   
+  
+  // Function to update bidirectional rotation slider fill
+  function updateMobileRotationFill() {
+    const slider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
+    const fill = document.getElementById('mobile-rotation-fill') as HTMLElement
+    const valueSpan = document.getElementById('mobile-rotation-speed-value') as HTMLElement
+    
+    if (!slider || !fill || !valueSpan) return
+    
+    const value = parseFloat(slider.value)
+    const min = parseFloat(slider.min) // -2.0
+    const max = parseFloat(slider.max) // 2.0
+    
+    // Update value display
+    valueSpan.textContent = value.toFixed(1)
+    
+    if (value === 0) {
+      // No fill at zero - completely hide
+      fill.style.width = '0%'
+      fill.style.display = 'none'
+    } else if (value > 0) {
+      // Positive values: fill from center (50%) extending right
+      // value +1 should fill 25% (from 50% to 75%)
+      // value +2 should fill 50% (from 50% to 100%)
+      const fillWidth = (value / max) * 50 // Calculate width as percentage of half the card
+      fill.style.display = 'block'
+      fill.style.left = '50%'
+      fill.style.width = `${fillWidth}%`
+    } else {
+      // Negative values: fill from left extending to center (50%)
+      // value -1 should fill 25% (from 25% to 50%)
+      // value -2 should fill 50% (from 0% to 50%)
+      const fillWidth = (Math.abs(value) / Math.abs(min)) * 50 // Calculate width as percentage of half the card
+      const leftPosition = 50 - fillWidth // Position so it ends at 50%
+      fill.style.display = 'block'
+      fill.style.left = `${leftPosition}%`
+      fill.style.width = `${fillWidth}%`
+    }
+  }
+  
+  // Function to setup mobile auto-rotation event listeners
+  function setupMobileAutoRotationEventListeners() {
+    // Setup mobile bidirectional rotation speed control
+    const mobileRotationSpeedSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
+    if (mobileRotationSpeedSlider) {
+      // Initial fill update
+      updateMobileRotationFill()
+      
+      mobileRotationSpeedSlider.addEventListener('input', () => {
+        updateMobileRotationFill()
+        
+        const value = parseFloat(mobileRotationSpeedSlider.value)
+        if (orbitalCamera) {
+          // Use the new bidirectional method
+          orbitalCamera.setBidirectionalRotationSpeed(value)
+          
+          // Sync desktop controls
+          const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
+          const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
+          
+          if (desktopSlider) desktopSlider.value = value.toString()
+          if (desktopValue) desktopValue.textContent = value.toFixed(1)
+        }
+      })
+    }
+  }
+  
   function refreshHorizontalCameraOptions() {
     horizontalCameraOptions.innerHTML = ''
     
@@ -1513,7 +1946,7 @@ function setupMobileCameraReset() {
     const resetCard = document.createElement('div')
     resetCard.className = 'camera-option-card'
     resetCard.innerHTML = `
-      <div class="camera-option-name">Reset Camera</div>
+      <div class="camera-option-name">Reset<br>Camera</div>
     `
     resetCard.addEventListener('click', () => {
       if (orbitalCamera) {
@@ -1527,7 +1960,7 @@ function setupMobileCameraReset() {
     const animationCard = document.createElement('div')
     animationCard.className = 'camera-option-card'
     animationCard.innerHTML = `
-      <div class="camera-option-name">Play Animation</div>
+      <div class="camera-option-name">Play<br>Animation</div>
     `
     animationCard.addEventListener('click', () => {
       if (orbitalCamera) {
@@ -1536,6 +1969,30 @@ function setupMobileCameraReset() {
       // Don't close panel - let user manually close it
     })
     horizontalCameraOptions.appendChild(animationCard)
+    
+    // Get current rotation speed from orbitalCamera or default
+    const currentSpeed = '0.0' // Default value - will be updated by scene state
+    
+    // Create rotation speed slider card using the same method as settings panel
+    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.1, (value) => {
+      if (orbitalCamera) {
+        orbitalCamera.setBidirectionalRotationSpeed(value)
+        
+        // Sync desktop slider
+        const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
+        const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
+        if (desktopSlider) desktopSlider.value = value.toString()
+        if (desktopValue) desktopValue.textContent = value.toFixed(1)
+      }
+    })
+    speedCard.id = 'mobile-rotation-speed-card'
+    horizontalCameraOptions.appendChild(speedCard)
+    
+    // Re-attach event listeners for the auto-rotation controls
+    setupMobileAutoRotationEventListeners()
+    
+    // Expose the mobile rotation fill function globally
+    ;(window as any).updateMobileRotationFill = updateMobileRotationFill
   }
   
   // Event listeners
@@ -1551,6 +2008,194 @@ function setupMobileCameraReset() {
     setMobileButtonPositions()
     updateCameraButtonVisibility()
   }, 50)
+}
+
+// Shared function for creating slider cards (used by both settings and camera panels)
+function createSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
+  const card = document.createElement('div')
+  card.className = 'settings-option-card slider-card'
+  
+  const initialValue = parseFloat(currentValue)
+  let initialFillStyle = ''
+  
+  // Calculate initial fill based on whether this is bidirectional
+  if (min < 0 && max > 0) {
+    // Bidirectional slider - use center-out logic
+    if (initialValue === 0) {
+      initialFillStyle = 'width: 0%; display: none;'
+    } else if (initialValue > 0) {
+      const fillWidth = (initialValue / max) * 50
+      initialFillStyle = `display: block; left: 50%; right: auto; width: ${fillWidth}%;`
+    } else {
+      const fillWidth = (Math.abs(initialValue) / Math.abs(min)) * 50
+      initialFillStyle = `display: block; left: auto; right: 50%; width: ${fillWidth}%;`
+    }
+  } else {
+    // Standard left-to-right fill
+    const normalizedValue = (initialValue - min) / (max - min)
+    const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
+    initialFillStyle = `left: 0%; width: ${fillPercentage}%; display: block;`
+  }
+  
+  card.innerHTML = `
+    <div class="settings-option-name">${label}</div>
+    <div class="settings-option-value">${currentValue}</div>
+    <div class="slider-fill" style="${initialFillStyle}"></div>
+  `
+  
+  // Touch interaction for slider - relative movement only
+  let isDragging = false
+  let startX = 0
+  let startValue = parseFloat(currentValue)
+  let currentSliderValue = startValue
+  
+  // Calculate range for relative movement
+  const range = max - min
+  const cardWidth = 120 // Approximate card width in pixels
+  const sensitivityFactor = range / cardWidth // Value change per pixel
+  
+  const updateSliderValueInternal = (newValue: number) => {
+    // Apply step rounding
+    let steppedValue = Math.round(newValue / step) * step
+    
+    // Add snap to center (0) for bidirectional sliders
+    if (min < 0 && max > 0) {
+      const snapZone = Math.abs(max - min) * 0.05 // 5% of total range as snap zone (adjustable)
+      if (Math.abs(steppedValue) <= snapZone) {
+        steppedValue = 0 // Snap to center
+      }
+    }
+    
+    const clampedValue = Math.max(min, Math.min(max, steppedValue))
+    
+    // Only update if value actually changed
+    if (Math.abs(clampedValue - currentSliderValue) < step * 0.01) return
+    
+    // Update current slider value
+    currentSliderValue = steppedValue
+    
+    // Update visual fill - check if this is a bidirectional slider (min < 0 && max > 0)
+    const fillElement = card.querySelector('.slider-fill') as HTMLElement
+    const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+    
+    if (fillElement) {
+      if (min < 0 && max > 0) {
+        // Bidirectional slider - use center-out logic
+        if (steppedValue === 0) {
+          // No fill at zero
+          fillElement.style.width = '0%'
+          fillElement.style.display = 'none'
+        } else if (steppedValue > 0) {
+          // Positive values: fill from center (50%) extending right
+          const fillWidth = (steppedValue / max) * 50
+          fillElement.style.display = 'block'
+          fillElement.style.left = '50%'
+          fillElement.style.right = 'auto' // Clear right
+          fillElement.style.width = `${fillWidth}%`
+        } else {
+          // Negative values: fill from center (50%) extending left
+          // Keep right edge fixed at 50%, grow leftward using 'right' property
+          const fillWidth = (Math.abs(steppedValue) / Math.abs(min)) * 50
+          fillElement.style.display = 'block'
+          fillElement.style.left = 'auto' // Clear left
+          fillElement.style.right = '50%' // Right edge fixed at center
+          fillElement.style.width = `${fillWidth}%`
+        }
+      } else {
+        // Standard left-to-right fill for non-bidirectional sliders
+        const fillPercent = ((steppedValue - min) / (max - min)) * 100
+        fillElement.style.left = '0%'
+        fillElement.style.width = `${fillPercent}%`
+        fillElement.style.display = 'block'
+      }
+    }
+    if (valueElement) valueElement.textContent = steppedValue.toFixed(3)
+    
+    // Call the onChange callback
+    onChange(steppedValue)
+  }
+  
+  card.addEventListener('touchstart', (e) => {
+    e.preventDefault()
+    isDragging = true
+    startX = e.touches[0].clientX
+    startValue = currentSliderValue
+    
+    card.style.transform = 'scale(1.05)'
+    card.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.5)'
+    card.style.zIndex = '999'
+  })
+  
+  card.addEventListener('touchmove', (e) => {
+    if (!isDragging) return
+    e.preventDefault()
+    
+    const currentX = e.touches[0].clientX
+    const deltaX = currentX - startX
+    const deltaValue = deltaX * sensitivityFactor
+    const newValue = startValue + deltaValue
+    
+    updateSliderValueInternal(newValue)
+  })
+  
+  card.addEventListener('touchend', (e) => {
+    e.preventDefault()
+    isDragging = false
+    
+    card.style.transform = ''
+    card.style.boxShadow = ''
+    card.style.zIndex = ''
+  })
+  
+  card.addEventListener('touchcancel', (e) => {
+    e.preventDefault()
+    isDragging = false
+    
+    card.style.transform = ''
+    card.style.boxShadow = ''
+    card.style.zIndex = ''
+  })
+  
+  // Method to update slider from external changes (desktop controls)
+  const updateSliderValue = (newValue: string) => {
+    currentSliderValue = parseFloat(newValue)
+    const fillElement = card.querySelector('.slider-fill') as HTMLElement
+    const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+    
+    if (fillElement) {
+      if (min < 0 && max > 0) {
+        // Bidirectional slider - use center-out logic
+        if (currentSliderValue === 0) {
+          fillElement.style.width = '0%'
+          fillElement.style.display = 'none'
+        } else if (currentSliderValue > 0) {
+          const fillWidth = (currentSliderValue / max) * 50
+          fillElement.style.display = 'block'
+          fillElement.style.left = '50%'
+          fillElement.style.right = 'auto'
+          fillElement.style.width = `${fillWidth}%`
+        } else {
+          const fillWidth = (Math.abs(currentSliderValue) / Math.abs(min)) * 50
+          fillElement.style.display = 'block'
+          fillElement.style.left = 'auto'
+          fillElement.style.right = '50%'
+          fillElement.style.width = `${fillWidth}%`
+        }
+      } else {
+        // Standard left-to-right fill
+        const fillPercent = ((currentSliderValue - min) / (max - min)) * 100
+        fillElement.style.left = '0%'
+        fillElement.style.width = `${fillPercent}%`
+        fillElement.style.display = 'block'
+      }
+    }
+    if (valueElement) valueElement.textContent = newValue
+  }
+  
+  // Attach updater to card for external access
+  ;(card as any).updateValue = updateSliderValue
+  
+  return card
 }
 
 // Mobile settings button functionality (unified horizontal panel system)
@@ -1585,112 +2230,7 @@ function setupMobileSettings() {
     }
   }
   
-  function createSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
-    const card = document.createElement('div')
-    card.className = 'settings-option-card slider-card'
-    
-    const normalizedValue = (parseFloat(currentValue) - min) / (max - min)
-    const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
-    
-    card.innerHTML = `
-      <div class="settings-option-name">${label}</div>
-      <div class="settings-option-value">${currentValue}</div>
-      <div class="slider-fill" style="width: ${fillPercentage}%"></div>
-    `
-    
-    // Touch interaction for slider - relative movement only
-    let isDragging = false
-    let startX = 0
-    let startValue = parseFloat(currentValue)
-    let currentSliderValue = parseFloat(currentValue)
-    
-    const handleStart = (clientX: number) => {
-      isDragging = true
-      startX = clientX
-      startValue = currentSliderValue // Use current slider value, not DOM value
-      card.classList.add('dragging')
-    }
-    
-    const handleMove = (clientX: number) => {
-      if (!isDragging) return
-      
-      const rect = card.getBoundingClientRect()
-      const deltaX = clientX - startX
-      const sensitivityFactor = 1.0 // Adjust this to control sensitivity
-      const percentageChange = (deltaX * sensitivityFactor) / rect.width
-      const valueRange = max - min
-      const newValue = Math.max(min, Math.min(max, startValue + (percentageChange * valueRange)))
-      const steppedValue = Math.round(newValue / step) * step
-      
-      // Update current slider value
-      currentSliderValue = steppedValue
-      
-      // Update visual fill
-      const fillPercent = ((steppedValue - min) / (max - min)) * 100
-      const fillElement = card.querySelector('.slider-fill') as HTMLElement
-      const valueElement = card.querySelector('.settings-option-value') as HTMLElement
-      
-      if (fillElement) fillElement.style.width = `${fillPercent}%`
-      if (valueElement) valueElement.textContent = steppedValue.toFixed(3)
-      
-      onChange(steppedValue)
-    }
-    
-    const handleEnd = () => {
-      isDragging = false
-      card.classList.remove('dragging')
-    }
-    
-    // Touch events
-    card.addEventListener('touchstart', (e) => {
-      e.preventDefault()
-      handleStart(e.touches[0].clientX)
-    })
-    
-    card.addEventListener('touchmove', (e) => {
-      e.preventDefault()
-      handleMove(e.touches[0].clientX)
-    })
-    
-    card.addEventListener('touchend', (e) => {
-      e.preventDefault()
-      handleEnd()
-    })
-    
-    // Mouse events for desktop testing - same relative behavior
-    const handleMouseMove = (e: MouseEvent) => {
-      handleMove(e.clientX)
-    }
-    
-    const handleMouseUp = () => {
-      handleEnd()
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-    
-    card.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      handleStart(e.clientX)
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    })
-    
-    // Method to update slider from external changes (desktop controls)
-    const updateSliderValue = (newValue: string) => {
-      currentSliderValue = parseFloat(newValue)
-      const fillPercent = ((currentSliderValue - min) / (max - min)) * 100
-      const fillElement = card.querySelector('.slider-fill') as HTMLElement
-      const valueElement = card.querySelector('.settings-option-value') as HTMLElement
-      
-      if (fillElement) fillElement.style.width = `${fillPercent}%`
-      if (valueElement) valueElement.textContent = newValue
-    }
-    
-    // Expose update method on the card element for external updates
-    ;(card as any).updateValue = updateSliderValue
-    
-    return card
-  }
+  // Using global createSliderCard function
   
   function createToggleCard(label: string, currentState: boolean, onChange: (checked: boolean) => void) {
     const card = document.createElement('div')
@@ -1726,7 +2266,6 @@ function setupMobileSettings() {
     const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
     const focalLengthSlider = document.getElementById('focal-length') as HTMLInputElement
     const fogDensitySlider = document.getElementById('fog-density') as HTMLInputElement
-    const autoRotateToggle = document.getElementById('auto-rotate-toggle') as HTMLInputElement
     
     // Check if sphere mode is active to show appropriate slider
     const isSphereMode = sphereToggle && sphereToggle.checked
@@ -1739,6 +2278,7 @@ function setupMobileSettings() {
           sphereRadiusSlider.value = value.toString()
           sphereRadiusSlider.dispatchEvent(new Event('input'))
         })
+      sphereRadiusCard.id = 'mobile-sphere-radius-card'
       horizontalSettingsOptions.appendChild(sphereRadiusCard)
     } else if (!isSphereMode && pointSizeSlider) {
       const pointSizeCard = createSliderCard('Point Size', pointSizeSlider.value, 
@@ -1747,6 +2287,7 @@ function setupMobileSettings() {
           pointSizeSlider.value = value.toString()
           pointSizeSlider.dispatchEvent(new Event('input'))
         })
+      pointSizeCard.id = 'mobile-point-size-card'
       horizontalSettingsOptions.appendChild(pointSizeCard)
     }
     
@@ -1758,6 +2299,7 @@ function setupMobileSettings() {
           focalLengthSlider.value = value.toString()
           focalLengthSlider.dispatchEvent(new Event('input'))
         })
+      focalLengthCard.id = 'mobile-focal-length-card'
       horizontalSettingsOptions.appendChild(focalLengthCard)
     }
     
@@ -1769,18 +2311,10 @@ function setupMobileSettings() {
           fogDensitySlider.value = value.toString()
           fogDensitySlider.dispatchEvent(new Event('input'))
         })
+      fogDensityCard.id = 'mobile-fog-density-card'
       horizontalSettingsOptions.appendChild(fogDensityCard)
     }
     
-    // Add Auto-Rotate toggle card
-    if (autoRotateToggle) {
-      const autoRotateCard = createToggleCard('Auto-Rotate', autoRotateToggle.checked,
-        (checked) => {
-          autoRotateToggle.checked = checked
-          autoRotateToggle.dispatchEvent(new Event('change'))
-        })
-      horizontalSettingsOptions.appendChild(autoRotateCard)
-    }
     
     // Add Sphere Mode toggle card (affects which size slider is shown)
     if (sphereToggle) {
@@ -1827,7 +2361,7 @@ function setupMobileSettings() {
 function setupSettingsButton() {
   console.log('Setting up settings button...')
   const settingsButton = document.getElementById('settings-button') as HTMLButtonElement
-  const settingsButtonContainer = document.querySelector('.settings-button-container') as HTMLElement
+  const settingsButtonContainer = settingsButton?.closest('.control-button-container') as HTMLElement
   const settingsPanel = document.getElementById('settings-panel') as HTMLElement
   const settingsCloseButton = document.getElementById('settings-close') as HTMLButtonElement
   
@@ -1840,50 +2374,296 @@ function setupSettingsButton() {
     return
   }
   
-  // Open settings - hide button, show panel
+  // Toggle settings panel
   settingsButton.addEventListener('click', () => {
-    settingsButtonContainer.style.display = 'none'
-    settingsPanel.style.setProperty('display', 'flex', 'important')
-  })
-  
-  // Close settings - hide panel, show button
-  settingsCloseButton.addEventListener('click', (e) => {
-    console.log('Close button clicked!')
-    e.stopPropagation() // Prevent event bubbling
-    settingsPanel.style.setProperty('display', 'none', 'important')
-    settingsButtonContainer.style.display = 'block'
-  })
-  
-  // Close settings panel when pressing Esc
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
+    const isVisible = settingsPanel.style.display === 'flex'
+    
+    if (isVisible) {
+      // Hide settings panel
       settingsPanel.style.setProperty('display', 'none', 'important')
-      settingsButtonContainer.style.display = 'block'
+      settingsButton.classList.remove('active')
+    } else {
+      // Show settings panel
+      settingsPanel.style.setProperty('display', 'flex', 'important')
+      settingsButton.classList.add('active')
+      
+      // Check if effects panel is also open for expansion logic
+      checkBothPanelsOpen()
     }
   })
   
-  // Setup auto-rotate checkbox (desktop)
-  const autoRotateCheckbox = document.getElementById('auto-rotate-toggle') as HTMLInputElement
-  if (autoRotateCheckbox) {
-    autoRotateCheckbox.addEventListener('change', () => {
+  // Close settings - hide panel, update button state
+  settingsCloseButton.addEventListener('click', (e) => {
+    console.log('Settings close button clicked!')
+    e.stopPropagation() // Prevent event bubbling
+    settingsPanel.style.setProperty('display', 'none', 'important')
+    settingsButton.classList.remove('active')
+    
+    // Force update of effects panel state if both were open
+    checkBothPanelsOpen()
+  })
+}
+
+// Effects button functionality
+function setupEffectsButton() {
+  console.log('Setting up effects button...')
+  const effectsButton = document.getElementById('effects-button') as HTMLButtonElement
+  const effectsButtonContainer = effectsButton?.closest('.control-button-container') as HTMLElement
+  const effectsPanel = document.getElementById('effects-panel') as HTMLElement
+  const effectsCloseButton = document.getElementById('effects-close') as HTMLButtonElement
+  
+  console.log('Effects button:', effectsButton)
+  console.log('Effects panel:', effectsPanel)
+  console.log('Effects close button:', effectsCloseButton)
+  
+  if (!effectsButton || !effectsPanel || !effectsButtonContainer || !effectsCloseButton) {
+    console.warn('Effects elements not found', { effectsButton, effectsPanel, effectsButtonContainer, effectsCloseButton })
+    return
+  }
+  
+  // Toggle effects panel
+  effectsButton.addEventListener('click', () => {
+    const isVisible = effectsPanel.style.display === 'flex'
+    
+    if (isVisible) {
+      // Hide effects panel
+      effectsPanel.style.setProperty('display', 'none', 'important')
+      effectsButton.classList.remove('active')
+      
+      // Force reset button styling - override mobile interference
+      setTimeout(() => {
+        effectsButton.style.removeProperty('background')
+        effectsButton.style.removeProperty('border-color') 
+        effectsButton.style.removeProperty('text-shadow')
+        effectsButton.style.removeProperty('box-shadow')
+        
+        // Force desktop button styling to override mobile interference
+        effectsButton.style.setProperty('background', 'rgba(0, 255, 0, 0.2)', 'important')
+        effectsButton.style.setProperty('border-color', 'rgba(0, 255, 0, 0.3)', 'important')
+      }, 50) // Delay to run after mobile positioning code
+      
+      console.log('Effects button active class removed:', !effectsButton.classList.contains('active'))
+    } else {
+      // Show effects panel
+      effectsPanel.style.setProperty('display', 'flex', 'important')
+      effectsButton.classList.add('active')
+      
+      // Force active styling to override mobile interference
+      setTimeout(() => {
+        effectsButton.style.setProperty('background', 'rgba(0, 255, 0, 0.4)', 'important')
+        effectsButton.style.setProperty('border-color', 'rgba(0, 255, 0, 0.8)', 'important')
+        effectsButton.style.setProperty('text-shadow', '0 0 15px rgba(0, 255, 0, 0.9)', 'important')
+        effectsButton.style.setProperty('box-shadow', '0 0 10px rgba(0, 255, 0, 0.4)', 'important')
+      }, 50) // Delay to run after mobile positioning code
+      
+      console.log('Effects button active class added:', effectsButton.classList.contains('active'))
+      
+      // Check if both panels are open for expansion logic
+      checkBothPanelsOpen()
+    }
+  })
+  
+  // Close effects - hide panel, update button state
+  effectsCloseButton.addEventListener('click', (e) => {
+    console.log('Effects close button clicked!')
+    e.stopPropagation() // Prevent event bubbling
+    effectsPanel.style.setProperty('display', 'none', 'important')
+    effectsButton.classList.remove('active')
+    
+    // Force reset button styling - override mobile interference
+    setTimeout(() => {
+      effectsButton.style.removeProperty('background')
+      effectsButton.style.removeProperty('border-color')
+      effectsButton.style.removeProperty('text-shadow')
+      effectsButton.style.removeProperty('box-shadow')
+      
+      // Force desktop button styling to override mobile interference
+      effectsButton.style.setProperty('background', 'rgba(0, 255, 0, 0.2)', 'important')
+      effectsButton.style.setProperty('border-color', 'rgba(0, 255, 0, 0.3)', 'important')
+    }, 50) // Delay to run after mobile positioning code
+    
+    console.log('Effects button active class removed via close button:', !effectsButton.classList.contains('active'))
+    
+    // Force update of settings panel state if both were open
+    checkBothPanelsOpen()
+  })
+  
+  // Setup effects panel collapse/expand functionality
+  const effectsCollapseArrow = document.getElementById('effects-panel-collapse') as HTMLElement
+  const effectsCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
+  
+  if (effectsCollapseArrow && effectsCollapsible) {
+    console.log('Setting up effects collapse arrow...')
+    
+    effectsCollapseArrow.addEventListener('click', (e) => {
+      console.log('Effects collapse arrow clicked!')
+      e.stopPropagation() // Prevent event bubbling
+      
+      const isExpanded = effectsCollapsible.style.display !== 'none'
+      console.log('Current state - isExpanded:', isExpanded)
+      
+      if (isExpanded) {
+        // Collapse the panel
+        effectsCollapsible.style.setProperty('display', 'none', 'important')
+        effectsCollapseArrow.textContent = '▶' // Right arrow for collapsed
+        console.log('Panel collapsed')
+      } else {
+        // Expand the panel
+        effectsCollapsible.style.setProperty('display', 'flex', 'important')
+        effectsCollapseArrow.textContent = '▼' // Down arrow for expanded
+        console.log('Panel expanded')
+      }
+    })
+    
+    // Make arrow clickable
+    effectsCollapseArrow.style.cursor = 'pointer'
+    effectsCollapseArrow.style.pointerEvents = 'auto'
+    effectsCollapseArrow.style.userSelect = 'none'
+    console.log('Effects collapse arrow setup complete')
+  } else {
+    console.warn('Effects collapse arrow or collapsible not found:', { effectsCollapseArrow, effectsCollapsible })
+  }
+}
+
+// Helper function to hide all panels and reset button states
+function hideAllPanels() {
+  const settingsPanel = document.getElementById('settings-panel') as HTMLElement
+  const effectsPanel = document.getElementById('effects-panel') as HTMLElement
+  const settingsButton = document.getElementById('settings-button') as HTMLElement
+  const effectsButton = document.getElementById('effects-button') as HTMLElement
+  
+  if (settingsPanel) {
+    settingsPanel.style.setProperty('display', 'none', 'important')
+  }
+  if (effectsPanel) {
+    effectsPanel.style.setProperty('display', 'none', 'important')
+  }
+  if (settingsButton) {
+    settingsButton.classList.remove('active')
+    // Force reset styling
+    settingsButton.style.removeProperty('background')
+    settingsButton.style.removeProperty('border-color')
+    settingsButton.style.removeProperty('text-shadow')
+    settingsButton.style.removeProperty('box-shadow')
+  }
+  if (effectsButton) {
+    effectsButton.classList.remove('active')
+    // Force reset styling
+    effectsButton.style.removeProperty('background')
+    effectsButton.style.removeProperty('border-color')
+    effectsButton.style.removeProperty('text-shadow')
+    effectsButton.style.removeProperty('box-shadow')
+  }
+}
+
+// Check if both panels are open and handle effects expansion
+function checkBothPanelsOpen() {
+  const settingsPanel = document.getElementById('settings-panel') as HTMLElement
+  const effectsPanel = document.getElementById('effects-panel') as HTMLElement
+  
+  const settingsOpen = settingsPanel && settingsPanel.style.display === 'flex'
+  const effectsOpen = effectsPanel && effectsPanel.style.display === 'flex'
+  
+  if (settingsOpen && effectsOpen) {
+    // Both panels are open - expand effects by default
+    expandEffectsPanel()
+  }
+}
+
+// Expand effects panel modules by default
+function expandEffectsPanel() {
+  const effectsCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
+  const effectsCollapseArrow = document.getElementById('effects-panel-collapse') as HTMLElement
+  
+  if (effectsCollapsible) {
+    effectsCollapsible.style.display = 'block'
+  }
+  if (effectsCollapseArrow) {
+    effectsCollapseArrow.textContent = '▼' // Show expanded arrow
+  }
+}
+
+// Scene dropdown functionality
+function setupSceneDropdown() {
+  console.log('Setting up scene dropdown...')
+  const sceneDropdown = document.getElementById('scene-dropdown') as HTMLSelectElement
+  
+  if (!sceneDropdown) {
+    console.warn('Scene dropdown not found')
+    return
+  }
+  
+  sceneDropdown.addEventListener('change', async () => {
+    const selectedScene = sceneDropdown.value
+    console.log('Scene selected:', selectedScene)
+    
+    if (selectedScene && orbitalCamera) {
+      try {
+        await orbitalCamera.loadSceneByKey(selectedScene)
+        console.log('Scene loaded successfully:', selectedScene)
+        
+        // Debug: Check if effects were loaded
+        const effectsChainManager = orbitalCamera.getEffectsChainManager()
+        const loadedEffects = effectsChainManager.getEffectsChain()
+        console.log('Effects after scene load:', loadedEffects.length, loadedEffects)
+        
+      } catch (error) {
+        console.error('Failed to load scene:', selectedScene, error)
+      }
+    }
+  })
+  
+  console.log('Scene dropdown setup complete')
+}
+
+// Global ESC key handler to close panels
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    hideAllPanels()
+  }
+})
+
+// Setup auto-rotation speed control (desktop)
+function setupAutoRotationControl() {
+  const autoRotationSpeedSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
+  const autoRotationSpeedValue = document.getElementById('auto-rotation-speed-value') as HTMLSpanElement
+  if (autoRotationSpeedSlider && autoRotationSpeedValue) {
+    autoRotationSpeedSlider.addEventListener('input', () => {
       if (orbitalCamera) {
-        orbitalCamera.setAutoRotationEnabled(autoRotateCheckbox.checked)
-        console.log(`Auto-rotation ${autoRotateCheckbox.checked ? 'enabled' : 'disabled'}`)
+        const speed = parseFloat(autoRotationSpeedSlider.value)
+        orbitalCamera.setBidirectionalRotationSpeed(speed)
+        autoRotationSpeedValue.textContent = speed.toFixed(1)
+        
+        // Sync mobile slider
+        const mobileSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
+        const mobileSpeedValue = document.getElementById('mobile-rotation-speed-value') as HTMLSpanElement
+        if (mobileSlider && mobileSpeedValue) {
+          mobileSlider.value = speed.toString()
+          mobileSpeedValue.textContent = speed.toFixed(1)
+        }
       }
     })
   }
   
-  // Setup auto-rotate checkbox (mobile)
-  const mobileAutoRotateCheckbox = document.getElementById('mobile-auto-rotate-toggle') as HTMLInputElement
-  if (mobileAutoRotateCheckbox) {
-    mobileAutoRotateCheckbox.addEventListener('change', () => {
-      if (orbitalCamera) {
-        orbitalCamera.setAutoRotationEnabled(mobileAutoRotateCheckbox.checked)
-        console.log(`Mobile auto-rotation ${mobileAutoRotateCheckbox.checked ? 'enabled' : 'disabled'}`)
-      }
-    })
+  // Initialize mobile auto-rotation controls with default values
+  if (orbitalCamera) {
+    const mobileSpeedValue = document.getElementById('mobile-rotation-speed-value') as HTMLSpanElement
+    const mobileSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
+    
+    const bidirectionalValue = orbitalCamera.getBidirectionalRotationSpeed()
+    
+    if (mobileSpeedValue) {
+      mobileSpeedValue.textContent = bidirectionalValue.toFixed(1)
+    }
+    if (mobileSlider) {
+      mobileSlider.value = bidirectionalValue.toString()
+    }
+    
+    // Update the mobile fill
+    if ((window as any).updateMobileRotationFill) {
+      (window as any).updateMobileRotationFill()
+    }
   }
-  
 }
 
 // Fog density control setup
@@ -2098,11 +2878,15 @@ async function initialize() {
     orbitalCamera.updateDisplayNameField()
     orbitalCamera.loadDefaultPointSize()
     orbitalCamera.loadDefaultFocalLength()
+    orbitalCamera.loadDefaultAutoRotationSpeed()
     console.log('✅ Camera system setup complete')
     
-    console.log('⚙️ Setting up settings button...')
+    console.log('⚙️ Setting up control buttons...')
     setupSettingsButton()
-    console.log('✅ Settings button setup complete')
+    setupEffectsButton()
+    setupAutoRotationControl()
+    setupSceneDropdown()
+    console.log('✅ Control buttons setup complete')
     
     console.log('📱 Setting up mobile controls...')
     setupMobileCameraReset()

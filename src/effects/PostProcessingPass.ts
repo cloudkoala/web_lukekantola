@@ -6,7 +6,7 @@ import { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
 import { BrushEffect } from './BrushEffect'
 import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -221,7 +221,12 @@ export class PostProcessingPass {
         fogYMax: { value: this.fogYMax },
         thresholdIntensity: { value: this.thresholdIntensity },
         thresholdThreshold: { value: this.thresholdThreshold },
-        thresholdHardness: { value: this.thresholdHardness }
+        thresholdHardness: { value: this.thresholdHardness },
+        gradientColor1: { value: new THREE.Vector3(0.0, 0.0, 0.0) },
+        gradientColor2: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
+        gradientSmoothness: { value: 1.0 },
+        gradientContrast: { value: 1.0 },
+        gradientMidpoint: { value: 0.5 }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -551,6 +556,26 @@ export class PostProcessingPass {
         this.material.uniforms.thresholdThreshold.value = effect.parameters.threshold ?? 0.5
         this.material.uniforms.thresholdHardness.value = effect.parameters.hardness ?? 1.0
         break
+      
+      case 'colorgradient':
+        // Convert hex colors to RGB (0-1 range)
+        const color1 = effect.parameters.color1 ?? 0x000000
+        const color2 = effect.parameters.color2 ?? 0xFFFFFF
+        
+        this.material.uniforms.gradientColor1.value.set(
+          ((color1 >> 16) & 255) / 255.0,  // Red
+          ((color1 >> 8) & 255) / 255.0,   // Green
+          (color1 & 255) / 255.0           // Blue
+        )
+        this.material.uniforms.gradientColor2.value.set(
+          ((color2 >> 16) & 255) / 255.0,  // Red
+          ((color2 >> 8) & 255) / 255.0,   // Green
+          (color2 & 255) / 255.0           // Blue
+        )
+        this.material.uniforms.gradientSmoothness.value = effect.parameters.smoothness ?? 1.0
+        this.material.uniforms.gradientContrast.value = effect.parameters.contrast ?? 1.0
+        this.material.uniforms.gradientMidpoint.value = effect.parameters.midpoint ?? 0.5
+        break
     }
     
     this.material.uniforms.time.value = performance.now() * 0.001
@@ -700,6 +725,7 @@ export class PostProcessingPass {
       case 'pixelate': return 19
       case 'fog': return 20
       case 'threshold': return 21
+      case 'colorgradient': return 22
       // Background effects are handled separately in applyBackgroundEffect
       case 'background': return 0
       // Topographic effects are handled separately in applyTopographicEffect
@@ -2308,6 +2334,11 @@ export class PostProcessingPass {
       uniform float thresholdIntensity;
       uniform float thresholdThreshold;
       uniform float thresholdHardness;
+      uniform vec3 gradientColor1;
+      uniform vec3 gradientColor2;
+      uniform float gradientSmoothness;
+      uniform float gradientContrast;
+      uniform float gradientMidpoint;
       
       varying vec2 vUv;
       
@@ -2587,6 +2618,38 @@ export class PostProcessingPass {
       vec3 colorify(vec3 color) {
         float luminance = dot(color, vec3(0.299, 0.587, 0.114));
         return mix(color, colorTint * luminance, intensity);
+      }
+      
+      // Color Gradient effect - maps luminance (black-white) to color gradient
+      vec3 colorGradient(vec3 color, vec2 uv) {
+        // Calculate luminance using standard formula
+        float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+        
+        // Apply contrast to luminance
+        luminance = pow(luminance, gradientContrast);
+        
+        // Adjust luminance based on midpoint
+        // This allows shifting where the gradient center appears
+        float adjustedLuminance = luminance;
+        if (luminance < gradientMidpoint) {
+          adjustedLuminance = (luminance / gradientMidpoint) * 0.5;
+        } else {
+          adjustedLuminance = 0.5 + ((luminance - gradientMidpoint) / (1.0 - gradientMidpoint)) * 0.5;
+        }
+        
+        // Apply smoothness to the gradient transition
+        if (gradientSmoothness != 1.0) {
+          adjustedLuminance = pow(adjustedLuminance, 1.0 / gradientSmoothness);
+        }
+        
+        // Clamp to valid range
+        adjustedLuminance = clamp(adjustedLuminance, 0.0, 1.0);
+        
+        // Map luminance to gradient: black pixels (0) -> gradientColor1, white pixels (1) -> gradientColor2
+        vec3 gradientColor = mix(gradientColor1, gradientColor2, adjustedLuminance);
+        
+        // Blend with original color based on intensity
+        return mix(color, gradientColor, intensity);
       }
       
       // Sobel edge detection  
@@ -3351,6 +3414,9 @@ export class PostProcessingPass {
         } else if (effectType == 21) {
           // Threshold Effect
           color = thresholdEffect(tDiffuse, vUv, resolution, color);
+        } else if (effectType == 22) {
+          // Color Gradient Effect
+          color = colorGradient(color, vUv);
         }
         
         gl_FragColor = vec4(color, originalColor.a);

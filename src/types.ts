@@ -32,6 +32,7 @@ export interface ModelConfig {
     speed: number
     direction: number
   }
+  autoRotationSpeed?: number
 }
 
 export interface ModelsConfig {
@@ -92,8 +93,9 @@ export interface SceneState {
   cameraTarget: Vector3State
   focalLength: number
   
-  // Effects chain
+  // Effects chain and UI state
   effectsChain: EffectInstanceState[]
+  effectsDropdownValue: string // The value shown in the effects dropdown (preset name or "none")
   
   // Scene settings
   pointSize: number
@@ -101,6 +103,8 @@ export interface SceneState {
   sphereRadius?: number
   fogDensity: number
   autoRotation: boolean
+  autoRotationSpeed: number
+  autoRotationDirection: number
   
   // Metadata
   timestamp: number

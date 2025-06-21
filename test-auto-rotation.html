@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto-Rotation Controls Test</title>
+    <style>
+        body {
+            font-family: 'Space Mono', monospace;
+            background: #151515;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .control-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #00ff00;
+            border-radius: 8px;
+        }
+        .control-section h3 {
+            color: #00ff00;
+            margin-bottom: 15px;
+        }
+        /* Desktop controls styles */
+        .auto-rotation-speed-control,
+        .auto-rotation-direction-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .auto-rotation-speed-control label,
+        .auto-rotation-direction-control label {
+            min-width: 120px;
+            color: #00ff00;
+        }
+        #auto-rotation-speed {
+            flex: 1;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 3px;
+        }
+        .auto-rotation-direction-select {
+            flex: 1;
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 4px;
+            color: #00ff00;
+        }
+        /* Mobile controls styles */
+        .horizontal-effects-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .horizontal-control-card {
+            min-width: 80px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 0, 0.5);
+            border-radius: 6px;
+            padding: 6px;
+            color: #00ff00;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .mobile-control-checkbox {
+            width: 16px;
+            height: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 0, 0.5);
+            border-radius: 3px;
+        }
+        .mobile-direction-toggle {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            border-radius: 3px;
+            color: #00ff00;
+            font-size: 0.6rem;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Auto-Rotation Controls Implementation Test</h1>
+        
+        <div class="control-section">
+            <h3>Desktop Auto-Rotation Controls</h3>
+            <div class="auto-rotation-speed-control">
+                <label for="auto-rotation-speed">Rotation Speed:</label>
+                <input type="range" id="auto-rotation-speed" min="0.0" max="2.0" step="0.1" value="0.5">
+                <span id="auto-rotation-speed-value">0.5</span>
+            </div>
+            <div class="auto-rotation-direction-control">
+                <label for="auto-rotation-direction">Direction:</label>
+                <select id="auto-rotation-direction" class="auto-rotation-direction-select">
+                    <option value="1">Clockwise</option>
+                    <option value="-1">Counter-Clockwise</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Mobile Horizontal Effects Controls</h3>
+            <div class="horizontal-effects-controls">
+                <div class="horizontal-control-card">
+                    <div class="control-card-header">
+                        <span class="control-card-name">Auto-Rotate</span>
+                        <input type="checkbox" id="mobile-auto-rotate-toggle" class="mobile-control-checkbox" checked>
+                    </div>
+                </div>
+                <div class="horizontal-control-card">
+                    <div class="control-card-header">
+                        <span class="control-card-name">Speed</span>
+                        <span class="control-card-value" id="mobile-rotation-speed-value">0.5</span>
+                    </div>
+                    <input type="range" id="mobile-rotation-speed" class="mobile-control-slider" min="0.0" max="2.0" step="0.1" value="0.5">
+                </div>
+                <div class="horizontal-control-card">
+                    <div class="control-card-header">
+                        <span class="control-card-name">Direction</span>
+                        <span class="control-card-value" id="mobile-rotation-direction-value">CW</span>
+                    </div>
+                    <button class="mobile-direction-toggle" id="mobile-rotation-direction" data-direction="1">CW</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Implementation Summary</h3>
+            <p>✅ Added auto-rotation speed control (0.0 - 2.0 range)</p>
+            <p>✅ Added auto-rotation direction control (Clockwise/Counter-Clockwise)</p>
+            <p>✅ Desktop settings panel integration</p>
+            <p>✅ Mobile horizontal effects panel integration</p>
+            <p>✅ Synchronized controls between mobile and desktop</p>
+            <p>✅ Backend OrbitalCameraSystem integration</p>
+            <p>✅ Scene state save/load support</p>
+            <p>✅ CSS styling matching existing theme</p>
+        </div>
+    </div>
+</body>
+</html>

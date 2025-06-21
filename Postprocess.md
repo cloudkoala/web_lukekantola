@@ -259,6 +259,163 @@ Advanced error diffusion dithering algorithm for smooth color quantization.
 - Maintains visual quality while reducing colors
 - GPU-optimized implementation of classic algorithm
 
+### 17. Motion Blur
+Creates camera motion blur effect for enhanced visual dynamics.
+
+**Parameters:**
+- Intensity: 0-100% blend strength
+- Blur Strength: 0.001-1.0 (motion blur amount)
+- Sample Count: 4-16 (quality vs performance balance)
+
+**Technical Details:**
+- Camera velocity-based motion vectors
+- Multi-sample temporal reconstruction
+- Maintains edge coherence during fast motion
+
+### 18. Oil Painting
+Artistic effect simulating traditional oil painting techniques.
+
+**Parameters:**
+- Intensity: 0-100% blend strength
+- Brush Size: 1.0-12.0 (paint brush size)
+- Roughness: 0.1-1.0 (surface texture amount)
+- Brightness: 0.5-2.0 (paint brightness)
+- Canvas Texture: 0.0-2.0 (surface texture strength)
+
+**Technical Details:**
+- Multi-sample paint stroke simulation
+- Color clustering for painterly effect
+- Canvas texture overlay for authenticity
+
+### 19. Topographic Lines
+Creates contour lines based on point cloud height data.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Line Spacing: 1.0-20.0 (distance between contour lines)
+- Line Width: 0.0-8.0 (thickness of contour lines)
+- Animation Speed: 0-2.0 (animated line movement)
+- Generate Wire Geometry: 0/1 (create 3D wire meshes)
+- Min/Max Y Threshold: 0-100% (height range filtering)
+- Wire Opacity: 0.1-1.0 (transparency of generated wires)
+
+**Technical Details:**
+- Height-based line generation using Y coordinates
+- Real-time wire mesh creation for 3D contour visualization
+- Animated contour progression for dynamic effects
+
+### 20. Data Moshing
+Digital glitch effect simulating video compression artifacts.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Displacement: 0-100.0 (pixel displacement amount)
+- Corruption Level: 0-100% (data corruption intensity)
+- Block Size: 1.0-32.0 (compression block size)
+- Glitch Frequency: 0-100% (temporal glitch occurrence)
+- Frame Blending: 0-100% (temporal frame mixing)
+
+**Technical Details:**
+- Block-based pixel displacement simulation
+- Temporal frame corruption algorithms
+- Digital artifact generation for authentic glitch aesthetics
+
+### 21. Pixel Sorting
+Rearranges pixels based on brightness or color criteria.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Sort Length: 1-500 (maximum sorting distance)
+- Brightness Threshold: 0-100% (pixel selection criteria)
+- Direction: 0-3 (horizontal, vertical, diagonal sorting)
+- Sort Mode: 0-2 (brightness, hue, saturation sorting)
+
+**Technical Details:**
+- Real-time pixel rearrangement algorithms
+- Multiple sorting criteria and directions
+- Threshold-based pixel selection for artistic control
+
+### 22. Glow
+Creates luminous halo effects around bright image areas.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Brightness Threshold: 0-100% (glow activation threshold)
+- Glow Radius: 0.1-3.0 (glow spread distance)
+- Glow Strength: 0.5-5.0 (glow intensity multiplier)
+- Quality (Samples): 4-16 (sampling quality)
+- Edge Softness: 0.1-2.0 (glow edge smoothness)
+
+**Technical Details:**
+- Multi-pass blur with brightness thresholding
+- Additive blending for realistic light emission
+- Configurable sample count for performance optimization
+
+### 23. Pixelation
+Reduces image resolution for retro pixel art aesthetics.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Pixel Size: 1-32 (size of pixel blocks)
+- Normal Edge Strength: 0-2.0 (edge enhancement)
+- Depth Edge Strength: 0-1.0 (depth-based edge detection)
+- Edge Mode: 0-2 (edge detection algorithm)
+- Edge Smoothing: 0-100% (edge anti-aliasing)
+
+**Technical Details:**
+- Block averaging with edge preservation
+- Multiple edge detection algorithms
+- Maintains visual coherence at low resolutions
+
+### 24. Distance Fog
+Simulates atmospheric depth with distance-based fog effects.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Near Distance: 0.1-20.0 (fog start distance)
+- Far Distance: 5.0-200.0 (fog end distance)
+- Fog Color RGB: 0-100% each channel
+- Fog Mode: 0-2 (linear, exponential, exponential squared)
+- Y Max Height: -10.0-50.0 (vertical fog boundary)
+
+**Technical Details:**
+- Depth buffer-based fog calculation
+- Multiple fog distribution algorithms
+- Height-based fog boundaries for realistic effects
+
+### 25. Threshold
+Binary image conversion with adjustable threshold levels.
+
+**Parameters:**
+- Intensity: 0-100% effect strength
+- Threshold: 0-100% (brightness cutoff point)
+- Edge Hardness: 0-2.0 (transition sharpness)
+
+**Technical Details:**
+- Luminance-based binary conversion
+- Smooth or hard threshold transitions
+- Maintains edge detail with anti-aliasing
+
+### 26. Color Gradient (NEW)
+Maps image luminance (black-to-white values) to custom color gradients for artistic colorization.
+
+**Parameters:**
+- Intensity: 0-100% blend strength
+- Black Color RGB: 0-100% each channel (color for black/dark pixels)
+- White Color RGB: 0-100% each channel (color for white/bright pixels)
+- Transition Smoothness: 0.1-3.0 (gradient curve steepness)
+- Luminance Contrast: 0.1-3.0 (contrast enhancement before mapping)
+- Gradient Midpoint: 0-100% (shifts where gradient center appears)
+
+**Technical Details:**
+- Luminance-based color mapping using standard luminance formula (0.299R + 0.587G + 0.114B)
+- Black pixels (luminance = 0) map to "Black Color"
+- White pixels (luminance = 1) map to "White Color"
+- Contrast control enhances luminance separation before gradient application
+- Midpoint adjustment allows shifting gradient balance
+- Smoothness parameter controls gradient curve (linear vs exponential transitions)
+- Perfect for false-color visualization, thermal imaging effects, and artistic recoloring
+
 ## Rendering Optimizations
 
 ### Smart Pipeline Selection
@@ -546,13 +703,51 @@ src/interface/
 
 ## Conclusion
 
-The post-processing system has evolved into a comprehensive visual effects platform with **16 distinct effects** ranging from traditional image processing to advanced 3D geometry manipulation. The system now encompasses:
+The post-processing system has evolved into a comprehensive visual effects platform with **26 distinct effects** ranging from traditional image processing to advanced 3D geometry manipulation. The system now encompasses:
 
-- **Traditional Post-Processing**: Sepia, vignette, blur, film grain, and edge detection effects
-- **Advanced Dithering**: ASCII, halftone, and Floyd-Steinberg algorithms for artistic rendering  
-- **Geometry Manipulation**: Draw range control, point network systems, and material deformations
-- **Scene Control**: Background color management and transparency effects
-- **Dynamic Animations**: Real-time deformations, particle systems, and color cycling
+### Effect Categories
+
+#### Color Processing Effects
+- **Background Color**: HSL-based scene background control
+- **Colorify**: Luminance-preserving color tinting
+- **Color Gradient**: Multi-type gradient mapping with luminance preservation
+- **Gamma Correction**: Brightness, contrast, and saturation adjustment
+- **Sepia**: Classic vintage brown tinting
+- **Color Invert**: Full color inversion
+
+#### Artistic & Creative Effects
+- **Oil Painting**: Traditional painting simulation
+- **ASCII Dithering**: Retro computer terminal aesthetics
+- **Halftone Dithering**: Classic newspaper printing patterns
+- **Floyd-Steinberg Dithering**: Advanced error diffusion
+- **Pixel Sorting**: Artistic pixel rearrangement
+- **Data Moshing**: Digital glitch effects
+- **Pixelation**: Retro pixel art aesthetics
+
+#### Blur & Motion Effects
+- **Blur**: Multi-type blur with threshold control
+- **Motion Blur**: Camera velocity-based blur
+- **Bloom**: Bright area enhancement
+- **Glow**: Luminous halo effects
+
+#### Technical Effects
+- **Vignette**: Edge darkening for focus
+- **Film Grain (CRT & 35mm)**: Noise and scanline simulation
+- **Dot Screen**: Halftone dot patterns
+- **Bleach Bypass**: High-contrast film processing
+- **Sobel Edge Detection**: With optional thresholding
+- **Threshold**: Binary image conversion
+
+#### 3D Geometry Effects
+- **Draw Range (Concentric Circles)**: Dynamic point cloud rendering
+- **Point Network**: Particle connections and movement
+- **Material Effects**: Vertex deformations and animations
+- **Topographic Lines**: Height-based contour visualization
+- **Distance Fog**: Atmospheric depth simulation
+
+#### Advanced Features
+- **Depth of Field**: Focus-based blur simulation
+- **Afterimage**: Temporal frame persistence
 
 The modular architecture supports seamless effect chaining, drag-and-drop reordering, and real-time parameter adjustment while maintaining optimal performance across different hardware configurations. Effects can be combined creatively to produce complex visual results, from subtle enhancements to dramatic artistic transformations.
 

@@ -17,6 +17,7 @@ export interface EffectDefinition {
       max: number
       step: number
       label: string
+      type?: 'color' | 'range'
     }
   }
 }
@@ -60,7 +61,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     },
     parameterDefinitions: {
       movementSpeed: { min: 0, max: 0.2, step: 0.001, label: 'Movement Speed' },
-      movementRange: { min: 0, max: 500, step: 1, label: 'Movement Range (%)' },
+      movementRange: { min: 0, max: 10, step: .001, label: 'Movement Range (%)' },
       bounceEffect: { min: 0, max: 1, step: 1, label: 'Bounce Effect' },
       showConnections: { min: 0, max: 1, step: 1, label: 'Show Connections' },
       connectionDistance: { min: 1, max: 50, step: 1, label: 'Connection Distance' },
@@ -87,13 +88,13 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       deformationEnable: 0
     },
     parameterDefinitions: {
-      transparency: { min: 0, max: 100, step: 5, label: 'Transparency (%)' },
+      transparency: { min: 0, max: 100, step: 1, label: 'Transparency (%)' },
       sizeMultiplier: { min: 10, max: 500, step: 10, label: 'Size Multiplier (%)' },
       useVertexColors: { min: 0, max: 1, step: 1, label: 'Use Vertex Colors' },
       waveDeformation: { min: 0, max: 2.0, step: 0.01, label: 'Wave Deformation' },
-      twistEffect: { min: 0, max: 2.0, step: 0.1, label: 'Twist Effect' },
-      animationSpeed: { min: 0, max: 2.0, step: 0.1, label: 'Animation Speed' },
-      waveFrequency: { min: 0.1, max: 20.0, step: 0.1, label: 'Wave Frequency' },
+      twistEffect: { min: 0, max: 2.0, step: 0.01, label: 'Twist Effect' },
+      animationSpeed: { min: 0, max: 2.0, step: 0.01, label: 'Animation Speed' },
+      waveFrequency: { min: 0.1, max: 20.0, step: 0.01, label: 'Wave Frequency' },
       pulseEffect: { min: 0, max: 1, step: 1, label: 'Pulse Effect' },
       colorCycling: { min: 0, max: 1, step: 1, label: 'Color Cycling' },
       deformationEnable: { min: 0, max: 1, step: 1, label: 'Enable Deformation' }
@@ -255,6 +256,26 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     }
   },
   {
+    type: 'colorgradient',
+    name: 'Color Gradient',
+    defaultParameters: { 
+      intensity: 1.0,
+      color1: 0x000000, // Black
+      color2: 0xFFFFFF, // White
+      smoothness: 1.0,
+      contrast: 1.0,
+      midpoint: 0.5
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      color1: { min: 0, max: 16777215, step: 1, label: 'Black Color', type: 'color' },
+      color2: { min: 0, max: 16777215, step: 1, label: 'White Color', type: 'color' },
+      smoothness: { min: 0.1, max: 3.0, step: 0.1, label: 'Transition Smoothness' },
+      contrast: { min: 0.1, max: 3.0, step: 0.1, label: 'Luminance Contrast' },
+      midpoint: { min: 0.0, max: 1.0, step: 0.01, label: 'Gradient Midpoint' }
+    }
+  },
+  {
     type: 'sobel',
     name: 'Sobel Edge Detection',
     defaultParameters: { intensity: 0.5 },
@@ -284,11 +305,11 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'halftone',
     name: 'Halftone Dithering',
-    defaultParameters: { intensity: 0.5, dotSize: 8, contrast: 1.2 },
+    defaultParameters: { intensity: 1, dotSize: 4, contrast: 1.2 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      dotSize: { min: 2, max: 32, step: 1, label: 'Dot Size' },
-      contrast: { min: 0.5, max: 2.0, step: 0.05, label: 'Contrast' }
+      dotSize: { min: 2, max: 32, step: 0.5, label: 'Dot Size' },
+      contrast: { min: 0, max: 2.0, step: 0.05, label: 'Contrast' }
     }
   },
   {
@@ -380,8 +401,8 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     type: 'glow',
     name: 'Glow',
     defaultParameters: { 
-      intensity: 0.5, 
-      threshold: 0.8, 
+      intensity: 1, 
+      threshold: 0, 
       radius: 1.0, 
       strength: 2.0,
       samples: 8,
@@ -476,8 +497,10 @@ export class EffectsChainManager {
   private effectsChain: EffectInstance[] = []
   private onChainUpdatedCallbacks: (() => void)[] = []
   private onEffectSelectedCallbacks: ((effectId: string | null) => void)[] = []
+  private onParameterUpdatedCallbacks: ((effectId: string, parameterName: string, value: number) => void)[] = []
   private selectedEffectId: string | null = null
   private nextEffectId: number = 1
+  private lastAddedEffectId: string | null = null
 
   constructor() {
     // Initialize with empty chain
@@ -501,6 +524,7 @@ export class EffectsChainManager {
 
     console.log('Created effect instance:', newEffect)
     this.effectsChain.push(newEffect)
+    this.lastAddedEffectId = newEffect.id
     this.notifyChainUpdated()
     return newEffect
   }
@@ -540,7 +564,7 @@ export class EffectsChainManager {
     const effect = this.effectsChain.find(e => e.id === effectId)
     if (effect) {
       effect.parameters[parameterName] = value
-      this.notifyChainUpdated()
+      this.notifyParameterUpdated(effectId, parameterName, value)
     }
   }
 
@@ -562,6 +586,7 @@ export class EffectsChainManager {
 
   clearEffects(): void {
     this.effectsChain = []
+    this.lastAddedEffectId = null
     this.notifyChainUpdated()
   }
 
@@ -586,6 +611,10 @@ export class EffectsChainManager {
     this.onEffectSelectedCallbacks.push(callback)
   }
 
+  onParameterUpdated(callback: (effectId: string, parameterName: string, value: number) => void): void {
+    this.onParameterUpdatedCallbacks.push(callback)
+  }
+
   // Notification methods
   private notifyChainUpdated(): void {
     this.onChainUpdatedCallbacks.forEach(callback => callback())
@@ -595,16 +624,29 @@ export class EffectsChainManager {
     this.onEffectSelectedCallbacks.forEach(callback => callback(effectId))
   }
 
+  private notifyParameterUpdated(effectId: string, parameterName: string, value: number): void {
+    this.onParameterUpdatedCallbacks.forEach(callback => callback(effectId, parameterName, value))
+  }
+
   // Utility methods
   clearChain(): void {
     this.effectsChain = []
     this.selectedEffectId = null
+    this.lastAddedEffectId = null
     this.notifyEffectSelected(null)
     this.notifyChainUpdated()
   }
 
   hasEffects(): boolean {
     return this.effectsChain.length > 0
+  }
+
+  getLastAddedEffectId(): string | null {
+    return this.lastAddedEffectId
+  }
+
+  clearLastAddedEffectId(): void {
+    this.lastAddedEffectId = null
   }
 
   hasEnabledEffects(): boolean {
@@ -624,6 +666,7 @@ export class EffectsChainManager {
       const parsed = JSON.parse(data)
       this.effectsChain = parsed.effectsChain || []
       this.selectedEffectId = parsed.selectedEffectId || null
+      this.lastAddedEffectId = null // Don't auto-expand when loading from scenes
       
       // Update next ID to avoid conflicts
       const maxId = Math.max(0, ...this.effectsChain.map(e => 

@@ -27,10 +27,7 @@
         "target": { "x": 0.80, "y": 3.60, "z": -0.32 },
         "duration": 1000
       },
-      "idleRotation": {
-        "speed": 0.01,
-        "direction": -1
-      }
+      "autoRotationSpeed": 0.0
     },
     "corona_arch": {
       "fileName": "Corona_Arch_001_hd02.ply",
@@ -55,10 +52,7 @@
         "target": { "x": 0.96, "y": 4.26, "z": 0.44 },
         "duration": 1000
       },
-      "idleRotation": {
-        "speed": 0.005,
-        "direction": 1
-      }
+      "autoRotationSpeed": 0.0
     },
     "delicate_arch": {
       "fileName": "Delicate_Arch_001_hd05.ply",
@@ -82,10 +76,7 @@
         "target": { "x": 0.17, "y": 6.95, "z": -0.75 },
         "duration": 1000
       },
-      "idleRotation": {
-        "speed": 0.02,
-        "direction": -1
-      }
+      "autoRotationSpeed": 0.0
     },
     "fisher": {
       "fileName": "Fisher_001_6.ply",
@@ -110,10 +101,7 @@
         "target": { "x": 0.35, "y": 2.1, "z": -0.65 },
         "duration": 1000
       },
-      "idleRotation": {
-        "speed": 0.005,
-        "direction": -1
-      }
+      "autoRotationSpeed": 0.0
     }
   },
   "currentModel": "castleton"

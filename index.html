@@ -32,7 +32,7 @@
     <!-- Desktop Controls Container -->
     <div class="controls-container desktop-only">
       <div class="dropdown-row">
-        <div class="model-selector">
+        <div class="dropdown-selector">
           <select id="model-dropdown">
             <option value="castleton">Castleton Tower</option>
             <option value="corona_arch">Corona Arch</option>
@@ -40,17 +40,25 @@
             <option value="fisher">Fisher Towers</option>
           </select>
         </div>
-        <div class="quality-selector">
-          <select id="quality-dropdown">
-            <option value="low">Low Quality</option>
-            <option value="high">High Quality</option>
+        <div class="dropdown-selector">
+          <select id="scene-dropdown">
+            <option value="fisher_two_tone">Fisher Two-Tone</option>
+            <option value="delicate_disco">Delicate Disco</option>
+            <option value="delicate_noir">Delicate Noir</option>
+            <option value="corona_network">Corona Network</option>
+            <option value="castleton_minimalist">Castleton Minimalist</option>
           </select>
         </div>
       </div>
       
-      <!-- Settings Button -->
-      <div class="settings-button-container">
-        <button id="settings-button" class="settings-button">settings</button>
+      <!-- Control Buttons Row -->
+      <div class="control-buttons-row">
+        <div class="control-button-container">
+          <button id="settings-button" class="control-button">Settings</button>
+        </div>
+        <div class="control-button-container">
+          <button id="effects-button" class="control-button">Effects</button>
+        </div>
       </div>
       
       <!-- Settings Panel (replaces button when open) -->
@@ -59,37 +67,48 @@
           ×<span class="esc-hint">esc</span>
         </button>
         
-        <div class="point-size-control" id="point-size-control">
+        <div class="settings-slider-control" id="point-size-control">
           <label for="point-size">Point Size:</label>
           <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
           <span id="point-size-value">0.001</span>
         </div>
         
-        <div class="sphere-radius-control" id="sphere-radius-control" style="display: none;">
+        <div class="settings-slider-control" id="sphere-radius-control" style="display: none;">
           <label for="sphere-radius">Sphere Radius:</label>
           <input type="range" id="sphere-radius" min="0.001" max="0.05" step="0.001" value="0.01">
           <span id="sphere-radius-value">0.01</span>
         </div>
-        <div class="focal-length-control">
+        <div class="settings-slider-control">
           <label for="focal-length">Focal Length:</label>
           <input type="range" id="focal-length" min="10" max="200" step="1" value="50">
           <span id="focal-length-value">50</span>
         </div>
-        <div class="fog-control">
+        <div class="settings-slider-control">
           <label for="fog-density">Fog Density:</label>
           <input type="range" id="fog-density" min="0" max="0.5" step="0.001" value="0.003">
           <span id="fog-density-value">0.003</span>
+        </div>
+        <div class="settings-slider-control">
+          <label for="auto-rotation-speed">Rotation Speed:</label>
+          <input type="range" id="auto-rotation-speed" min="-2.0" max="2.0" step="0.1" value="0.0">
+          <span id="auto-rotation-speed-value">0.0</span>
         </div>
         <div class="sphere-controls">
           <div class="sphere-toggle-control">
             <label for="sphere-toggle">Sphere Mode:</label>
             <input type="checkbox" id="sphere-toggle" class="sphere-toggle-checkbox" checked>
-            <label for="auto-rotate-toggle" class="auto-rotate-label">Auto-Rotate:</label>
-            <input type="checkbox" id="auto-rotate-toggle" class="auto-rotate-checkbox" checked>
           </div>
         </div>
+      </div>
+      
+      <!-- Effects Panel -->
+      <div id="effects-panel" class="effects-panel" style="display: none;">
+        <button id="effects-close" class="settings-close-button">
+          ×<span class="esc-hint">esc</span>
+        </button>
+        
         <!-- Effects Panel (New Chaining System) -->
-        <div id="effects-panel" class="effects-panel">
+        <div class="effects-panel-inner">
           <div class="effects-panel-header">
             <div class="effects-panel-title-row">
               <span class="effects-panel-collapse-arrow" id="effects-panel-collapse">▼</span>
@@ -106,7 +125,7 @@
               </button>
             </div>
           </div>
-          <div class="effects-panel-collapsible" id="effects-panel-collapsible">
+          <div class="effects-panel-collapsible" id="effects-panel-collapsible" style="display: flex;">
             <div class="effects-panel-content" id="effects-panel-content">
               <div class="effects-chain-container">
                 <div id="effects-chain" class="effects-chain">
@@ -232,10 +251,18 @@
       <div class="horizontal-camera-content">
         <div class="horizontal-camera-options" id="horizontal-camera-options">
           <div class="camera-option-card">
-            <div class="camera-option-name">Reset Camera</div>
+            <div class="camera-option-name">Reset<br>Camera</div>
           </div>
           <div class="camera-option-card">
-            <div class="camera-option-name">Play Animation</div>
+            <div class="camera-option-name">Play<br>Animation</div>
+          </div>
+          <div class="horizontal-control-card" id="mobile-rotation-speed-card">
+            <div class="rotation-fill" id="mobile-rotation-fill"></div>
+            <div class="control-card-header">
+              <span class="control-card-name">Rotation</span>
+              <span class="control-card-value" id="mobile-rotation-speed-value">0.0</span>
+            </div>
+            <input type="range" id="mobile-rotation-speed" class="mobile-control-slider" min="-2.0" max="2.0" step="0.1" value="0.0">
           </div>
         </div>
       </div>
@@ -246,6 +273,8 @@
       <div class="horizontal-effects-content">
         <div class="horizontal-effects-chain" id="horizontal-effects-chain">
           <!-- Effect cards will be dynamically added here horizontally -->
+        </div>
+        <div class="horizontal-effects-controls" id="horizontal-effects-controls">
         </div>
       </div>
     </div>

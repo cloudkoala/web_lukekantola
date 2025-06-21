@@ -2,6 +2,16 @@ import { EffectsChainManager, EFFECT_DEFINITIONS } from '../effects/EffectsChain
 import type { EffectInstance } from '../effects/EffectsChainManager'
 import type { EffectType } from '../effects/PostProcessingPass'
 
+// Helper function to convert RGB color string to hex
+function rgbToHex(rgbString: string): string {
+  const rgb = rgbString.match(/\d+/g)
+  if (!rgb) return '#000000'
+  const r = parseInt(rgb[0])
+  const g = parseInt(rgb[1])
+  const b = parseInt(rgb[2])
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)
+}
+
 export class EffectsPanel {
   private chainManager: EffectsChainManager
   private panelElement: HTMLElement
@@ -15,6 +25,7 @@ export class EffectsPanel {
   private mainDropdown: HTMLSelectElement
   private savePresetButton: HTMLElement
   private isCollapsed: boolean = true
+  private expandedEffects: Set<string> = new Set() // Track which effects have expanded parameters
   
   // Mobile elements
   private mobileChainContainer: HTMLElement | null = null
@@ -33,6 +44,8 @@ export class EffectsPanel {
     this.panelCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
     this.mainDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
     this.savePresetButton = document.getElementById('save-preset') as HTMLElement
+
+    // Removed debug logging
 
     // Get mobile DOM elements (optional - may not exist on all pages)
     this.mobileChainContainer = document.getElementById('mobile-effects-chain')
@@ -63,11 +76,20 @@ export class EffectsPanel {
   }
 
   private setupEventListeners(): void {
-    // Chain updates - temporarily disabled to prevent parameter expansion collapse
-    // TODO: Make this more selective to only refresh when effects are added/removed/reordered
-    // this.chainManager.onChainUpdated(() => {
-    //   this.updateChainDisplay()
-    // })
+    // Chain updates - debounced to handle bulk operations during scene loading
+    let updateTimeout: NodeJS.Timeout | null = null
+    this.chainManager.onChainUpdated(() => {
+      // Clear any pending update
+      if (updateTimeout) {
+        clearTimeout(updateTimeout)
+      }
+      
+      // Schedule update after a brief delay to batch rapid changes
+      updateTimeout = setTimeout(() => {
+        this.updateChainDisplay()
+        updateTimeout = null
+      }, 100)
+    })
 
     // Effect selection
     this.chainManager.onEffectSelected((effectId) => {
@@ -726,23 +748,70 @@ export class EffectsPanel {
     // Create all effect buttons and store references
     const effectButtons: Array<{button: HTMLButtonElement, definition: any}> = []
     
-    EFFECT_DEFINITIONS.forEach(definition => {
-      const button = document.createElement('button')
-      button.className = 'add-effect-option'
-      button.textContent = definition.name
-      button.setAttribute('data-effect-name', definition.name.toLowerCase())
-      button.setAttribute('data-effect-type', definition.type.toLowerCase())
-      button.onclick = () => {
-        this.chainManager.addEffect(definition.type)
-        this.refreshChain() // Manually refresh after adding effect
-        this.hideAddEffectModal()
-        
-        // Switch to Custom and enable effects
-        this.mainDropdown.value = 'custom'
-        this.updateEffectsEnabled(true)
+    // Define categories (same as mobile)
+    const categories = {
+      'Color': {
+        effects: ['background', 'gamma', 'sepia', 'colorify', 'colorgradient', 'invert', 'bleachbypass']
+      },
+      'Blur': {
+        effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
+      },
+      'Grain': {
+        effects: ['crtgrain', 'film35mm', 'pixelate']
+      },
+      'Post-Process': {
+        effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
+      },
+      '3D Effects': {
+        effects: ['drawrange', 'pointnetwork', 'material', 'brush', 'topographic', 'fog']
+      },
+      'In Development': {
+        effects: ['tsl', 'dotscreen']
       }
-      effectGrid.appendChild(button)
-      effectButtons.push({button, definition})
+    }
+    
+    // Create effects organized by category with simple dividers
+    Object.entries(categories).forEach(([categoryName, categoryData]) => {
+      // Create category divider
+      const categoryDivider = document.createElement('div')
+      categoryDivider.className = 'effect-category-divider'
+      categoryDivider.textContent = categoryName
+      categoryDivider.style.cssText = `
+        color: #888;
+        font-size: 0.6rem;
+        font-weight: bold;
+        font-family: 'Space Mono', monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 8px 0 4px 0;
+        padding: 2px 0;
+        border-bottom: 1px solid rgba(136, 136, 136, 0.2);
+      `
+      effectGrid.appendChild(categoryDivider)
+      
+      // Add effects for this category
+      categoryData.effects.forEach(effectType => {
+        const definition = EFFECT_DEFINITIONS.find(def => def.type === effectType)
+        if (definition) {
+          const button = document.createElement('button')
+          button.className = 'add-effect-option'
+          button.textContent = definition.name
+          button.setAttribute('data-effect-name', definition.name.toLowerCase())
+          button.setAttribute('data-effect-type', definition.type.toLowerCase())
+          button.setAttribute('data-category', categoryName.toLowerCase())
+          button.onclick = () => {
+            this.chainManager.addEffect(definition.type)
+            this.refreshChain() // Manually refresh after adding effect
+            this.hideAddEffectModal()
+            
+            // Switch to Custom and enable effects
+            this.mainDropdown.value = 'custom'
+            this.updateEffectsEnabled(true)
+          }
+          effectGrid.appendChild(button)
+          effectButtons.push({button, definition})
+        }
+      })
     })
     
     // Track selected index for keyboard navigation
@@ -773,12 +842,28 @@ export class EffectsPanel {
     searchInput.addEventListener('input', (e) => {
       const searchTerm = (e.target as HTMLInputElement).value.toLowerCase().trim()
       
+      // Track which categories have visible effects
+      const visibleCategories = new Set<string>()
+      
       effectButtons.forEach(({button, definition}) => {
         const name = definition.name.toLowerCase()
         const type = definition.type.toLowerCase()
+        const category = button.getAttribute('data-category') || ''
         const matches = name.includes(searchTerm) || type.includes(searchTerm)
         
         button.style.display = matches ? 'block' : 'none'
+        
+        if (matches) {
+          visibleCategories.add(category)
+        }
+      })
+      
+      // Show/hide category dividers based on whether they have visible effects
+      const categoryDividers = effectGrid.querySelectorAll('.effect-category-divider')
+      categoryDividers.forEach((divider) => {
+        const categoryName = (divider as HTMLElement).textContent?.toLowerCase() || ''
+        const shouldShow = visibleCategories.has(categoryName) || searchTerm === ''
+        ;(divider as HTMLElement).style.display = shouldShow ? 'block' : 'none'
       })
       
       // Reset selection to top when search changes
@@ -892,6 +977,9 @@ export class EffectsPanel {
         `
         addButton.onclick = () => this.showAddEffectModal()
         container.appendChild(addButton)
+        
+        // Ensure panel is expanded when showing Add Effect button
+        this.ensureExpanded()
         return
       }
 
@@ -933,6 +1021,31 @@ export class EffectsPanel {
     if (this.mobileChainContainer && this.mobileMainDropdown) {
       updateContainer(this.mobileChainContainer, this.mobileMainDropdown)
     }
+    
+    // Auto-expand parameters for newly added effects
+    this.autoExpandNewEffect()
+  }
+
+  private autoExpandNewEffect(): void {
+    const lastAddedEffectId = this.chainManager.getLastAddedEffectId()
+    if (!lastAddedEffectId) return
+    
+    // Get the effect instance
+    const effects = this.chainManager.getEffectsChain()
+    const effect = effects.find(e => e.id === lastAddedEffectId)
+    if (!effect) return
+    
+    // Check if the effect has parameters
+    const definition = this.chainManager.getEffectDefinition(effect.type)
+    const hasParameters = definition && Object.keys(definition.parameterDefinitions).length > 0
+    
+    if (hasParameters) {
+      // Mark this effect as expanded
+      this.expandedEffects.add(lastAddedEffectId)
+    }
+    
+    // Clear the last added effect ID so it doesn't auto-expand again
+    this.chainManager.clearLastAddedEffectId()
   }
 
   private createEffectCard(effect: EffectInstance, index: number): HTMLElement {
@@ -970,6 +1083,19 @@ export class EffectsPanel {
     // Add event listeners
     this.setupCardEventListeners(card, effect)
 
+    // Restore expanded state if this effect was previously expanded
+    if (this.expandedEffects.has(effect.id) && hasParameters) {
+      const parametersContainer = card.querySelector('.effect-parameters-container') as HTMLElement
+      const expandButton = card.querySelector('.effect-expand-arrow') as HTMLElement
+      
+      if (parametersContainer && expandButton) {
+        this.createEffectParameters(parametersContainer, effect)
+        parametersContainer.style.display = 'block'
+        expandButton.textContent = '▼'
+        expandButton.title = 'Hide parameters'
+      }
+    }
+
     return card
   }
 
@@ -987,6 +1113,7 @@ export class EffectsPanel {
     const removeButton = card.querySelector('.effect-remove') as HTMLElement
     removeButton?.addEventListener('click', (e) => {
       e.stopPropagation()
+      this.expandedEffects.delete(effect.id) // Clean up expanded state
       this.chainManager.removeEffect(effect.id)
       this.refreshChain() // Manually refresh after removing effect
       
@@ -1102,50 +1229,92 @@ export class EffectsPanel {
         label.textContent = `${paramDef.label}:`
         label.setAttribute('for', `param-${selectedEffect.id}-${paramName}${idSuffix}`)
 
-        const slider = document.createElement('input')
-        slider.type = 'range'
-        slider.id = `param-${selectedEffect.id}-${paramName}${idSuffix}`
-        slider.min = paramDef.min.toString()
-        slider.max = paramDef.max.toString()
-        slider.step = paramDef.step.toString()
-        slider.value = currentValue.toString()
-
-        if (paramName === 'angle') {
-          console.log('Angle slider created with:', {
-            min: slider.min,
-            max: slider.max,
-            step: slider.step,
-            value: slider.value
-          })
-        }
-
-        const valueDisplay = document.createElement('span')
-        valueDisplay.className = 'parameter-value'
-        valueDisplay.textContent = currentValue.toFixed(2)
-
-        // Update parameter on change
-        slider.addEventListener('input', () => {
-          const newValue = parseFloat(slider.value)
-          this.chainManager.updateEffectParameter(selectedEffect.id, paramName, newValue)
-          valueDisplay.textContent = newValue.toFixed(2)
+        if (paramDef.type === 'color') {
+          // Create simple color swatch for desktop (compact)
+          const hexValue = '#' + Math.floor(currentValue).toString(16).padStart(6, '0')
           
-          // Sync with other container's slider if it exists
-          const otherSliderId = idSuffix === '-mobile' ? 
-            `param-${selectedEffect.id}-${paramName}` : 
-            `param-${selectedEffect.id}-${paramName}-mobile`
-          const otherSlider = document.getElementById(otherSliderId) as HTMLInputElement
-          const otherValueDisplay = otherSlider?.parentElement?.querySelector('.parameter-value') as HTMLElement
-          if (otherSlider) {
-            otherSlider.value = newValue.toString()
-            if (otherValueDisplay) {
-              otherValueDisplay.textContent = newValue.toFixed(2)
-            }
-          }
-        })
+          const colorSwatch = document.createElement('div')
+          colorSwatch.className = 'desktop-color-swatch'
+          colorSwatch.style.cssText = `
+            width: 20px;
+            height: 20px;
+            background-color: ${hexValue};
+            border: 1px solid #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+          `
 
-        controlGroup.appendChild(label)
-        controlGroup.appendChild(slider)
-        controlGroup.appendChild(valueDisplay)
+          // Create simple color picker popup on click
+          colorSwatch.addEventListener('click', () => {
+            const input = document.createElement('input')
+            input.type = 'color'
+            input.value = hexValue
+            input.style.position = 'absolute'
+            input.style.left = '-9999px'
+            document.body.appendChild(input)
+            
+            input.addEventListener('change', () => {
+              const newHex = input.value
+              const numericValue = parseInt(newHex.replace('#', ''), 16)
+              colorSwatch.style.backgroundColor = newHex
+              this.chainManager.updateEffectParameter(selectedEffect.id, paramName, numericValue)
+              document.body.removeChild(input)
+            })
+            
+            input.click()
+          })
+
+          controlGroup.appendChild(label)
+          controlGroup.appendChild(colorSwatch)
+        } else {
+          // Create range slider for numeric parameters
+          const slider = document.createElement('input')
+          slider.type = 'range'
+          slider.id = `param-${selectedEffect.id}-${paramName}${idSuffix}`
+          slider.min = paramDef.min.toString()
+          slider.max = paramDef.max.toString()
+          slider.step = paramDef.step.toString()
+          slider.value = currentValue.toString()
+
+          if (paramName === 'angle') {
+            console.log('Angle slider created with:', {
+              min: slider.min,
+              max: slider.max,
+              step: slider.step,
+              value: slider.value
+            })
+          }
+
+          const valueDisplay = document.createElement('span')
+          valueDisplay.className = 'parameter-value'
+          valueDisplay.textContent = currentValue.toFixed(2)
+
+          // Update parameter on change
+          slider.addEventListener('input', () => {
+            const newValue = parseFloat(slider.value)
+            this.chainManager.updateEffectParameter(selectedEffect.id, paramName, newValue)
+            valueDisplay.textContent = newValue.toFixed(2)
+            
+            // Sync with other container's slider if it exists
+            const otherSliderId = idSuffix === '-mobile' ? 
+              `param-${selectedEffect.id}-${paramName}` : 
+              `param-${selectedEffect.id}-${paramName}-mobile`
+            const otherSlider = document.getElementById(otherSliderId) as HTMLInputElement
+            const otherValueDisplay = otherSlider?.parentElement?.querySelector('.parameter-value') as HTMLElement
+            if (otherSlider) {
+              otherSlider.value = newValue.toString()
+              if (otherValueDisplay) {
+                otherValueDisplay.textContent = newValue.toFixed(2)
+              }
+            }
+          })
+
+          controlGroup.appendChild(label)
+          controlGroup.appendChild(slider)
+          controlGroup.appendChild(valueDisplay)
+        }
+        
         container.appendChild(controlGroup)
       })
     }
@@ -1162,6 +1331,9 @@ export class EffectsPanel {
   private clearAllEffects(): void {
     // Clear all effects from the chain
     this.chainManager.clearEffects()
+    
+    // Clear expanded effects tracking
+    this.expandedEffects.clear()
     
     // Set dropdown to "None"
     this.mainDropdown.value = 'none'
@@ -1220,12 +1392,14 @@ export class EffectsPanel {
       parametersContainer.style.display = 'none'
       expandButton.textContent = '▶'
       expandButton.title = 'Show parameters'
+      this.expandedEffects.delete(effect.id)
     } else {
       // Expand
       this.createEffectParameters(parametersContainer, effect)
       parametersContainer.style.display = 'block'
       expandButton.textContent = '▼'
       expandButton.title = 'Hide parameters'
+      this.expandedEffects.add(effect.id)
     }
   }
 
@@ -1243,50 +1417,97 @@ export class EffectsPanel {
       controlDiv.className = 'parameter-control'
       controlDiv.draggable = false
       
-      controlDiv.innerHTML = `
-        <label class="parameter-label">${paramDef.label}:</label>
-        <input type="range" 
-               class="parameter-slider"
-               min="${paramDef.min}" 
-               max="${paramDef.max}" 
-               step="${paramDef.step}" 
-               value="${currentValue}"
-               data-param="${paramName}"
-               draggable="false">
-        <span class="parameter-value">${currentValue}</span>
-      `
+      if (paramDef.type === 'color') {
+        // Create simple color swatch for expandable parameters
+        const hexValue = '#' + Math.floor(currentValue).toString(16).padStart(6, '0')
+        controlDiv.innerHTML = `
+          <label class="parameter-label">${paramDef.label}:</label>
+          <div class="desktop-color-swatch" style="
+            width: 16px;
+            height: 16px;
+            background-color: ${hexValue};
+            border: 1px solid #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-left: auto;
+          " data-param="${paramName}"></div>
+        `
+      } else {
+        // Create range slider for numeric parameters
+        controlDiv.innerHTML = `
+          <label class="parameter-label">${paramDef.label}:</label>
+          <input type="range" 
+                 class="parameter-slider"
+                 min="${paramDef.min}" 
+                 max="${paramDef.max}" 
+                 step="${paramDef.step}" 
+                 value="${currentValue}"
+                 data-param="${paramName}"
+                 draggable="false">
+          <span class="parameter-value">${currentValue}</span>
+        `
+      }
       
       // Add event listener for parameter changes
-      const slider = controlDiv.querySelector('.parameter-slider') as HTMLInputElement
+      const inputElement = controlDiv.querySelector('.parameter-slider') as HTMLInputElement
+      const colorSwatch = controlDiv.querySelector('.desktop-color-swatch') as HTMLElement
       const valueSpan = controlDiv.querySelector('.parameter-value') as HTMLElement
       
-      // Prevent all events on sliders from bubbling up to card
-      slider.addEventListener('mousedown', (e) => {
-        e.stopPropagation()
-      })
-      slider.addEventListener('mouseup', (e) => {
-        e.stopPropagation()
-      })
-      slider.addEventListener('click', (e) => {
-        e.stopPropagation()
-      })
-      slider.addEventListener('dragstart', (e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        return false
-      })
-      
-      slider.addEventListener('input', (e) => {
-        const target = e.target as HTMLInputElement
-        const value = parseFloat(target.value)
-        const paramName = target.getAttribute('data-param')!
+      if (colorSwatch && paramDef.type === 'color') {
+        // Handle color swatch clicks
+        const parameterName = paramName // Capture in closure
+        colorSwatch.addEventListener('click', (e) => {
+          e.stopPropagation()
+          const currentHex = rgbToHex(colorSwatch.style.backgroundColor)
+          const input = document.createElement('input')
+          input.type = 'color'
+          input.value = currentHex
+          input.style.position = 'absolute'
+          input.style.left = '-9999px'
+          document.body.appendChild(input)
+          
+          input.addEventListener('change', () => {
+            const newHex = input.value
+            const numericValue = parseInt(newHex.replace('#', ''), 16)
+            colorSwatch.style.backgroundColor = newHex
+            this.chainManager.updateEffectParameter(effect.id, parameterName, numericValue)
+            document.body.removeChild(input)
+          })
+          
+          input.click()
+        })
+      } else if (inputElement) {
+        // Prevent all events on inputs from bubbling up to card
+        inputElement.addEventListener('mousedown', (e) => {
+          e.stopPropagation()
+        })
+        inputElement.addEventListener('mouseup', (e) => {
+          e.stopPropagation()
+        })
+        inputElement.addEventListener('click', (e) => {
+          e.stopPropagation()
+        })
+        inputElement.addEventListener('dragstart', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        })
         
-        // Update the display
-        valueSpan.textContent = value.toString()
-        
-        // Update the effect parameter
-        this.chainManager.updateEffectParameter(effect.id, paramName, value)
-      })
+        inputElement.addEventListener('input', (e) => {
+          const target = e.target as HTMLInputElement
+          const paramName = target.getAttribute('data-param')!
+          
+          // Handle range slider input
+          const value = parseFloat(target.value)
+          
+          // Update the display
+          valueSpan.textContent = value.toString()
+          
+          // Update the effect parameter
+          this.chainManager.updateEffectParameter(effect.id, paramName, value)
+        })
+      }
       
       // Also prevent all events on the control div from bubbling up
       controlDiv.addEventListener('click', (e) => {

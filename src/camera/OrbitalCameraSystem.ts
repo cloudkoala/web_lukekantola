@@ -40,6 +40,8 @@ export class OrbitalCameraSystem {
   private autoRotationIntensity: number = 0 // Starts at 0, eases up to 1
   private readonly INACTIVITY_THRESHOLD: number = 0 // Start immediately
   private readonly EASE_IN_DURATION: number = 3000 // 3 seconds to reach full intensity
+  private autoRotationSpeed: number = 0.5 // User-configurable speed multiplier (0.0 to 2.0)
+  private autoRotationDirection: number = 1 // 1 for clockwise, -1 for counter-clockwise
   
   
   
@@ -284,7 +286,9 @@ export class OrbitalCameraSystem {
     
     // Apply rotation around Y axis using model configuration
     if (this.autoRotationIntensity > 0) {
-      const rotationAmount = currentModel.idleRotation.speed * currentModel.idleRotation.direction * this.autoRotationIntensity * 0.016 // Assuming ~60fps
+      // Use user-configurable speed and direction instead of model defaults
+      const baseSpeed = this.autoRotationSpeed * 0.5 // Scale to reasonable range
+      const rotationAmount = baseSpeed * this.autoRotationDirection * this.autoRotationIntensity * 0.016 // Assuming ~60fps
       
       // Use the synchronized rotation center (all three should be the same now)
       const target = this.clickedPoint ? this.clickedPoint.clone() : this.controls.target.clone()
@@ -617,34 +621,71 @@ export class OrbitalCameraSystem {
     const cameraPositionDisplay = document.querySelector('#camera-position-display') as HTMLDivElement
     const cameraTargetDisplay = document.querySelector('#camera-target-display') as HTMLDivElement
 
-    const createClickHandler = (getValue: () => { x: number, y: number, z: number }, label: string) => {
+    const createClickHandler = () => {
       return async () => {
-        const coords = getValue()
-        const configFormat = `{ "x": ${coords.x.toFixed(2)}, "y": ${coords.y.toFixed(2)}, "z": ${coords.z.toFixed(2)} }`
+        // Generate complete scene configuration using actual system state
+        const sceneState = this.captureCurrentSceneState()
+        
+        // Format as SceneState (ready for scenes config file)
+        const sceneConfig = {
+          "modelKey": sceneState.modelKey,
+          "quality": sceneState.quality,
+          "cameraPosition": {
+            "x": parseFloat(sceneState.cameraPosition.x.toFixed(2)),
+            "y": parseFloat(sceneState.cameraPosition.y.toFixed(2)),
+            "z": parseFloat(sceneState.cameraPosition.z.toFixed(2))
+          },
+          "cameraTarget": {
+            "x": parseFloat(sceneState.cameraTarget.x.toFixed(2)),
+            "y": parseFloat(sceneState.cameraTarget.y.toFixed(2)),
+            "z": parseFloat(sceneState.cameraTarget.z.toFixed(2))
+          },
+          "focalLength": sceneState.focalLength,
+          "effectsChain": sceneState.effectsChain,
+          "effectsDropdownValue": sceneState.effectsDropdownValue,
+          "pointSize": sceneState.pointSize,
+          "sphereMode": sceneState.sphereMode,
+          "fogDensity": sceneState.fogDensity,
+          "autoRotation": sceneState.autoRotation,
+          "autoRotationSpeed": sceneState.autoRotationSpeed,
+          "autoRotationDirection": sceneState.autoRotationDirection,
+          "timestamp": sceneState.timestamp,
+          "version": sceneState.version
+        }
+        
+        const configJson = JSON.stringify(sceneConfig, null, 2)
         
         try {
-          await navigator.clipboard.writeText(configFormat)
-          this.showCopyFeedback(label)
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(configJson)
+            this.showCopyFeedback('Complete Scene Config')
+          } else {
+            // Fallback for older browsers or insecure contexts
+            const textArea = document.createElement('textarea')
+            textArea.value = configJson
+            document.body.appendChild(textArea)
+            textArea.select()
+            document.execCommand('copy')
+            document.body.removeChild(textArea)
+            this.showCopyFeedback('Complete Scene Config')
+          }
         } catch (err) {
           console.error('Failed to copy to clipboard:', err)
+          // Log the config to console as a last resort
+          console.log('Scene Config:', configJson)
+          this.showCopyFeedback('Config logged to console')
         }
       }
     }
 
     if (cameraPositionDisplay) {
       cameraPositionDisplay.style.cursor = 'pointer'
-      cameraPositionDisplay.addEventListener('click', createClickHandler(
-        () => this.camera.position,
-        'Camera Position'
-      ))
+      cameraPositionDisplay.addEventListener('click', createClickHandler())
     }
 
     if (cameraTargetDisplay) {
       cameraTargetDisplay.style.cursor = 'pointer'
-      cameraTargetDisplay.addEventListener('click', createClickHandler(
-        () => this.controls.target,
-        'Target'
-      ))
+      cameraTargetDisplay.addEventListener('click', createClickHandler())
     }
 
   }
@@ -1086,6 +1127,50 @@ export class OrbitalCameraSystem {
     }
   }
 
+  public setAutoRotationSpeed(speed: number) {
+    this.autoRotationSpeed = Math.max(0.0, Math.min(2.0, speed)) // Clamp between 0.0 and 2.0
+    console.log('Auto-rotation speed set to:', this.autoRotationSpeed)
+  }
+
+  // New method for bidirectional slider support
+  public setBidirectionalRotationSpeed(speed: number) {
+    // Handle negative values by setting both speed and direction
+    if (speed < 0) {
+      this.autoRotationSpeed = Math.max(0.0, Math.min(2.0, Math.abs(speed))) // Store absolute value as speed
+      this.autoRotationDirection = -1 // Set direction to counter-clockwise
+    } else {
+      this.autoRotationSpeed = Math.max(0.0, Math.min(2.0, speed)) // Clamp between 0.0 and 2.0
+      this.autoRotationDirection = 1 // Set direction to clockwise
+    }
+    
+    // Auto-enable/disable rotation based on speed
+    this.autoRotationEnabled = speed !== 0
+    
+    console.log('Bidirectional rotation set to:', speed, '-> speed:', this.autoRotationSpeed, 'direction:', this.autoRotationDirection === 1 ? 'CW' : 'CCW', 'enabled:', this.autoRotationEnabled)
+  }
+
+  // Get the bidirectional value (speed * direction), considering enabled state
+  public getBidirectionalRotationSpeed(): number {
+    return this.autoRotationEnabled ? (this.autoRotationSpeed * this.autoRotationDirection) : 0
+  }
+
+  public getAutoRotationSpeed(): number {
+    return this.autoRotationSpeed
+  }
+
+  public setAutoRotationDirection(direction: number) {
+    this.autoRotationDirection = direction === -1 ? -1 : 1 // Only allow 1 or -1
+    console.log('Auto-rotation direction set to:', this.autoRotationDirection === 1 ? 'clockwise' : 'counter-clockwise')
+  }
+
+  public getAutoRotationDirection(): number {
+    return this.autoRotationDirection
+  }
+
+  public getAutoRotationEnabled(): boolean {
+    return this.autoRotationEnabled
+  }
+
   // Toggle between point size and sphere radius controls based on sphere mode
   private toggleSizeControls(sphereMode: boolean): void {
     const pointSizeControl = document.querySelector('#point-size-control') as HTMLElement
@@ -1256,6 +1341,45 @@ export class OrbitalCameraSystem {
     if (currentOption) {
       currentOption.textContent = modelsConfig.models[modelsConfig.currentModel].displayName
     }
+    
+    // Update selected value to match current model
+    dropdown.value = modelsConfig.currentModel
+  }
+  
+  private updateQualityDropdown() {
+    if (!this.modelManager) return
+    
+    // Use ModelManager's method which handles both value and visibility
+    this.modelManager.updateQualityDropdown()
+  }
+  
+  private getCurrentEffectsDropdownValue(): string {
+    const dropdown = document.querySelector('#effects-main-dropdown') as HTMLSelectElement
+    if (dropdown) {
+      return dropdown.value
+    }
+    
+    // Fallback: determine from effects chain if dropdown not available
+    const effectsChain = this.effectsChainManager.getEffectsChain()
+    if (effectsChain.length > 0 && effectsChain[0].enabled) {
+      return effectsChain[0].type
+    }
+    return "none"
+  }
+  
+  private updateEffectsDropdown() {
+    const dropdown = document.querySelector('#effects-main-dropdown') as HTMLSelectElement
+    if (!dropdown) return
+    
+    // Get the current effects chain
+    const effectsChain = this.effectsChainManager.getEffectsChain()
+    
+    // If there are effects, show the first effect, otherwise show "none"
+    if (effectsChain.length > 0 && effectsChain[0].enabled) {
+      dropdown.value = effectsChain[0].type
+    } else {
+      dropdown.value = "none"
+    }
   }
   
   private setDefaultPointSize() {
@@ -1296,6 +1420,16 @@ export class OrbitalCameraSystem {
     // Update the point cloud if it exists
     this.updatePointSize()
     
+    // Update mobile slider if it exists (point size or sphere radius depending on mode)
+    const mobilePointSizeCard = document.getElementById('mobile-point-size-card') as HTMLElement
+    const mobileSphereRadiusCard = document.getElementById('mobile-sphere-radius-card') as HTMLElement
+    if (mobilePointSizeCard && (mobilePointSizeCard as any).updateValue) {
+      (mobilePointSizeCard as any).updateValue(this.pointSize.toString())
+    }
+    if (mobileSphereRadiusCard && (mobileSphereRadiusCard as any).updateValue) {
+      (mobileSphereRadiusCard as any).updateValue(this.pointSize.toString())
+    }
+    
     console.log('Loaded default point size for', currentModel.displayName + ':', this.pointSize)
   }
   
@@ -1320,7 +1454,43 @@ export class OrbitalCameraSystem {
     // Update the camera FOV
     this.updateFocalLength(defaultFocalLength)
     
+    // Update mobile slider if it exists
+    const mobileFocalLengthCard = document.getElementById('mobile-focal-length-card') as HTMLElement
+    if (mobileFocalLengthCard && (mobileFocalLengthCard as any).updateValue) {
+      (mobileFocalLengthCard as any).updateValue(defaultFocalLength.toString())
+    }
+    
     console.log('Loaded default focal length for', currentModel.displayName + ':', defaultFocalLength)
+  }
+  
+  public loadDefaultAutoRotationSpeed() {
+    const modelsConfig = this.modelsConfig()
+    const currentModel = modelsConfig.models[modelsConfig.currentModel]
+    if (!currentModel) return
+    
+    const defaultAutoRotationSpeed = currentModel.autoRotationSpeed || 0.0
+    
+    // Update the bidirectional rotation speed
+    this.setBidirectionalRotationSpeed(defaultAutoRotationSpeed)
+    
+    // Update desktop UI controls
+    const rotationSlider = document.querySelector('#auto-rotation-speed') as HTMLInputElement
+    const rotationValue = document.querySelector('#auto-rotation-speed-value') as HTMLSpanElement
+    
+    if (rotationSlider) {
+      rotationSlider.value = defaultAutoRotationSpeed.toString()
+    }
+    if (rotationValue) {
+      rotationValue.textContent = defaultAutoRotationSpeed.toFixed(1)
+    }
+    
+    // Update mobile slider if it exists
+    const mobileSliderCard = document.getElementById('mobile-rotation-speed-card') as HTMLElement
+    if (mobileSliderCard && (mobileSliderCard as any).updateValue) {
+      (mobileSliderCard as any).updateValue(defaultAutoRotationSpeed.toString())
+    }
+    
+    console.log('Loaded default auto rotation speed for', currentModel.displayName + ':', defaultAutoRotationSpeed)
   }
   
   
@@ -2451,8 +2621,10 @@ export class OrbitalCameraSystem {
   }
 
   private setupEffectsPanel(): void {
+    console.log('🎯 Setting up EffectsPanel...')
     try {
       this.effectsPanel = new EffectsPanel(this.effectsChainManager)
+      console.log('🎯 EffectsPanel created successfully:', !!this.effectsPanel)
       
       // Set up effects chain updates to propagate to the PostProcessingPass
       this.effectsChainManager.onChainUpdated(() => {
@@ -2532,13 +2704,14 @@ export class OrbitalCameraSystem {
       cameraTarget: this.vector3ToState(this.controls.target),
       focalLength: this.camera.fov,
       
-      // Effects chain
+      // Effects chain and UI state
       effectsChain: this.effectsChainManager.getEffectsChain().map(effect => ({
         id: effect.id,
         type: effect.type,
         enabled: effect.enabled,
         parameters: { ...effect.parameters }
       })),
+      effectsDropdownValue: this.getCurrentEffectsDropdownValue(),
       
       // Scene settings
       pointSize: this.pointSize,
@@ -2546,6 +2719,8 @@ export class OrbitalCameraSystem {
       sphereRadius: sphereMode ? sphereRadius : undefined,
       fogDensity: fogDensity,
       autoRotation: autoRotation,
+      autoRotationSpeed: this.autoRotationSpeed,
+      autoRotationDirection: this.autoRotationDirection,
       
       // Metadata
       timestamp: Date.now(),
@@ -2581,9 +2756,24 @@ export class OrbitalCameraSystem {
       // 2. Apply camera position and target
       this.camera.position.copy(this.stateToVector3(sceneState.cameraPosition))
       this.controls.target.copy(this.stateToVector3(sceneState.cameraTarget))
-      this.camera.fov = sceneState.focalLength
-      this.camera.updateProjectionMatrix()
+      this.updateFocalLength(sceneState.focalLength)
       this.controls.update()
+      
+      // Update focal length UI controls
+      const focalLengthSlider = document.querySelector('#focal-length') as HTMLInputElement
+      const focalLengthValue = document.querySelector('#focal-length-value') as HTMLSpanElement
+      if (focalLengthSlider) {
+        focalLengthSlider.value = sceneState.focalLength.toString()
+      }
+      if (focalLengthValue) {
+        focalLengthValue.textContent = sceneState.focalLength.toString()
+      }
+      
+      // Update mobile focal length slider if it exists
+      const mobileFocalLengthCard = document.getElementById('mobile-focal-length-card') as HTMLElement
+      if (mobileFocalLengthCard && (mobileFocalLengthCard as any).updateValue) {
+        (mobileFocalLengthCard as any).updateValue(sceneState.focalLength.toString())
+      }
       
       // 3. Apply effects chain
       this.effectsChainManager.clearEffects()
@@ -2595,6 +2785,23 @@ export class OrbitalCameraSystem {
           Object.entries(effectState.parameters).forEach(([key, value]) => {
             this.effectsChainManager.updateEffectParameter(effect.id, key, value)
           })
+        }
+      }
+      
+      // Apply effects dropdown value if available
+      if (sceneState.effectsDropdownValue) {
+        const effectsDropdown = document.querySelector('#effects-main-dropdown') as HTMLSelectElement
+        if (effectsDropdown) {
+          effectsDropdown.value = sceneState.effectsDropdownValue
+        }
+        
+        // Update mobile preset selector
+        const mobilePresetName = document.getElementById('mobile-preset-name') as HTMLSpanElement
+        if (mobilePresetName) {
+          // Capitalize the preset name for display
+          const displayName = sceneState.effectsDropdownValue === 'none' ? 'None' : 
+                             sceneState.effectsDropdownValue.charAt(0).toUpperCase() + sceneState.effectsDropdownValue.slice(1)
+          mobilePresetName.textContent = displayName
         }
       }
       
@@ -2631,8 +2838,86 @@ export class OrbitalCameraSystem {
         autoRotateCheckbox.dispatchEvent(new Event('change'))
       }
       
+      // Update mobile auto-rotate toggle
+      const mobileAutoRotateToggle = document.getElementById('mobile-auto-rotate-toggle') as HTMLInputElement
+      if (mobileAutoRotateToggle) {
+        mobileAutoRotateToggle.checked = sceneState.autoRotation
+      }
+      
+      // Apply auto-rotation speed and direction (with fallback for older scene states)
+      if (sceneState.autoRotationSpeed !== undefined && sceneState.autoRotationDirection !== undefined) {
+        // Calculate bidirectional value from stored speed and direction
+        const bidirectionalValue = sceneState.autoRotationSpeed * sceneState.autoRotationDirection
+        console.log('Scene state restoration: speed =', sceneState.autoRotationSpeed, 'direction =', sceneState.autoRotationDirection, 'bidirectional =', bidirectionalValue)
+        
+        // Use the new bidirectional method to set everything consistently
+        this.setBidirectionalRotationSpeed(bidirectionalValue)
+      } else {
+        // Fallback: if no rotation speed/direction in scene state, default to 0 (disabled)
+        console.log('Scene state missing rotation speed/direction, defaulting to 0')
+        this.setBidirectionalRotationSpeed(0)
+      }
+      
+      // Always update UI controls with current bidirectional value
+      const currentBidirectionalValue = this.getBidirectionalRotationSpeed()
+      console.log('Updating UI controls with bidirectional value:', currentBidirectionalValue)
+      
+      // Update desktop controls
+      const speedSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
+      const speedValue = document.getElementById('auto-rotation-speed-value') as HTMLSpanElement
+      if (speedSlider && speedValue) {
+        speedSlider.value = currentBidirectionalValue.toString()
+        speedValue.textContent = currentBidirectionalValue.toFixed(1)
+      }
+      
+      // Update mobile controls
+      const mobileSpeedSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
+      const mobileSpeedValue = document.getElementById('mobile-rotation-speed-value') as HTMLElement
+      console.log('Mobile elements found:', { 
+        slider: !!mobileSpeedSlider, 
+        valueDisplay: !!mobileSpeedValue,
+        sliderValue: mobileSpeedSlider?.value,
+        valueText: mobileSpeedValue?.textContent
+      })
+      
+      if (mobileSpeedSlider) {
+        mobileSpeedSlider.value = currentBidirectionalValue.toString()
+        console.log('Updated mobile slider to:', currentBidirectionalValue)
+        
+        // Update the value display
+        if (mobileSpeedValue) {
+          mobileSpeedValue.textContent = currentBidirectionalValue.toFixed(1)
+          console.log('Updated mobile value display to:', currentBidirectionalValue.toFixed(1))
+        }
+        
+        // Trigger updateMobileRotationFill if available
+        if ((window as any).updateMobileRotationFill) {
+          (window as any).updateMobileRotationFill()
+          console.log('Triggered mobile rotation fill update')
+        }
+      }
+      
+      // Update mobile slider card if it exists (this is the dynamically created one)
+      const mobileSliderCard = document.getElementById('mobile-rotation-speed-card') as HTMLElement
+      console.log('Mobile slider card found:', !!mobileSliderCard, 'has updateValue:', !!(mobileSliderCard as any)?.updateValue)
+      if (mobileSliderCard && (mobileSliderCard as any).updateValue) {
+        (mobileSliderCard as any).updateValue(currentBidirectionalValue.toString())
+        console.log('Updated mobile slider card to:', currentBidirectionalValue)
+      }
+      
       // Update UI elements
       this.updateDisplayNameField()
+      this.updateModelDropdown()
+      this.updateQualityDropdown()
+      this.updateEffectsDropdown()
+      
+      // Refresh effects panel UI to sync with loaded effects
+      this.effectsPanel?.refresh()
+      
+      // Refresh mobile horizontal effects chain
+      if ((window as any).refreshHorizontalEffects) {
+        (window as any).refreshHorizontalEffects()
+      }
       
       console.log('Scene state applied successfully')
       
