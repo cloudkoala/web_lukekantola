@@ -834,7 +834,7 @@ function createParameterSliderCard(label: string, currentValue: string, min: num
 // Mobile effects button functionality
 function setupMobileEffectsButton() {
   const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
-  const effectsButton = document.getElementById('effects-button') as HTMLElement
+  const effectsButton = document.getElementById('mobile-effects-button-element') as HTMLElement
   const horizontalEffectsPanel = document.getElementById('mobile-horizontal-effects-panel') as HTMLElement
   const horizontalEffectsChain = document.getElementById('horizontal-effects-chain') as HTMLElement
   const parametersBox = document.getElementById('mobile-effect-parameters-box') as HTMLElement
