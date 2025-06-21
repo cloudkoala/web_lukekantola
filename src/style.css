@@ -454,10 +454,11 @@
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  justify-content: space-between;
   text-align: center;
-  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
   flex-shrink: 0;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -475,9 +476,41 @@
   box-shadow: 0 0 12px rgba(0, 255, 0, 0.4);
 }
 
+.settings-option-card.dragging {
+  background: rgba(0, 255, 0, 0.15);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+}
+
 .settings-option-name {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 600;
+  line-height: 1;
+  z-index: 2;
+  position: relative;
+}
+
+.settings-option-value {
+  font-size: 0.55rem;
+  font-weight: 400;
+  line-height: 1;
+  z-index: 2;
+  position: relative;
+  opacity: 0.8;
+}
+
+.slider-fill, .toggle-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 5px;
+  transition: width 0.1s ease;
+  z-index: 1;
+}
+
+.toggle-fill {
+  background: rgba(0, 255, 0, 0.3);
 }
 
 .horizontal-effect-card .effect-drag-handle:active {
@@ -576,12 +609,12 @@
 /* Mobile Trash Icon */
 .mobile-trash-icon {
   position: fixed;
-  bottom: 12vh; /* 12% of viewport height from bottom */
+  bottom: 120px; /* Default position, will be updated dynamically */
   left: 50%;
   z-index: 1000;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, bottom 0.3s ease;
   transform: translateX(-50%) scale(0.8);
   width: 66px; /* Match button size */
   height: 66px; /* Match button size */
@@ -628,17 +661,17 @@
 .trash-button svg {
   width: 30px; /* Larger icon to match bigger button */
   height: 30px;
-  stroke: currentColor;
+  stroke: white !important;
   fill: none;
 }
 
 /* Mobile Effect Parameters Box */
 .mobile-effect-parameters-box {
   position: fixed;
-  bottom: 90px; /* Above the horizontal effects panel */
-  left: 10px;
-  width: 280px;
-  max-height: 300px;
+  top: 70px; /* Below the page title */
+  left: 20px;
+  width: 210px; /* 30% thinner horizontally (300px * 0.7 = 210px) */
+  max-height: 400px;
   background: rgba(0, 0, 0, 0.95);
   border: 1px solid #00ff00;
   border-radius: 8px;
@@ -646,6 +679,7 @@
   transform: translateX(-100%);
   transition: transform 0.3s ease;
   overflow: hidden;
+  backdrop-filter: blur(10px);
 }
 
 .mobile-effect-parameters-box.show {
@@ -653,7 +687,7 @@
 }
 
 .parameters-box-header {
-  padding: 10px;
+  padding: 3px;
   border-bottom: 1px solid #00ff00;
   display: flex;
   justify-content: space-between;
@@ -666,6 +700,7 @@
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
   font-weight: 600;
+  margin-left: 6px;
 }
 
 .parameters-box-close {
@@ -689,46 +724,63 @@
 }
 
 .parameters-box-content {
-  padding: 10px;
+  padding: 6px;
   max-height: 250px;
   overflow-y: auto;
 }
 
 .parameters-box-content .parameter-control {
-  margin-bottom: 12px;
+  margin: 6px 0; /* 6px top/bottom, 0 left/right */
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 6px;
+  padding: 4px 9px; /* 4px top/bottom, 9px left/right */
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.parameters-box-content .parameter-control:hover {
+  background: rgba(0, 255, 0, 0.1);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+.parameters-box-content .parameter-control.dragging {
+  background: rgba(0, 255, 0, 0.15);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
 }
 
 .parameters-box-content .parameter-control label {
-  color: #00ff00;
+  display: block;
+  color: white;
   font-family: 'Space Mono', monospace;
   font-size: 0.7rem;
-  display: block;
-  margin-bottom: 4px;
-}
-
-.parameters-box-content .parameter-control input[type="range"] {
-  width: 100%;
-  height: 4px;
-  background: #333;
-  border-radius: 2px;
-  outline: none;
-  margin-bottom: 4px;
-}
-
-.parameters-box-content .parameter-control input[type="range"]::-webkit-slider-thumb {
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  background: #00ff00;
-  border-radius: 50%;
-  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 3px; /* 50% reduced margin (6px * 0.5 = 3px) */
+  z-index: 2;
+  position: relative;
 }
 
 .parameters-box-content .parameter-control .parameter-value {
   color: #00ff00;
   font-family: 'Space Mono', monospace;
   font-size: 0.65rem;
-  text-align: right;
+  font-weight: 400;
+  z-index: 2;
+  position: relative;
+  opacity: 0.8;
+}
+
+.parameters-box-content .parameter-control .parameter-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 5px;
+  transition: width 0.1s ease;
+  z-index: 1;
 }
 
 body, html {

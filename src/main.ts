@@ -372,6 +372,100 @@ function setMobileButtonPositions() {
   console.log('🔧 Mobile button positioning initialized')
 }
 
+// Shared parameter slider card creation function
+function createParameterSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
+  const card = document.createElement('div')
+  card.className = 'parameter-control'
+  
+  const normalizedValue = (parseFloat(currentValue) - min) / (max - min)
+  const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
+  
+  card.innerHTML = `
+    <label>${label}</label>
+    <div class="parameter-value">${parseFloat(currentValue).toFixed(3)}</div>
+    <div class="parameter-fill" style="width: ${fillPercentage}%"></div>
+  `
+  
+  // Touch interaction for slider - relative movement only
+  let isDragging = false
+  let startX = 0
+  let startValue = parseFloat(currentValue)
+  let currentSliderValue = parseFloat(currentValue)
+  
+  const handleStart = (clientX: number) => {
+    isDragging = true
+    startX = clientX
+    startValue = parseFloat(currentSliderValue)
+    card.classList.add('dragging')
+  }
+  
+  const handleMove = (clientX: number) => {
+    if (!isDragging) return
+    
+    const rect = card.getBoundingClientRect()
+    const deltaX = clientX - startX
+    const sensitivityFactor = 1.0
+    const percentageChange = (deltaX * sensitivityFactor) / rect.width
+    const valueRange = max - min
+    const newValue = Math.max(min, Math.min(max, startValue + (percentageChange * valueRange)))
+    const steppedValue = Math.round(newValue / step) * step
+    
+    // Update current slider value
+    currentSliderValue = steppedValue
+    
+    // Update visual fill
+    const fillPercent = ((steppedValue - min) / (max - min)) * 100
+    const fillElement = card.querySelector('.parameter-fill') as HTMLElement
+    const valueElement = card.querySelector('.parameter-value') as HTMLElement
+    
+    if (fillElement) fillElement.style.width = `${fillPercent}%`
+    if (valueElement) valueElement.textContent = steppedValue.toFixed(3)
+    
+    onChange(steppedValue)
+  }
+  
+  const handleEnd = () => {
+    isDragging = false
+    card.classList.remove('dragging')
+  }
+  
+  // Touch events
+  card.addEventListener('touchstart', (e) => {
+    e.preventDefault()
+    handleStart(e.touches[0].clientX)
+  })
+  
+  card.addEventListener('touchmove', (e) => {
+    e.preventDefault()
+    handleMove(e.touches[0].clientX)
+  })
+  
+  card.addEventListener('touchend', (e) => {
+    e.preventDefault()
+    handleEnd()
+  })
+  
+  // Mouse events for desktop testing
+  const handleMouseMove = (e: MouseEvent) => {
+    handleMove(e.clientX)
+  }
+  
+  const handleMouseUp = () => {
+    handleEnd()
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+  
+  card.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+    handleStart(e.clientX)
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  })
+  
+  return card
+}
+
 // Mobile effects button functionality
 function setupMobileEffectsButton() {
   const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
@@ -411,6 +505,12 @@ function setupMobileEffectsButton() {
   
   function closeParametersBox() {
     parametersBox.classList.remove('show')
+    // Hide the panel after transition completes
+    setTimeout(() => {
+      if (!parametersBox.classList.contains('show')) {
+        parametersBox.style.display = 'none'
+      }
+    }, 300) // Match the CSS transition duration
     
     // Hide trash icon when parameters box is closed
     hideTrashIcon()
@@ -770,38 +870,28 @@ function setupMobileEffectsButton() {
     const effectDefinition = window.effectsChainManager.getEffectDefinition(effect.type)
     if (!effectDefinition) return
     
-    parametersBoxTitle.textContent = `${getEffectDisplayName(effect.type)} Parameters`
+    parametersBoxTitle.textContent = getEffectDisplayName(effect.type)
     parametersBoxContent.innerHTML = ''
     
     Object.entries(effectDefinition.parameterDefinitions).forEach(([paramName, paramDef]: [string, any]) => {
-      const control = document.createElement('div')
-      control.className = 'parameter-control'
-      
       const currentValue = effect.parameters[paramName] || paramDef.min
       
-      control.innerHTML = `
-        <label for="param-${paramName}">${paramDef.label}:</label>
-        <input type="range" 
-               id="param-${paramName}" 
-               min="${paramDef.min}" 
-               max="${paramDef.max}" 
-               step="${paramDef.step}" 
-               value="${currentValue}">
-        <div class="parameter-value">${currentValue}</div>
-      `
+      // Create parameter slider card using the same system as settings
+      const parameterCard = createParameterSliderCard(
+        paramDef.label,
+        currentValue.toString(),
+        paramDef.min,
+        paramDef.max,
+        paramDef.step,
+        (value) => {
+          window.effectsChainManager.updateEffectParameter(effectId, paramName, value)
+        }
+      )
       
-      const slider = control.querySelector('input') as HTMLInputElement
-      const valueDisplay = control.querySelector('.parameter-value') as HTMLElement
-      
-      slider.addEventListener('input', () => {
-        const value = parseFloat(slider.value)
-        valueDisplay.textContent = value.toString()
-        window.effectsChainManager.updateEffectParameter(effectId, paramName, value)
-      })
-      
-      parametersBoxContent.appendChild(control)
+      parametersBoxContent.appendChild(parameterCard)
     })
     
+    parametersBox.style.display = 'block' // Remove display: none
     parametersBox.classList.add('show')
   }
   
@@ -1033,23 +1123,32 @@ function createPanelManager() {
     if (openPanels.length === 0) {
       // No panels open, use default position
       const defaultPosition = 12
+      const defaultTrashPosition = 120
       const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
       const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
       const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
       if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
       if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
       if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+      if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
       return
     }
     
     const maxPosition = Math.max(...openPanels.map(panel => panel.position || 0), 0)
     const buttonBottomPosition = 12 + (maxPosition + 1) * PANEL_HEIGHT
     
+    // Calculate trash icon position (above the highest panel with some spacing)
+    const trashBottomPosition = openPanels.length > 0 ? 
+      (maxPosition + 1) * PANEL_HEIGHT + 20 : // 20px above highest panel
+      120 // Default position when no panels open
+    
     // Update all mobile button positions
     const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
     const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
     const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+    const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
     
     if (cameraButtonContainer) {
       cameraButtonContainer.style.bottom = `${buttonBottomPosition}px`
@@ -1060,8 +1159,11 @@ function createPanelManager() {
     if (settingsButtonContainer) {
       settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
     }
+    if (trashIcon) {
+      trashIcon.style.bottom = `${trashBottomPosition}px`
+    }
     
-    console.log(`Mobile buttons positioned at: ${buttonBottomPosition}px (max panel position: ${maxPosition})`)
+    console.log(`Mobile buttons positioned at: ${buttonBottomPosition}px, trash icon at: ${trashBottomPosition}px (max panel position: ${maxPosition})`)
   }
 
   function updateIconActiveStates() {
@@ -1285,56 +1387,214 @@ function setupMobileSettings() {
     }
   }
   
+  function createSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
+    const card = document.createElement('div')
+    card.className = 'settings-option-card slider-card'
+    
+    const normalizedValue = (parseFloat(currentValue) - min) / (max - min)
+    const fillPercentage = Math.max(0, Math.min(100, normalizedValue * 100))
+    
+    card.innerHTML = `
+      <div class="settings-option-name">${label}</div>
+      <div class="settings-option-value">${currentValue}</div>
+      <div class="slider-fill" style="width: ${fillPercentage}%"></div>
+    `
+    
+    // Touch interaction for slider - relative movement only
+    let isDragging = false
+    let startX = 0
+    let startValue = parseFloat(currentValue)
+    let currentSliderValue = parseFloat(currentValue)
+    
+    const handleStart = (clientX: number) => {
+      isDragging = true
+      startX = clientX
+      startValue = parseFloat(currentSliderValue) // Use current slider value, not DOM value
+      card.classList.add('dragging')
+    }
+    
+    const handleMove = (clientX: number) => {
+      if (!isDragging) return
+      
+      const rect = card.getBoundingClientRect()
+      const deltaX = clientX - startX
+      const sensitivityFactor = 1.0 // Adjust this to control sensitivity
+      const percentageChange = (deltaX * sensitivityFactor) / rect.width
+      const valueRange = max - min
+      const newValue = Math.max(min, Math.min(max, startValue + (percentageChange * valueRange)))
+      const steppedValue = Math.round(newValue / step) * step
+      
+      // Update current slider value
+      currentSliderValue = steppedValue
+      
+      // Update visual fill
+      const fillPercent = ((steppedValue - min) / (max - min)) * 100
+      const fillElement = card.querySelector('.slider-fill') as HTMLElement
+      const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+      
+      if (fillElement) fillElement.style.width = `${fillPercent}%`
+      if (valueElement) valueElement.textContent = steppedValue.toFixed(3)
+      
+      onChange(steppedValue)
+    }
+    
+    const handleEnd = () => {
+      isDragging = false
+      card.classList.remove('dragging')
+    }
+    
+    // Touch events
+    card.addEventListener('touchstart', (e) => {
+      e.preventDefault()
+      handleStart(e.touches[0].clientX)
+    })
+    
+    card.addEventListener('touchmove', (e) => {
+      e.preventDefault()
+      handleMove(e.touches[0].clientX)
+    })
+    
+    card.addEventListener('touchend', (e) => {
+      e.preventDefault()
+      handleEnd()
+    })
+    
+    // Mouse events for desktop testing - same relative behavior
+    const handleMouseMove = (e: MouseEvent) => {
+      handleMove(e.clientX)
+    }
+    
+    const handleMouseUp = () => {
+      handleEnd()
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+    
+    card.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      handleStart(e.clientX)
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    })
+    
+    // Method to update slider from external changes (desktop controls)
+    const updateSliderValue = (newValue: string) => {
+      currentSliderValue = parseFloat(newValue)
+      const fillPercent = ((currentSliderValue - min) / (max - min)) * 100
+      const fillElement = card.querySelector('.slider-fill') as HTMLElement
+      const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+      
+      if (fillElement) fillElement.style.width = `${fillPercent}%`
+      if (valueElement) valueElement.textContent = newValue
+    }
+    
+    // Expose update method on the card element for external updates
+    ;(card as any).updateValue = updateSliderValue
+    
+    return card
+  }
+  
+  function createToggleCard(label: string, currentState: boolean, onChange: (checked: boolean) => void) {
+    const card = document.createElement('div')
+    card.className = 'settings-option-card toggle-card'
+    
+    card.innerHTML = `
+      <div class="settings-option-name">${label}</div>
+      <div class="settings-option-value">${currentState ? 'ON' : 'OFF'}</div>
+      <div class="toggle-fill" style="width: ${currentState ? '100%' : '0%'}"></div>
+    `
+    
+    card.addEventListener('click', () => {
+      const newState = !currentState
+      const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+      const fillElement = card.querySelector('.toggle-fill') as HTMLElement
+      
+      if (valueElement) valueElement.textContent = newState ? 'ON' : 'OFF'
+      if (fillElement) fillElement.style.width = newState ? '100%' : '0%'
+      
+      onChange(newState)
+      currentState = newState
+    })
+    
+    return card
+  }
+
   function refreshHorizontalSettingsOptions() {
     horizontalSettingsOptions.innerHTML = ''
     
-    // Add Point Size option
-    const pointSizeCard = document.createElement('div')
-    pointSizeCard.className = 'settings-option-card'
-    pointSizeCard.innerHTML = `
-      <div class="settings-option-name">Point Size</div>
-    `
-    pointSizeCard.addEventListener('click', () => {
-      console.log('Point Size settings clicked')
-      // TODO: Add point size control interface
-    })
-    horizontalSettingsOptions.appendChild(pointSizeCard)
+    // Get current values from desktop controls
+    const pointSizeSlider = document.getElementById('point-size') as HTMLInputElement
+    const sphereRadiusSlider = document.getElementById('sphere-radius') as HTMLInputElement
+    const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
+    const focalLengthSlider = document.getElementById('focal-length') as HTMLInputElement
+    const fogDensitySlider = document.getElementById('fog-density') as HTMLInputElement
+    const autoRotateToggle = document.getElementById('auto-rotate-toggle') as HTMLInputElement
     
-    // Add Focal Length option
-    const focalLengthCard = document.createElement('div')
-    focalLengthCard.className = 'settings-option-card'
-    focalLengthCard.innerHTML = `
-      <div class="settings-option-name">Focal Length</div>
-    `
-    focalLengthCard.addEventListener('click', () => {
-      console.log('Focal Length settings clicked')
-      // TODO: Add focal length control interface
-    })
-    horizontalSettingsOptions.appendChild(focalLengthCard)
+    // Check if sphere mode is active to show appropriate slider
+    const isSphereMode = sphereToggle && sphereToggle.checked
     
-    // Add Fog Density option
-    const fogDensityCard = document.createElement('div')
-    fogDensityCard.className = 'settings-option-card'
-    fogDensityCard.innerHTML = `
-      <div class="settings-option-name">Fog Density</div>
-    `
-    fogDensityCard.addEventListener('click', () => {
-      console.log('Fog Density settings clicked')
-      // TODO: Add fog density control interface
-    })
-    horizontalSettingsOptions.appendChild(fogDensityCard)
+    // Add Point Size or Sphere Radius slider card based on mode
+    if (isSphereMode && sphereRadiusSlider) {
+      const sphereRadiusCard = createSliderCard('Sphere Radius', sphereRadiusSlider.value, 
+        parseFloat(sphereRadiusSlider.min), parseFloat(sphereRadiusSlider.max), parseFloat(sphereRadiusSlider.step),
+        (value) => {
+          sphereRadiusSlider.value = value.toString()
+          sphereRadiusSlider.dispatchEvent(new Event('input'))
+        })
+      horizontalSettingsOptions.appendChild(sphereRadiusCard)
+    } else if (!isSphereMode && pointSizeSlider) {
+      const pointSizeCard = createSliderCard('Point Size', pointSizeSlider.value, 
+        parseFloat(pointSizeSlider.min), parseFloat(pointSizeSlider.max), parseFloat(pointSizeSlider.step),
+        (value) => {
+          pointSizeSlider.value = value.toString()
+          pointSizeSlider.dispatchEvent(new Event('input'))
+        })
+      horizontalSettingsOptions.appendChild(pointSizeCard)
+    }
     
-    // Add Auto-Rotate option
-    const autoRotateCard = document.createElement('div')
-    autoRotateCard.className = 'settings-option-card'
-    autoRotateCard.innerHTML = `
-      <div class="settings-option-name">Auto-Rotate</div>
-    `
-    autoRotateCard.addEventListener('click', () => {
-      console.log('Auto-Rotate settings clicked')
-      // TODO: Add auto-rotate toggle interface
-    })
-    horizontalSettingsOptions.appendChild(autoRotateCard)
+    // Add Focal Length slider card
+    if (focalLengthSlider) {
+      const focalLengthCard = createSliderCard('Focal Length', focalLengthSlider.value,
+        parseFloat(focalLengthSlider.min), parseFloat(focalLengthSlider.max), parseFloat(focalLengthSlider.step),
+        (value) => {
+          focalLengthSlider.value = value.toString()
+          focalLengthSlider.dispatchEvent(new Event('input'))
+        })
+      horizontalSettingsOptions.appendChild(focalLengthCard)
+    }
+    
+    // Add Fog Density slider card
+    if (fogDensitySlider) {
+      const fogDensityCard = createSliderCard('Fog Density', fogDensitySlider.value,
+        parseFloat(fogDensitySlider.min), parseFloat(fogDensitySlider.max), parseFloat(fogDensitySlider.step),
+        (value) => {
+          fogDensitySlider.value = value.toString()
+          fogDensitySlider.dispatchEvent(new Event('input'))
+        })
+      horizontalSettingsOptions.appendChild(fogDensityCard)
+    }
+    
+    // Add Auto-Rotate toggle card
+    if (autoRotateToggle) {
+      const autoRotateCard = createToggleCard('Auto-Rotate', autoRotateToggle.checked,
+        (checked) => {
+          autoRotateToggle.checked = checked
+          autoRotateToggle.dispatchEvent(new Event('change'))
+        })
+      horizontalSettingsOptions.appendChild(autoRotateCard)
+    }
+    
+    // Add Sphere Mode toggle card (affects which size slider is shown)
+    if (sphereToggle) {
+      const sphereModeCard = createToggleCard('Sphere Mode', sphereToggle.checked,
+        (checked) => {
+          sphereToggle.checked = checked
+          sphereToggle.dispatchEvent(new Event('change'))
+          // Refresh the settings panel to show/hide appropriate slider
+          setTimeout(() => refreshHorizontalSettingsOptions(), 50)
+        })
+      horizontalSettingsOptions.appendChild(sphereModeCard)
+    }
   }
   
   // Event listeners
@@ -1345,6 +1605,17 @@ function setupMobileSettings() {
   
   // No need to monitor bottom sheet state (removed)
   
+  // Listen for desktop sphere toggle changes to refresh mobile settings
+  const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
+  if (sphereToggle) {
+    sphereToggle.addEventListener('change', () => {
+      // Refresh mobile settings when desktop sphere toggle changes
+      if (horizontalSettingsOptions) {
+        setTimeout(() => refreshHorizontalSettingsOptions(), 50)
+      }
+    })
+  }
+
   // Initial setup
   setTimeout(() => {
     setMobileButtonPositions()
