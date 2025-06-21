@@ -395,7 +395,7 @@ function createParameterSliderCard(label: string, currentValue: string, min: num
   const handleStart = (clientX: number) => {
     isDragging = true
     startX = clientX
-    startValue = parseFloat(currentSliderValue)
+    startValue = currentSliderValue
     card.classList.add('dragging')
   }
   
@@ -616,7 +616,20 @@ function setupMobileEffectsButton() {
     })
     horizontalEffectsChain.appendChild(addButton)
     
-    // Add the reset button to the right of the add button
+    // Add the preset selector button between add and reset
+    const presetButton = document.createElement('div')
+    presetButton.className = 'horizontal-preset-button'
+    presetButton.innerHTML = `
+      <div class="add-effect-icon">+</div>
+      <div class="add-effect-text">Select Preset</div>
+    `
+    presetButton.addEventListener('click', () => {
+      // Show mobile preset selector
+      showMobilePresetSelector()
+    })
+    horizontalEffectsChain.appendChild(presetButton)
+    
+    // Add the reset button to the right of the preset button
     const resetButton = document.createElement('div')
     resetButton.className = 'horizontal-reset-button'
     resetButton.innerHTML = `
@@ -900,7 +913,35 @@ function setupMobileEffectsButton() {
     if (!window.effectsChainManager) return
     
     import('./effects/EffectsChainManager').then(({ EFFECT_DEFINITIONS }) => {
-      // Create a simple overlay with effect buttons
+      // Categorize effects
+      const categories = {
+        'Color': {
+          color: '#FF6B6B',
+          effects: ['background', 'gamma', 'sepia', 'colorify', 'invert', 'bleachbypass']
+        },
+        'Blur': {
+          color: '#4ECDC4',
+          effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
+        },
+        'Grain': {
+          color: '#45B7D1',
+          effects: ['crtgrain', 'film35mm', 'pixelate']
+        },
+        'Post-Process': {
+          color: '#96CEB4',
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
+        },
+        '3D Effects': {
+          color: '#FECA57',
+          effects: ['drawrange', 'pointnetwork', 'material', 'brush', 'topographic', 'fog']
+        },
+        'In Development': {
+          color: '#888888',
+          effects: ['tsl', 'dotscreen']
+        }
+      }
+
+      // Create a simple overlay with categorized effect buttons
       const overlay = document.createElement('div')
       overlay.className = 'mobile-effect-selector-overlay'
       overlay.style.cssText = `
@@ -923,7 +964,7 @@ function setupMobileEffectsButton() {
         background: rgba(21, 21, 21, 0.95);
         border: 1px solid #00ff00;
         border-radius: 8px;
-        padding: 20px;
+        padding: 10px;
         max-width: 90vw;
         max-height: 70vh;
         overflow-y: auto;
@@ -933,84 +974,102 @@ function setupMobileEffectsButton() {
       const title = document.createElement('h3')
       title.textContent = 'Add Effect'
       title.style.cssText = `
-        color: #00ff00;
+        color: white;
         margin: 0 0 15px 0;
         text-align: center;
-        font-size: 1.2rem;
+        font-size: 1rem;
       `
       container.appendChild(title)
       
-      const effectsGrid = document.createElement('div')
-      effectsGrid.style.cssText = `
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 10px;
-      `
-      
-      EFFECT_DEFINITIONS.forEach(definition => {
-        const button = document.createElement('button')
-        button.textContent = definition.name
-        button.style.cssText = `
-          background: rgba(0, 0, 0, 0.7);
-          border: 1px solid #00ff00;
+      // Create categories
+      Object.entries(categories).forEach(([categoryName, categoryData]) => {
+        const categoryHeader = document.createElement('div')
+        categoryHeader.style.cssText = `
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid ${categoryData.color};
           border-radius: 6px;
-          color: #00ff00;
-          padding: 12px 8px;
-          font-family: 'Space Mono', monospace;
-          font-size: 0.9rem;
+          padding: 8px 12px;
+          margin: 10px 0 5px 0;
+          color: ${categoryData.color};
+          font-size: 0.8rem;
+          font-weight: bold;
           cursor: pointer;
-          transition: all 0.2s ease;
-          text-align: center;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        `
+        categoryHeader.textContent = categoryName
+        
+        const arrow = document.createElement('span')
+        arrow.textContent = '▼'
+        arrow.style.fontSize = '0.7rem'
+        categoryHeader.appendChild(arrow)
+        
+        const effectsGrid = document.createElement('div')
+        effectsGrid.style.cssText = `
+          display: none;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 8px;
+          margin-bottom: 10px;
         `
         
-        button.addEventListener('click', () => {
-          // Add the effect
-          window.effectsChainManager.addEffect(definition.type)
-          refreshHorizontalEffectsChain()
-          
-          // Close the selector
-          document.body.removeChild(overlay)
-          
-          // Enable effects and set to custom
-          const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
-          if (desktopDropdown) {
-            desktopDropdown.value = 'custom'
+        // Add effects for this category
+        categoryData.effects.forEach(effectType => {
+          const definition = EFFECT_DEFINITIONS.find(def => def.type === effectType)
+          if (definition) {
+            const button = document.createElement('button')
+            button.textContent = definition.name
+            button.style.cssText = `
+              background: rgba(0, 0, 0, 0.7);
+              border: 1px solid ${categoryData.color};
+              border-radius: 6px;
+              color: white;
+              padding: 10px 6px;
+              font-family: 'Space Mono', monospace;
+              font-size: 0.72rem;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              text-align: center;
+            `
+            
+            button.addEventListener('mouseenter', () => {
+              button.style.background = `rgba(${parseInt(categoryData.color.slice(1,3), 16)}, ${parseInt(categoryData.color.slice(3,5), 16)}, ${parseInt(categoryData.color.slice(5,7), 16)}, 0.1)`
+            })
+            
+            button.addEventListener('mouseleave', () => {
+              button.style.background = 'rgba(0, 0, 0, 0.7)'
+            })
+            
+            button.addEventListener('click', () => {
+              // Add the effect
+              window.effectsChainManager.addEffect(definition.type)
+              refreshHorizontalEffectsChain()
+              
+              // Close the selector
+              document.body.removeChild(overlay)
+              
+              // Enable effects and set to custom
+              const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
+              if (desktopDropdown) {
+                desktopDropdown.value = 'custom'
+              }
+            })
+            
+            effectsGrid.appendChild(button)
           }
         })
         
-        button.addEventListener('mouseenter', () => {
-          button.style.background = 'rgba(0, 255, 0, 0.1)'
-          button.style.boxShadow = '0 0 8px rgba(0, 255, 0, 0.2)'
+        // Toggle category
+        categoryHeader.addEventListener('click', () => {
+          const isOpen = effectsGrid.style.display === 'grid'
+          effectsGrid.style.display = isOpen ? 'none' : 'grid'
+          arrow.textContent = isOpen ? '▼' : '▲'
         })
         
-        button.addEventListener('mouseleave', () => {
-          button.style.background = 'rgba(0, 0, 0, 0.7)'
-          button.style.boxShadow = 'none'
-        })
-        
-        effectsGrid.appendChild(button)
+        container.appendChild(categoryHeader)
+        container.appendChild(effectsGrid)
       })
       
-      const closeButton = document.createElement('button')
-      closeButton.textContent = '× Close'
-      closeButton.style.cssText = `
-        background: rgba(0, 0, 0, 0.7);
-        border: 1px solid #666;
-        border-radius: 6px;
-        color: #666;
-        padding: 10px 20px;
-        font-family: 'Space Mono', monospace;
-        cursor: pointer;
-        margin-top: 15px;
-        align-self: center;
-      `
-      
-      closeButton.addEventListener('click', () => {
-        document.body.removeChild(overlay)
-      })
-      
-      container.appendChild(effectsGrid)
-      container.appendChild(closeButton)
       overlay.appendChild(container)
       
       // Close on overlay click
@@ -1022,6 +1081,11 @@ function setupMobileEffectsButton() {
       
       document.body.appendChild(overlay)
     })
+  }
+  
+  function showMobilePresetSelector() {
+    // TODO: Implement preset selector functionality
+    console.log('Mobile preset selector clicked - functionality to be implemented')
   }
   
   // Set initial position
@@ -1060,13 +1124,6 @@ function createPanelManager() {
   // const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
   const occupiedPositions = new Set<number>()
   
-  function getNextAvailablePosition(): number {
-    let position = 0
-    while (occupiedPositions.has(position)) {
-      position++
-    }
-    return position
-  }
   
   function updatePositions() {
     // Note: Bottom sheet is now permanently hidden, so we don't need to manage its visibility
@@ -1097,7 +1154,7 @@ function createPanelManager() {
     }
     
     // Second pass: reassign positions to open panels sequentially (compact layout)
-    const openPanels = Array.from(panels.entries()).filter(([id, panel]) => panel.isOpen)
+    const openPanels = Array.from(panels.entries()).filter(([, panel]) => panel.isOpen)
     occupiedPositions.clear() // Clear all positions for reassignment
     
     openPanels.forEach(([panelId, panel], index) => {
@@ -1409,7 +1466,7 @@ function setupMobileSettings() {
     const handleStart = (clientX: number) => {
       isDragging = true
       startX = clientX
-      startValue = parseFloat(currentSliderValue) // Use current slider value, not DOM value
+      startValue = currentSliderValue // Use current slider value, not DOM value
       card.classList.add('dragging')
     }
     

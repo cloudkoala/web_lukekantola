@@ -266,7 +266,7 @@
 /* Horizontal effect cards */
 .horizontal-effect-card {
   min-width: 120px;
-  height: 50px;
+  height: 40px;
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid #00ff00;
   border-radius: 6px;
@@ -606,10 +606,48 @@
   opacity: 0.8;
 }
 
+/* Horizontal Preset Button */
+.horizontal-preset-button {
+  min-width: 100px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px dashed #4169E1;
+  border-radius: 6px;
+  padding: 8px;
+  color: #4169E1;
+  font-family: 'Space Mono', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.horizontal-preset-button:hover {
+  background: rgba(65, 105, 225, 0.1);
+  border-style: solid;
+  box-shadow: 0 0 8px rgba(65, 105, 225, 0.2);
+}
+
+.horizontal-preset-button .add-effect-icon {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.horizontal-preset-button .add-effect-text {
+  font-size: 0.6rem;
+  opacity: 0.8;
+}
+
+
 /* Mobile Trash Icon */
 .mobile-trash-icon {
   position: fixed;
-  bottom: 120px; /* Default position, will be updated dynamically */
+  bottom: 185px; /* Default position, will be updated dynamically */
   left: 50%;
   z-index: 1000;
   opacity: 0;
@@ -624,7 +662,7 @@
 }
 
 .mobile-trash-icon.show {
-  opacity: 1;
+  opacity: .6;
   pointer-events: auto;
   transform: translateX(-50%) scale(1);
 }
@@ -645,7 +683,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease; /* Simplified transition */
+  transition: all 0.4s ease; /* Simplified transition */
   font-family: 'Space Mono', monospace;
   padding: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -696,9 +734,9 @@
 }
 
 .parameters-box-title {
-  color: #00ff00;
+  color: white;
   font-family: 'Space Mono', monospace;
-  font-size: 0.8rem;
+  font-size: 0.6rem;
   font-weight: 600;
   margin-left: 6px;
 }
@@ -710,6 +748,7 @@
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0;
+  margin: 0;
   width: 20px;
   height: 20px;
   display: flex;
@@ -726,7 +765,7 @@
 .parameters-box-content {
   padding: 6px;
   max-height: 250px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .parameters-box-content .parameter-control {
@@ -1568,7 +1607,7 @@ body, html {
   position: fixed;
   bottom: 80px;
   right: 20px;
-  z-index: 998;
+  z-index: 500;
   background: transparent;
   padding: 0;
   font-family: 'Space Mono', monospace;
@@ -1578,6 +1617,14 @@ body, html {
   flex-direction: column;
   gap: 8px;
   opacity: 0.6;
+}
+
+/* Mobile positioning - move to bottom right corner */
+@media (max-width: 768px) {
+  .camera-info {
+    bottom: 20px;
+    right: 20px;
+  }
 }
 
 .camera-position-info,
@@ -3360,8 +3407,8 @@ body, html {
 }
 
 .mobile-effect-parameters label {
-  color: #00ff00;
-  font-size: 0.8rem;
+  color: white;
+  font-size: 0.6rem;
   font-family: 'Space Mono', monospace;
   font-weight: 600;
   min-width: 80px;
