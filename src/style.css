@@ -872,6 +872,52 @@
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
 
+/* Mobile Share Button */
+.mobile-share-button {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 800;
+  opacity: 1;
+  pointer-events: auto;
+  display: none;
+}
+
+.share-button {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  color: #00ff00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: none;
+  font-family: 'Space Mono', monospace;
+}
+
+.share-button:not(.active):not(:hover) {
+  background: rgba(0, 0, 0, 0.7);
+  box-shadow: none;
+}
+
+.share-button:hover:not(.active):not(:focus) {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.share-button.active {
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.share-button:active {
+  transform: scale(0.95);
+}
+
 .preset-name {
   color: white;
 }
@@ -1376,6 +1422,8 @@ body, html {
   flex-direction: column;
   gap: 12px;
   position: relative;
+  width: fit-content;
+  max-width: 260px;
 }
 
 /* Effects Panel - Same styling as Settings Panel */
@@ -1408,7 +1456,7 @@ body, html {
   justify-content: center;
   transition: all 0.3s ease;
   position: absolute;
-  top: -1px;
+  top: -5px;
   right: 8px; /* Moved to top right */
   flex-shrink: 0;
   z-index: 10;
@@ -1423,6 +1471,7 @@ body, html {
 .esc-hint {
   font-size: 8px;
   margin-left: 2px;
+  margin-top: -2px;
   opacity: 0.6;
   font-family: monospace;
 }
@@ -3802,6 +3851,11 @@ body, html {
     display: block;
   }
   
+  /* Show mobile share button on mobile */
+  .mobile-share-button {
+    display: block;
+  }
+  
   /* Hide home navigation buttons on mobile */
   .home-navigation {
     display: none !important;
@@ -3979,7 +4033,8 @@ body, html {
   .touch-layout .project-read-more:hover,
   .touch-layout .hamburger-button:hover,
   .touch-layout .effects-button:hover,
-  .touch-layout .settings-button:hover {
+  .touch-layout .settings-button:hover,
+  .touch-layout .share-button:hover {
     transform: none;
     box-shadow: none;
     background: none;
@@ -4866,6 +4921,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin: 19px 6px 6px 6px;
 }
 
 .effects-panel-title-row label {

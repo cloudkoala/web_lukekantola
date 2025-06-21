@@ -1946,12 +1946,14 @@ function createPanelManager() {
         const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
         const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
         const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+        const shareButtonContainer = document.getElementById('mobile-share-button') as HTMLElement
         const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
         const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
         
         if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
         if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
         if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+        if (shareButtonContainer) shareButtonContainer.style.bottom = `${defaultPosition}px`
         if (presetSelector) presetSelector.style.bottom = `${defaultPosition}px`
         if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
         return
@@ -1981,6 +1983,7 @@ function createPanelManager() {
       const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
       const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
       const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      const shareButtonContainer = document.getElementById('mobile-share-button') as HTMLElement
       const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
@@ -1992,6 +1995,9 @@ function createPanelManager() {
       }
       if (settingsButtonContainer) {
         settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      }
+      if (shareButtonContainer) {
+        shareButtonContainer.style.bottom = `${buttonBottomPosition}px`
       }
       if (presetSelector) {
         presetSelector.style.bottom = `${buttonBottomPosition}px`
@@ -2950,10 +2956,11 @@ function setupFogControl() {
 function setupSceneSharing() {
   console.log('Setting up scene sharing...')
   const shareButton = document.getElementById('share-scene-button') as HTMLButtonElement
+  const mobileShareButton = document.getElementById('mobile-share-button-element') as HTMLButtonElement
   const shareFeedback = document.getElementById('share-feedback') as HTMLElement
   
   if (!shareButton || !shareFeedback) {
-    console.warn('Scene sharing elements not found', { shareButton, shareFeedback })
+    console.warn('Desktop scene sharing elements not found', { shareButton, shareFeedback })
     return
   }
   
@@ -3049,6 +3056,139 @@ function setupSceneSharing() {
       }, 1000)
     }
   })
+  
+  // Mobile share button handler
+  if (mobileShareButton) {
+    mobileShareButton.addEventListener('click', async () => {
+      try {
+        console.log('Mobile share button clicked')
+        
+        // Disable button temporarily to prevent spam
+        mobileShareButton.disabled = true
+        
+        // Prompt user for scene name
+        const userSceneName = prompt('Enter a name for your scene:', 'My Custom Scene')
+        
+        // If user cancelled the prompt, re-enable button and exit
+        if (userSceneName === null) {
+          mobileShareButton.disabled = false
+          return
+        }
+        
+        // Use provided name or fallback to default
+        const sceneName = userSceneName.trim() || 'Untitled Scene'
+        const sceneKey = sceneName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_')
+        
+        // Generate scene config JSON for scenes-config
+        const sceneState = orbitalCamera.captureCurrentSceneState()
+        
+        // Create SceneDefinition with metadata
+        const sceneDefinition = {
+          ...sceneState,
+          name: sceneName,
+          description: `Exported scene configuration - ${new Date().toLocaleDateString()}`,
+          creator: "User",
+          // Round coordinates for cleaner JSON
+          cameraPosition: {
+            x: parseFloat(sceneState.cameraPosition.x.toFixed(2)),
+            y: parseFloat(sceneState.cameraPosition.y.toFixed(2)),
+            z: parseFloat(sceneState.cameraPosition.z.toFixed(2))
+          },
+          cameraTarget: {
+            x: parseFloat(sceneState.cameraTarget.x.toFixed(2)),
+            y: parseFloat(sceneState.cameraTarget.y.toFixed(2)),
+            z: parseFloat(sceneState.cameraTarget.z.toFixed(2))
+          }
+        }
+        
+        // Format as scenes-config JSON structure
+        const scenesConfig = {
+          scenes: {
+            [sceneKey]: sceneDefinition
+          },
+          randomScenes: [],
+          defaultScene: sceneKey
+        }
+        
+        const jsonString = JSON.stringify(scenesConfig, null, 2)
+        
+        // Try to copy to clipboard with robust fallback
+        let copySuccess = false
+        
+        // Method 1: Modern clipboard API (if available and secure context)
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(jsonString)
+            copySuccess = true
+            console.log('Copied using modern clipboard API')
+          } catch (error) {
+            console.log('Modern clipboard API failed:', error)
+          }
+        }
+        
+        // Method 2: Legacy execCommand fallback
+        if (!copySuccess) {
+          try {
+            const textArea = document.createElement('textarea')
+            textArea.value = jsonString
+            textArea.style.position = 'fixed'
+            textArea.style.left = '-999999px'
+            textArea.style.top = '-999999px'
+            document.body.appendChild(textArea)
+            textArea.focus()
+            textArea.select()
+            
+            const successful = document.execCommand('copy')
+            document.body.removeChild(textArea)
+            
+            if (successful) {
+              copySuccess = true
+              console.log('Copied using execCommand')
+            }
+          } catch (error) {
+            console.log('execCommand fallback failed:', error)
+          }
+        }
+        
+        if (copySuccess) {
+          // Show success feedback with scene name
+          const feedbackText = shareFeedback.querySelector('.feedback-text') as HTMLElement
+          if (feedbackText) {
+            feedbackText.textContent = `"${sceneName}" copied to clipboard!`
+          }
+          shareFeedback.style.display = 'block'
+          
+          // Hide feedback after animation completes
+          setTimeout(() => {
+            shareFeedback.style.display = 'none'
+          }, 2000)
+          
+          console.log(`Mobile scene config "${sceneName}" copied successfully`)
+          
+          // Additional confirmation alert
+          setTimeout(() => {
+            alert(`Scene "${sceneName}" has been copied to your clipboard!\n\nYou can now paste it into your scenes-config.json file.`)
+          }, 500)
+        } else {
+          // Final fallback: show JSON in alert for manual copy
+          console.log('All clipboard methods failed, showing JSON in alert')
+          alert(`Scene Config JSON for "${sceneName}":\n\n${jsonString}\n\nSelect all and copy manually.`)
+        }
+        
+      } catch (error) {
+        console.error('Failed to share scene from mobile:', error)
+        alert('Failed to share scene. Please try again.')
+      } finally {
+        // Re-enable button
+        setTimeout(() => {
+          mobileShareButton.disabled = false
+        }, 1000)
+      }
+    })
+    console.log('Mobile share button setup complete')
+  } else {
+    console.warn('Mobile share button not found')
+  }
   
   console.log('Scene sharing setup complete')
 }
