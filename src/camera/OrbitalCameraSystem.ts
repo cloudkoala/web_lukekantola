@@ -2777,6 +2777,8 @@ export class OrbitalCameraSystem {
       
       // 3. Apply effects chain
       this.effectsChainManager.clearEffects()
+      this.effectsChainManager.setLoadingFromScene(true) // Prevent auto-expansion
+      
       for (const effectState of sceneState.effectsChain) {
         const effect = this.effectsChainManager.addEffect(effectState.type as EffectType)
         if (effect) {
@@ -2786,6 +2788,13 @@ export class OrbitalCameraSystem {
             this.effectsChainManager.updateEffectParameter(effect.id, key, value)
           })
         }
+      }
+      
+      this.effectsChainManager.setLoadingFromScene(false) // Re-enable auto-expansion
+      
+      // Clear expanded effects so scene-loaded effects start collapsed
+      if (this.effectsPanel) {
+        this.effectsPanel.clearExpandedEffects()
       }
       
       // Apply effects dropdown value if available

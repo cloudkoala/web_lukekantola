@@ -209,7 +209,8 @@ export class EffectsPanel {
       // Expand the panel so users can see and edit the effect
       this.ensureExpanded()
     } else {
-      // Load a preset
+      // Load a preset - clear expanded effects so they start collapsed
+      this.expandedEffects.clear()
       this.loadPreset(value)
       this.updateEffectsEnabled(true)
       
@@ -640,6 +641,7 @@ export class EffectsPanel {
     if (preset) {
       // Clear current effects
       this.chainManager.clearEffects()
+      this.chainManager.setLoadingFromScene(true) // Prevent auto-expansion
       
       // Load preset effects with fallback for renamed effects
       preset.forEach(effect => {
@@ -656,6 +658,8 @@ export class EffectsPanel {
           console.warn(`Failed to load effect ${effect.type}:`, error)
         }
       })
+      
+      this.chainManager.setLoadingFromScene(false) // Re-enable auto-expansion
       
       // Refresh display
       this.refreshChain()
@@ -1377,6 +1381,11 @@ export class EffectsPanel {
   // Method to update display when effects are added/removed (call this manually)
   refreshChain(): void {
     this.updateChainDisplay()
+  }
+
+  // Method to clear expanded effects when loading scenes/presets from external sources
+  clearExpandedEffects(): void {
+    this.expandedEffects.clear()
   }
 
   private toggleEffectParameters(card: HTMLElement, effect: EffectInstance): void {

@@ -501,6 +501,7 @@ export class EffectsChainManager {
   private selectedEffectId: string | null = null
   private nextEffectId: number = 1
   private lastAddedEffectId: string | null = null
+  private isLoadingFromScene: boolean = false
 
   constructor() {
     // Initialize with empty chain
@@ -524,7 +525,12 @@ export class EffectsChainManager {
 
     console.log('Created effect instance:', newEffect)
     this.effectsChain.push(newEffect)
-    this.lastAddedEffectId = newEffect.id
+    
+    // Only track for auto-expansion if not loading from scene/preset
+    if (!this.isLoadingFromScene) {
+      this.lastAddedEffectId = newEffect.id
+    }
+    
     this.notifyChainUpdated()
     return newEffect
   }
@@ -647,6 +653,10 @@ export class EffectsChainManager {
 
   clearLastAddedEffectId(): void {
     this.lastAddedEffectId = null
+  }
+
+  setLoadingFromScene(loading: boolean): void {
+    this.isLoadingFromScene = loading
   }
 
   hasEnabledEffects(): boolean {
