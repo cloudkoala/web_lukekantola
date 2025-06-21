@@ -935,7 +935,7 @@ export class PostProcessingPass {
       }
     }
     
-    console.log(`Background color updated via effects: HSL(${hue.toFixed(2)}, ${(saturation*100).toFixed(0)}%, ${(lightness*100).toFixed(0)}%) - adjusted lightness: ${lightness.toFixed(3)}`)
+    // Background color updated silently
   }
   
   private applyDrawRangeEffect(effect: EffectInstance): void {

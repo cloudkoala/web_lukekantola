@@ -125,107 +125,6 @@
       </div>
     </div>
     
-    <!-- Mobile Bottom Sheet -->
-    <div class="mobile-bottom-sheet mobile-only" id="mobile-bottom-sheet">
-      <!-- Bottom Sheet Handle -->
-      <div class="bottom-sheet-handle" id="bottom-sheet-handle">
-        <div class="handle-bar"></div>
-        <span class="handle-text">Controls</span>
-      </div>
-      
-      <!-- Bottom Sheet Content -->
-      <div class="bottom-sheet-content" id="bottom-sheet-content">
-        <!-- Model and Quality Selectors -->
-        <div class="bottom-sheet-section">
-          <div class="mobile-dropdown-row">
-            <div class="mobile-model-selector">
-              <select id="mobile-model-dropdown">
-                <option value="castleton">Castleton Tower</option>
-                <option value="corona_arch">Corona Arch</option>
-                <option value="delicate_arch">Delicate Arch</option>
-                <option value="fisher">Fisher Towers</option>
-              </select>
-            </div>
-            <div class="mobile-quality-selector">
-              <select id="mobile-quality-dropdown">
-                <option value="low">Low Quality</option>
-                <option value="high">High Quality</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <!-- All Settings Controls -->
-        <div class="bottom-sheet-section">
-          
-          <div class="mobile-point-size-control" id="mobile-point-size-control">
-            <label for="mobile-point-size">Point Size:</label>
-            <input type="range" id="mobile-point-size" min="0.001" max="0.2" step="0.001" value="0.001">
-            <span id="mobile-point-size-value">0.001</span>
-          </div>
-          
-          <div class="mobile-sphere-radius-control" id="mobile-sphere-radius-control" style="display: none;">
-            <label for="mobile-sphere-radius">Sphere Radius:</label>
-            <input type="range" id="mobile-sphere-radius" min="0.001" max="0.05" step="0.001" value="0.01">
-            <span id="mobile-sphere-radius-value">0.01</span>
-          </div>
-          
-          <div class="mobile-focal-length-control">
-            <label for="mobile-focal-length">Focal Length:</label>
-            <input type="range" id="mobile-focal-length" min="10" max="200" step="1" value="50">
-            <span id="mobile-focal-length-value">50</span>
-          </div>
-          
-          <div class="mobile-fog-control">
-            <label for="mobile-fog-density">Fog Density:</label>
-            <input type="range" id="mobile-fog-density" min="0" max="0.5" step="0.001" value="0.003">
-            <span id="mobile-fog-density-value">0.003</span>
-          </div>
-          
-          <div class="mobile-sphere-controls">
-            <div class="mobile-sphere-toggle-control">
-              <label for="mobile-sphere-toggle">Sphere Mode:</label>
-              <input type="checkbox" id="mobile-sphere-toggle" class="sphere-toggle-checkbox" checked>
-              <label for="mobile-auto-rotate-toggle" class="auto-rotate-label">Auto-Rotate:</label>
-              <input type="checkbox" id="mobile-auto-rotate-toggle" class="auto-rotate-checkbox" checked>
-            </div>
-          </div>
-          
-          <!-- Effects Panel -->
-          <div id="mobile-effects-panel" class="mobile-effects-panel">
-            <div class="mobile-effects-panel-header">
-              <div class="mobile-effects-panel-title-row">
-                <label for="mobile-effects-main-dropdown">Effect:</label>
-                <select id="mobile-effects-main-dropdown" class="mobile-effects-main-dropdown">
-                  <option value="none">None</option>
-                </select>
-                <button id="mobile-save-preset" class="mobile-save-preset-button" title="Save current effects as preset">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                    <polyline points="17,21 17,13 7,13 7,21"></polyline>
-                    <polyline points="7,3 7,8 15,8"></polyline>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div class="mobile-effects-panel-content" id="mobile-effects-panel-content">
-              <div class="mobile-effects-chain-container">
-                <div id="mobile-effects-chain" class="mobile-effects-chain">
-                  <!-- Effect cards will be dynamically added here -->
-                </div>
-              </div>
-              
-              <div class="mobile-effect-parameters-container" style="display: none;">
-                <div id="mobile-effect-parameters" class="mobile-effect-parameters">
-                  <!-- Dynamic parameter controls will be added here -->
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     
     <!-- Camera Info Display -->
     <div class="camera-info">
@@ -261,10 +160,6 @@
           <circle cx="12" cy="13" r="4"/>
         </svg>
       </button>
-      <div class="camera-menu" id="camera-menu">
-        <button class="camera-menu-option" id="reset-camera-option">Reset Camera</button>
-        <button class="camera-menu-option" id="play-animation-option">Play Animation</button>
-      </div>
     </div>
 
     <!-- Mobile Effects Button -->
@@ -275,6 +170,23 @@
           <path d="M10 3 L12 8 L17 10 L12 12 L10 17 L8 12 L3 10 L8 8 Z"/>
           <!-- Small four-pointed star (bottom right) -->
           <path d="M19 16 L20 18 L22 19 L20 20 L19 22 L18 20 L16 19 L18 18 Z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Settings Button -->
+    <div class="mobile-settings-button mobile-only" id="mobile-settings-button">
+      <button class="settings-button" id="mobile-settings-button-element">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- First slider (top) -->
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <circle cx="12" cy="6" r="2"/>
+          <!-- Second slider (middle) -->
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <circle cx="8" cy="12" r="2"/>
+          <!-- Third slider (bottom) -->
+          <line x1="3" y1="18" x2="21" y2="18"/>
+          <circle cx="16" cy="18" r="2"/>
         </svg>
       </button>
     </div>
@@ -291,11 +203,45 @@
       </button>
     </div>
 
+    <!-- Mobile Horizontal Camera Panel -->
+    <div class="mobile-horizontal-camera-panel mobile-only" id="mobile-horizontal-camera-panel">
+      <div class="horizontal-camera-content">
+        <div class="horizontal-camera-options" id="horizontal-camera-options">
+          <div class="camera-option-card">
+            <div class="camera-option-name">Reset Camera</div>
+          </div>
+          <div class="camera-option-card">
+            <div class="camera-option-name">Play Animation</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Mobile Horizontal Effects Panel -->
     <div class="mobile-horizontal-effects-panel mobile-only" id="mobile-horizontal-effects-panel">
       <div class="horizontal-effects-content">
         <div class="horizontal-effects-chain" id="horizontal-effects-chain">
           <!-- Effect cards will be dynamically added here horizontally -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Horizontal Settings Panel -->
+    <div class="mobile-horizontal-settings-panel mobile-only" id="mobile-horizontal-settings-panel">
+      <div class="horizontal-settings-content">
+        <div class="horizontal-settings-options" id="horizontal-settings-options">
+          <div class="settings-option-card">
+            <div class="settings-option-name">Point Size</div>
+          </div>
+          <div class="settings-option-card">
+            <div class="settings-option-name">Focal Length</div>
+          </div>
+          <div class="settings-option-card">
+            <div class="settings-option-name">Fog Density</div>
+          </div>
+          <div class="settings-option-card">
+            <div class="settings-option-name">Auto-Rotate</div>
+          </div>
         </div>
       </div>
     </div>

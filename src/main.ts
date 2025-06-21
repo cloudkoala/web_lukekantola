@@ -336,33 +336,40 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
 
-// Unified mobile button positioning
+// Simple mobile button positioning (since bottom sheet is hidden)
+let positioningInitialized = false
 function setMobileButtonPositions() {
+  // Only run once since CSS now has correct initial positions
+  if (positioningInitialized) {
+    console.log('🔧 setMobileButtonPositions skipped - already initialized')
+    return
+  }
+  
+  console.log('🔧 setMobileButtonPositions called (first time)')
   const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
   const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
+  const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
   
-  if (!bottomSheet) return
+  // Since bottom sheet is hidden and CSS has correct positions, just ensure they're set
+  const fixedBottomPosition = 12 // 12px from bottom
   
-  const wasExpanded = bottomSheet.classList.contains('expanded')
-  if (wasExpanded) bottomSheet.classList.remove('expanded')
+  if (effectsButtonContainer && effectsButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
+    effectsButtonContainer.style.bottom = `${fixedBottomPosition}px`
+    console.log(`✅ Effects container positioned: ${effectsButtonContainer.style.bottom}`)
+  }
   
-  setTimeout(() => {
-    const bottomSheetRect = bottomSheet.getBoundingClientRect()
-    const distanceFromBottom = window.innerHeight - bottomSheetRect.top
-    const newBottomPosition = distanceFromBottom + 12 // Changed to 12px margin
-    
-    // Position camera and effects buttons at the same time
-    // (trash icon uses fixed CSS positioning and doesn't need JS positioning)
-    if (effectsButtonContainer) {
-      effectsButtonContainer.style.bottom = `${newBottomPosition}px`
-    }
-    if (cameraButtonContainer) {
-      cameraButtonContainer.style.bottom = `${newBottomPosition}px`
-    }
-    
-    if (wasExpanded) bottomSheet.classList.add('expanded')
-  }, 100)
+  if (cameraButtonContainer && cameraButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
+    cameraButtonContainer.style.bottom = `${fixedBottomPosition}px`
+    console.log(`✅ Camera container positioned: ${cameraButtonContainer.style.bottom}`)
+  }
+  
+  if (settingsButtonContainer && settingsButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
+    settingsButtonContainer.style.bottom = `${fixedBottomPosition}px`
+    console.log(`✅ Settings container positioned: ${settingsButtonContainer.style.bottom}`)
+  }
+  
+  positioningInitialized = true
+  console.log('🔧 Mobile button positioning initialized')
 }
 
 // Mobile effects button functionality
@@ -375,80 +382,31 @@ function setupMobileEffectsButton() {
   const parametersBoxTitle = document.getElementById('parameters-box-title') as HTMLElement
   const parametersBoxContent = document.getElementById('parameters-box-content') as HTMLElement
   const parametersBoxClose = document.getElementById('parameters-box-close') as HTMLElement
-  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
   
   if (!effectsButtonContainer || !effectsButton || !horizontalEffectsPanel || !horizontalEffectsChain || 
-      !parametersBox || !parametersBoxTitle || !parametersBoxContent || !parametersBoxClose || !bottomSheet) {
+      !parametersBox || !parametersBoxTitle || !parametersBoxContent || !parametersBoxClose) {
     console.warn('Mobile effects button elements not found')
     return
   }
   
-  let isEffectsPanelOpen = false
+  // Initialize panel manager and register this panel
+  const manager = initializePanelManager()
+  manager.registerPanel('effects', horizontalEffectsPanel)
   
-  // Show/hide effects button based on bottom sheet state
+  // Effects button is always visible now (no bottom sheet)
   function updateEffectsButtonVisibility() {
-    const isExpanded = bottomSheet.classList.contains('expanded')
-    if (isExpanded) {
-      effectsButtonContainer.style.opacity = '0'
-      effectsButtonContainer.style.pointerEvents = 'none'
-      if (isEffectsPanelOpen) {
-        closeEffectsPanel()
-      }
-    } else {
-      effectsButtonContainer.style.opacity = '1'
-      effectsButtonContainer.style.pointerEvents = 'auto'
-    }
+    effectsButtonContainer.style.opacity = '1'
+    effectsButtonContainer.style.pointerEvents = 'auto'
   }
   
   function toggleEffectsPanel() {
-    isEffectsPanelOpen = !isEffectsPanelOpen
+    const isOpen = manager.togglePanel('effects')
     
-    if (isEffectsPanelOpen) {
-      horizontalEffectsPanel.classList.add('show')
-      effectsButton.classList.add('active')
-      
-      // Hide bottom sheet when effects panel is open
-      bottomSheet.style.display = 'none'
-      
-      // Move camera and effects buttons up with the same timing as the panel
-      setTimeout(() => {
-        const cameraButton = document.getElementById('mobile-camera-reset') as HTMLElement
-        if (cameraButton) {
-          cameraButton.style.bottom = '92px' // 80px panel + 12px margin = 92px
-        }
-        effectsButtonContainer.style.bottom = '92px'
-      }, 0) // Start immediately but allow CSS transitions to handle timing
-      
+    if (isOpen) {
       refreshHorizontalEffectsChain()
     } else {
-      horizontalEffectsPanel.classList.remove('show')
-      effectsButton.classList.remove('active')
-      
-      // Reset button positions with same timing as panel closes
-      setTimeout(() => {
-        // Show bottom sheet again
-        bottomSheet.style.display = 'block'
-        
-        // Reset both button positions together
-        setMobileButtonPositions()
-      }, 0) // Start immediately but allow CSS transitions to handle timing
-      
       closeParametersBox()
     }
-  }
-  
-  function closeEffectsPanel() {
-    isEffectsPanelOpen = false
-    horizontalEffectsPanel.classList.remove('show')
-    effectsButton.classList.remove('active')
-    
-    // Show bottom sheet again
-    bottomSheet.style.display = 'block'
-    
-    // Reset both button positions together
-    setMobileButtonPositions()
-    
-    closeParametersBox()
   }
   
   function closeParametersBox() {
@@ -980,455 +938,421 @@ function setupMobileEffectsButton() {
   setTimeout(() => {
     setMobileButtonPositions()
     updateEffectsButtonVisibility()
-  }, 200)
+  }, 50)
   
-  // Update position on resize
-  window.addEventListener('resize', () => {
-    setTimeout(setMobileButtonPositions, 100)
-  })
-  
-  // Monitor bottom sheet state
-  const observer = new MutationObserver(() => {
-    updateEffectsButtonVisibility()
-  })
-  
-  observer.observe(bottomSheet, {
-    attributes: true,
-    attributeFilter: ['class']
-  })
+  // No need to monitor bottom sheet state (removed)
   
   // Event listeners
-  effectsButton.addEventListener('click', toggleEffectsPanel)
+  effectsButton.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleEffectsPanel()
+  })
   parametersBoxClose.addEventListener('click', closeParametersBox)
   
-  // Close panels when clicking outside (but not on mobile effect selector)
-  document.addEventListener('click', (e) => {
-    const target = e.target as Node
-    const clickedOnEffectSelector = target && (target as Element).closest('.mobile-effect-selector-overlay')
-    const clickedOnTrashIcon = target && (target as Element).closest('.mobile-trash-icon')
-    
-    if (isEffectsPanelOpen && 
-        !horizontalEffectsPanel.contains(target) && 
-        !effectsButton.contains(target) &&
-        !clickedOnEffectSelector &&
-        !clickedOnTrashIcon) {
-      closeEffectsPanel()
-    }
-  })
+  // Remove global click listener - let panels stay open until manually closed
   
   // Expose refresh function for effects system integration
   ;(window as any).refreshHorizontalEffects = refreshHorizontalEffectsChain
 }
 
-// Mobile camera reset button functionality
-function setupMobileCameraReset() {
-  const cameraResetContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-  const cameraResetButton = document.getElementById('camera-reset-button') as HTMLElement
-  const cameraMenu = document.getElementById('camera-menu') as HTMLElement
-  const resetCameraOption = document.getElementById('reset-camera-option') as HTMLElement
-  const playAnimationOption = document.getElementById('play-animation-option') as HTMLElement
-  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
+// Unified panel positioning system
+const PANEL_HEIGHT = 80 // px
+let panelManager: {
+  panels: Map<string, { element: HTMLElement, isOpen: boolean, position: number | null }>
+  updatePositions: () => void
+  registerPanel: (id: string, element: HTMLElement) => void
+  togglePanel: (id: string) => boolean
+} | null = null
+
+function createPanelManager() {
+  const panels = new Map<string, { element: HTMLElement, isOpen: boolean, position: number | null }>()
+  // Note: bottomSheet is now hidden, but keeping reference for potential future use
+  // const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
+  const occupiedPositions = new Set<number>()
   
-  if (!cameraResetContainer || !cameraResetButton || !cameraMenu || !resetCameraOption || !playAnimationOption || !bottomSheet) {
-    console.warn('Mobile camera reset elements not found')
+  function getNextAvailablePosition(): number {
+    let position = 0
+    while (occupiedPositions.has(position)) {
+      position++
+    }
+    return position
+  }
+  
+  function updatePositions() {
+    // Note: Bottom sheet is now permanently hidden, so we don't need to manage its visibility
+    // But we'll keep the logic for potential future use
+    const hasOpenPanels = Array.from(panels.values()).some(panel => panel.isOpen)
+    console.log(`Has open panels: ${hasOpenPanels}`)
+    
+    console.log('Panel states:', Array.from(panels.entries()).map(([id, panel]) => ({ 
+      id, 
+      isOpen: panel.isOpen, 
+      position: panel.position 
+    })))
+    console.log('Occupied positions:', Array.from(occupiedPositions))
+    
+    // First pass: close panels and reset positions
+    for (const [panelId, panel] of panels.entries()) {
+      if (!panel.isOpen) {
+        // Panel is closed - hide it and clear its position
+        if (panel.position !== null) {
+          console.log(`${panelId} freeing position: ${panel.position}`)
+          occupiedPositions.delete(panel.position)
+          panel.position = null
+        }
+        
+        panel.element.classList.remove('show')
+        panel.element.style.bottom = '-200px' // Move off-screen
+      }
+    }
+    
+    // Second pass: reassign positions to open panels sequentially (compact layout)
+    const openPanels = Array.from(panels.entries()).filter(([id, panel]) => panel.isOpen)
+    occupiedPositions.clear() // Clear all positions for reassignment
+    
+    openPanels.forEach(([panelId, panel], index) => {
+      const newPosition = index // Assign positions 0, 1, 2... sequentially
+      panel.position = newPosition
+      occupiedPositions.add(newPosition)
+      
+      const bottomPosition = panel.position * PANEL_HEIGHT
+      panel.element.style.bottom = `${bottomPosition}px`
+      panel.element.classList.add('show')
+      
+      console.log(`${panelId} reassigned to position: ${panel.position}`)
+    })
+    
+    // Update icon active states and positions
+    updateIconActiveStates()
+    updateMobileButtonPositions()
+  }
+  
+  function updateMobileButtonPositions() {
+    // Calculate how high the buttons should be positioned based on open panels
+    const openPanels = Array.from(panels.values()).filter(panel => panel.isOpen)
+    if (openPanels.length === 0) {
+      // No panels open, use default position
+      const defaultPosition = 12
+      const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+      const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+      const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      
+      if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
+      if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
+      if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+      return
+    }
+    
+    const maxPosition = Math.max(...openPanels.map(panel => panel.position || 0), 0)
+    const buttonBottomPosition = 12 + (maxPosition + 1) * PANEL_HEIGHT
+    
+    // Update all mobile button positions
+    const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+    const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+    const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+    
+    if (cameraButtonContainer) {
+      cameraButtonContainer.style.bottom = `${buttonBottomPosition}px`
+    }
+    if (effectsButtonContainer) {
+      effectsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+    }
+    if (settingsButtonContainer) {
+      settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+    }
+    
+    console.log(`Mobile buttons positioned at: ${buttonBottomPosition}px (max panel position: ${maxPosition})`)
+  }
+
+  function updateIconActiveStates() {
+    // Update button active states only, not positions
+    const cameraButton = document.getElementById('camera-reset-button') as HTMLElement
+    const cameraPanel = panels.get('camera')
+    
+    const effectsButton = document.getElementById('effects-button') as HTMLElement
+    const effectsPanel = panels.get('effects')
+    
+    const settingsButton = document.getElementById('mobile-settings-button-element') as HTMLElement
+    const settingsPanel = panels.get('settings')
+    
+    if (cameraButton && cameraPanel) {
+      forceButtonReset(cameraButton, cameraPanel.isOpen)
+    }
+    
+    if (effectsButton && effectsPanel) {
+      forceButtonReset(effectsButton, effectsPanel.isOpen)
+    }
+    
+    if (settingsButton) {
+      console.log('🔧 Settings button found, checking SVG...')
+      const svg = settingsButton.querySelector('svg')
+      console.log('SVG element:', svg)
+      if (svg) {
+        console.log('SVG viewBox:', svg.getAttribute('viewBox'))
+        console.log('SVG children:', svg.children.length)
+      }
+      
+      if (settingsPanel) {
+        forceButtonReset(settingsButton, settingsPanel.isOpen)
+      } else {
+        // Apply default styling for unregistered settings panel
+        settingsButton.style.setProperty('background', 'rgba(0, 0, 0, 0.7)', 'important')
+        settingsButton.style.setProperty('box-shadow', 'none', 'important')
+        settingsButton.style.setProperty('border-color', '#00ff00', 'important')
+        
+        if (svg) {
+          svg.style.stroke = '#00ff00'
+          svg.style.fill = 'none'
+          svg.style.strokeWidth = '2'
+          console.log('✅ SVG styling applied')
+        }
+      }
+    }
+  }
+  
+  function forceButtonReset(button: HTMLElement, isActive: boolean) {
+    // Force blur to remove focus/hover
+    button.blur()
+    
+    // Only manipulate classes and styles, never touch innerHTML or content
+    button.classList.remove('active', 'hover', 'focus')
+    
+    // More targeted style application that won't interfere with SVG content
+    if (isActive) {
+      // Active state - force bright styles but be careful with properties
+      button.style.setProperty('background', 'rgba(0, 255, 0, 0.2)', 'important')
+      button.style.setProperty('box-shadow', '0 0 15px rgba(0, 255, 0, 0.5)', 'important')
+      button.classList.add('active')
+    } else {
+      // Default state - force dark styles
+      button.style.setProperty('background', 'rgba(0, 0, 0, 0.7)', 'important')
+      button.style.setProperty('box-shadow', 'none', 'important')
+      button.style.setProperty('border-color', '#00ff00', 'important')
+    }
+    
+    // Protect and restore SVG styling - never let it get corrupted
+    const svg = button.querySelector('svg')
+    if (svg) {
+      // Force SVG properties that prevent single-pixel collapse
+      svg.style.setProperty('width', '24px', 'important')
+      svg.style.setProperty('height', '24px', 'important')
+      svg.style.setProperty('stroke', '#00ff00', 'important')
+      svg.style.setProperty('fill', 'none', 'important')
+      svg.style.setProperty('stroke-width', '2', 'important')
+      svg.style.setProperty('display', 'block', 'important')
+      svg.style.setProperty('opacity', '1', 'important')
+      svg.style.setProperty('visibility', 'visible', 'important')
+    }
+  }
+  
+  function registerPanel(id: string, element: HTMLElement) {
+    panels.set(id, { element, isOpen: false, position: null })
+  }
+  
+  function togglePanel(id: string): boolean {
+    const panel = panels.get(id)
+    if (!panel) return false
+    
+    panel.isOpen = !panel.isOpen
+    updatePositions()
+    
+    return panel.isOpen
+  }
+  
+  return {
+    panels,
+    updatePositions,
+    registerPanel,
+    togglePanel
+  }
+}
+
+function initializePanelManager() {
+  if (!panelManager) {
+    panelManager = createPanelManager()
+  }
+  return panelManager
+}
+
+// Mobile camera button functionality (unified horizontal panel system)
+function setupMobileCameraReset() {
+  const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+  const cameraButton = document.getElementById('camera-reset-button') as HTMLElement
+  const horizontalCameraPanel = document.getElementById('mobile-horizontal-camera-panel') as HTMLElement
+  const horizontalCameraOptions = document.getElementById('horizontal-camera-options') as HTMLElement
+  
+  if (!cameraButtonContainer || !cameraButton || !horizontalCameraPanel || !horizontalCameraOptions) {
+    console.warn('Mobile camera button elements not found')
     return
   }
   
-  let isMenuOpen = false
+  // Initialize panel manager and register this panel
+  const manager = initializePanelManager()
+  manager.registerPanel('camera', horizontalCameraPanel)
   
-  // Function to calculate camera button position based on closed bottom sheet
-  function setCameraButtonPosition() {
-    // Ensure bottom sheet is in closed state for measurement
-    const wasExpanded = bottomSheet.classList.contains('expanded')
-    if (wasExpanded) {
-      bottomSheet.classList.remove('expanded')
-    }
-    
-    // Wait for any transitions to complete, then measure
-    setTimeout(() => {
-      const bottomSheetRect = bottomSheet.getBoundingClientRect()
-      const bottomSheetTop = bottomSheetRect.top
-      const viewportHeight = window.innerHeight
-      
-      // Calculate distance from bottom of viewport to top of closed bottom sheet
-      const distanceFromBottom = viewportHeight - bottomSheetTop
-      
-      // Add some padding (20px) above the bottom sheet
-      const newBottomPosition = distanceFromBottom + 20
-      
-      cameraResetContainer.style.bottom = `${newBottomPosition}px`
-      
-      console.log(`Camera button positioned ${newBottomPosition}px from bottom (closed bottom sheet top at ${bottomSheetTop}px)`)
-      
-      // Restore expanded state if it was expanded
-      if (wasExpanded) {
-        bottomSheet.classList.add('expanded')
-      }
-    }, 100)
-  }
-  
-  // Function to show/hide camera button based on bottom sheet state
+  // Camera button is always visible now (no bottom sheet)
   function updateCameraButtonVisibility() {
-    const isExpanded = bottomSheet.classList.contains('expanded')
-    if (isExpanded) {
-      cameraResetContainer.style.opacity = '0'
-      cameraResetContainer.style.pointerEvents = 'none'
+    cameraButtonContainer.style.opacity = '1'
+    cameraButtonContainer.style.pointerEvents = 'auto'
+  }
+  
+  function toggleCameraPanel() {
+    const isOpen = manager.togglePanel('camera')
+    
+    if (isOpen) {
+      refreshHorizontalCameraOptions()
     } else {
-      cameraResetContainer.style.opacity = '1'
-      cameraResetContainer.style.pointerEvents = 'auto'
+      // No need to manage active state here - handled centrally
     }
   }
   
-  // Set position once after DOM is fully loaded
+  function refreshHorizontalCameraOptions() {
+    horizontalCameraOptions.innerHTML = ''
+    
+    // Add Reset Camera option
+    const resetCard = document.createElement('div')
+    resetCard.className = 'camera-option-card'
+    resetCard.innerHTML = `
+      <div class="camera-option-name">Reset Camera</div>
+    `
+    resetCard.addEventListener('click', () => {
+      if (orbitalCamera) {
+        orbitalCamera.resetToAnimationEnd()
+      }
+      // Don't close panel - let user manually close it
+    })
+    horizontalCameraOptions.appendChild(resetCard)
+    
+    // Add Play Animation option
+    const animationCard = document.createElement('div')
+    animationCard.className = 'camera-option-card'
+    animationCard.innerHTML = `
+      <div class="camera-option-name">Play Animation</div>
+    `
+    animationCard.addEventListener('click', () => {
+      if (orbitalCamera) {
+        orbitalCamera.startLoadingAnimation()
+      }
+      // Don't close panel - let user manually close it
+    })
+    horizontalCameraOptions.appendChild(animationCard)
+  }
+  
+  // Event listeners
+  cameraButton.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleCameraPanel()
+  })
+  
+  // No need to monitor bottom sheet state (removed)
+  
+  // Initial setup
   setTimeout(() => {
     setMobileButtonPositions()
     updateCameraButtonVisibility()
-  }, 200)
-  
-  // Update position only when window resizes (recalculate for new screen size)
-  window.addEventListener('resize', () => {
-    setTimeout(setMobileButtonPositions, 100)
-  })
-  
-  // Monitor bottom sheet state changes for visibility only
-  const observer = new MutationObserver(() => {
-    updateCameraButtonVisibility()
-  })
-  
-  observer.observe(bottomSheet, {
-    attributes: true,
-    attributeFilter: ['class']
-  })
-  
-  // Toggle menu on button click
-  cameraResetButton.addEventListener('click', (e) => {
-    e.stopPropagation()
-    isMenuOpen = !isMenuOpen
-    
-    if (isMenuOpen) {
-      cameraMenu.classList.add('show')
-    } else {
-      cameraMenu.classList.remove('show')
-    }
-  })
-  
-  // Close menu when clicking outside
-  document.addEventListener('click', () => {
-    if (isMenuOpen) {
-      isMenuOpen = false
-      cameraMenu.classList.remove('show')
-    }
-  })
-  
-  // Prevent menu clicks from closing the menu
-  cameraMenu.addEventListener('click', (e) => {
-    e.stopPropagation()
-  })
-  
-  // Reset camera option
-  resetCameraOption.addEventListener('click', () => {
-    if (orbitalCamera) {
-      // Reset to the end position of the loading animation
-      orbitalCamera.resetToAnimationEnd()
-    }
-    isMenuOpen = false
-    cameraMenu.classList.remove('show')
-  })
-  
-  // Play animation option
-  playAnimationOption.addEventListener('click', () => {
-    if (orbitalCamera) {
-      orbitalCamera.startLoadingAnimation()
-    }
-    isMenuOpen = false
-    cameraMenu.classList.remove('show')
-  })
-  
-  // Expose camera button positioning function globally
-  ;(window as any).setCameraButtonPosition = setCameraButtonPosition
+  }, 50)
 }
 
-// Mobile bottom sheet functionality
-function setupMobileBottomSheet() {
-  console.log('Setting up mobile bottom sheet...')
-  const bottomSheet = document.getElementById('mobile-bottom-sheet') as HTMLElement
-  const bottomSheetHandle = document.getElementById('bottom-sheet-handle') as HTMLElement
+// Mobile settings button functionality (unified horizontal panel system)
+function setupMobileSettings() {
+  const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+  const settingsButton = document.getElementById('mobile-settings-button-element') as HTMLElement
+  const horizontalSettingsPanel = document.getElementById('mobile-horizontal-settings-panel') as HTMLElement
+  const horizontalSettingsOptions = document.getElementById('horizontal-settings-options') as HTMLElement
   
-  if (!bottomSheet || !bottomSheetHandle) {
-    console.warn('Bottom sheet elements not found')
+  if (!settingsButtonContainer || !settingsButton || !horizontalSettingsPanel || !horizontalSettingsOptions) {
+    console.warn('Mobile settings button elements not found')
     return
   }
   
-  let isExpanded = false
-  let startY = 0
-  let currentY = 0
-  let isDragging = false
-  let startTransform = 0
-  let lastY = 0
-  let lastTime = 0
-  let velocity = 0
-  let hasMoved = false
-  let touchStartTime = 0
+  // Initialize panel manager and register this panel
+  const manager = initializePanelManager()
+  manager.registerPanel('settings', horizontalSettingsPanel)
   
-  // Get the closed and open positions as translateY values
-  // The sheet is positioned at bottom: 0, so translateY moves it from that position
-  const getClosedTransform = () => window.innerHeight - 45 // mostly hidden, showing 45px handle
-  const getOpenTransform = () => 0 // fully open to top
-  
-  function updateBottomSheetPosition(translateY: number) {
-    bottomSheet.style.transform = `translateY(${translateY}px)`
+  // Settings button is always visible now (no bottom sheet)
+  function updateSettingsButtonVisibility() {
+    settingsButtonContainer.style.opacity = '1'
+    settingsButtonContainer.style.pointerEvents = 'auto'
   }
   
-  function snapBottomSheet() {
-    const currentTransform = getCurrentTransformPx()
-    const openTransform = getOpenTransform()
-    const closedTransform = getClosedTransform()
-    const threshold = (closedTransform + openTransform) / 2 // halfway point
+  function toggleSettingsPanel() {
+    const isOpen = manager.togglePanel('settings')
     
-    // Check for flick gestures
-    const upwardFlickThreshold = -800 // pixels per second (upward)
-    const downwardFlickThreshold = 400 // pixels per second (downward) - smaller threshold for easier closing
-    const isUpwardFlick = velocity < upwardFlickThreshold
-    const isDownwardFlick = velocity > downwardFlickThreshold
-    
-    if (isUpwardFlick) {
-      // Fast upward flick - always open
-      isExpanded = true
-      bottomSheet.classList.add('expanded')
-      bottomSheet.style.transform = '' // Let CSS handle the transform
-      console.log(`Bottom sheet opened by upward flick (velocity: ${velocity.toFixed(0)}px/s)`)
-    } else if (isDownwardFlick) {
-      // Fast downward flick - always close
-      isExpanded = false
-      bottomSheet.classList.remove('expanded')
-      bottomSheet.style.transform = '' // Let CSS handle the transform
-      console.log(`Bottom sheet closed by downward flick (velocity: ${velocity.toFixed(0)}px/s)`)
-    } else if (currentTransform > threshold) {
-      // Snap to closed
-      isExpanded = false
-      bottomSheet.classList.remove('expanded')
-      bottomSheet.style.transform = '' // Let CSS handle the transform
-      console.log(`Bottom sheet snapped to collapsed`)
+    if (isOpen) {
+      refreshHorizontalSettingsOptions()
     } else {
-      // Snap to open
-      isExpanded = true
-      bottomSheet.classList.add('expanded')
-      bottomSheet.style.transform = '' // Let CSS handle the transform
-      console.log(`Bottom sheet snapped to expanded`)
+      // No additional cleanup needed
     }
   }
   
-  function getCurrentTransformPx(): number {
-    // Get the actual current position using getBoundingClientRect
-    const rect = bottomSheet.getBoundingClientRect()
-    const viewportHeight = window.innerHeight
+  function refreshHorizontalSettingsOptions() {
+    horizontalSettingsOptions.innerHTML = ''
     
-    // Calculate the translateY needed to position the sheet where it currently is
-    // The sheet's natural position is at the bottom of the viewport
-    // So translateY = how far from the bottom it should be positioned
-    const currentDistanceFromBottom = viewportHeight - rect.bottom
-    const translateY = -currentDistanceFromBottom
+    // Add Point Size option
+    const pointSizeCard = document.createElement('div')
+    pointSizeCard.className = 'settings-option-card'
+    pointSizeCard.innerHTML = `
+      <div class="settings-option-name">Point Size</div>
+    `
+    pointSizeCard.addEventListener('click', () => {
+      console.log('Point Size settings clicked')
+      // TODO: Add point size control interface
+    })
+    horizontalSettingsOptions.appendChild(pointSizeCard)
     
-    return translateY
+    // Add Focal Length option
+    const focalLengthCard = document.createElement('div')
+    focalLengthCard.className = 'settings-option-card'
+    focalLengthCard.innerHTML = `
+      <div class="settings-option-name">Focal Length</div>
+    `
+    focalLengthCard.addEventListener('click', () => {
+      console.log('Focal Length settings clicked')
+      // TODO: Add focal length control interface
+    })
+    horizontalSettingsOptions.appendChild(focalLengthCard)
+    
+    // Add Fog Density option
+    const fogDensityCard = document.createElement('div')
+    fogDensityCard.className = 'settings-option-card'
+    fogDensityCard.innerHTML = `
+      <div class="settings-option-name">Fog Density</div>
+    `
+    fogDensityCard.addEventListener('click', () => {
+      console.log('Fog Density settings clicked')
+      // TODO: Add fog density control interface
+    })
+    horizontalSettingsOptions.appendChild(fogDensityCard)
+    
+    // Add Auto-Rotate option
+    const autoRotateCard = document.createElement('div')
+    autoRotateCard.className = 'settings-option-card'
+    autoRotateCard.innerHTML = `
+      <div class="settings-option-name">Auto-Rotate</div>
+    `
+    autoRotateCard.addEventListener('click', () => {
+      console.log('Auto-Rotate settings clicked')
+      // TODO: Add auto-rotate toggle interface
+    })
+    horizontalSettingsOptions.appendChild(autoRotateCard)
   }
   
-  // Touch start
-  bottomSheetHandle.addEventListener('touchstart', (e) => {
-    isDragging = true
-    hasMoved = false
-    touchStartTime = Date.now()
-    startY = e.touches[0].clientY
-    lastY = startY
-    lastTime = touchStartTime
-    velocity = 0
-    startTransform = getCurrentTransformPx()
-    
-    // Remove CSS transitions during drag
-    bottomSheet.style.transition = 'none'
-    
-    // Prevent default to avoid scrolling
-    e.preventDefault()
-  }, { passive: false })
-  
-  // Touch move
-  bottomSheetHandle.addEventListener('touchmove', (e) => {
-    if (!isDragging) return
-    
-    currentY = e.touches[0].clientY
-    const currentTime = Date.now()
-    const deltaY = currentY - startY
-    
-    // Check if this is significant movement (more than just a tap)
-    if (Math.abs(deltaY) > 5) {
-      hasMoved = true
-    }
-    
-    // Calculate velocity (pixels per second)
-    const timeDelta = currentTime - lastTime
-    if (timeDelta > 0) {
-      const yDelta = currentY - lastY
-      velocity = (yDelta / timeDelta) * 1000 // convert to pixels per second
-      lastY = currentY
-      lastTime = currentTime
-    }
-    
-    // Calculate new position in pixels
-    let newTransform = startTransform + deltaY
-    
-    // Don't allow dragging beyond open/closed positions
-    newTransform = Math.max(getOpenTransform(), Math.min(getClosedTransform(), newTransform))
-    
-    updateBottomSheetPosition(newTransform)
-    
-    // Prevent default to avoid scrolling
-    e.preventDefault()
-  }, { passive: false })
-  
-  // Touch end
-  bottomSheetHandle.addEventListener('touchend', (e) => {
-    if (!isDragging) return
-    
-    isDragging = false
-    const touchDuration = Date.now() - touchStartTime
-    
-    // Restore CSS transitions
-    bottomSheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-    
-    // Check if this was a tap (no significant movement and short duration)
-    if (!hasMoved && touchDuration < 300) {
-      // Toggle the sheet on tap
-      isExpanded = !isExpanded
-      if (isExpanded) {
-        bottomSheet.classList.add('expanded')
-      } else {
-        bottomSheet.classList.remove('expanded')
-      }
-      bottomSheet.style.transform = '' // Let CSS handle the transform
-      console.log(`Bottom sheet toggled by tap to ${isExpanded ? 'expanded' : 'collapsed'}`)
-    } else {
-      // This was a drag, use normal snapping logic
-      snapBottomSheet()
-    }
-    
-    e.preventDefault()
-  }, { passive: false })
-  
-  // Fallback click handler for non-touch devices
-  bottomSheetHandle.addEventListener('click', () => {
-    // Only handle click if it wasn't a drag
-    if (!isDragging) {
-      isExpanded = !isExpanded
-      if (isExpanded) {
-        bottomSheet.classList.add('expanded')
-      } else {
-        bottomSheet.classList.remove('expanded')
-      }
-      console.log(`Bottom sheet ${isExpanded ? 'expanded' : 'collapsed'}`)
-    }
+  // Event listeners
+  settingsButton.addEventListener('click', (e) => {
+    e.stopPropagation()
+    toggleSettingsPanel()
   })
   
-  // Sync mobile controls with desktop controls
-  syncMobileControls()
+  // No need to monitor bottom sheet state (removed)
+  
+  // Initial setup
+  setTimeout(() => {
+    setMobileButtonPositions()
+    updateSettingsButtonVisibility()
+  }, 50)
 }
 
-// Synchronize mobile and desktop controls
-function syncMobileControls() {
-  // Model dropdown sync
-  const desktopModelDropdown = document.getElementById('model-dropdown') as HTMLSelectElement
-  const mobileModelDropdown = document.getElementById('mobile-model-dropdown') as HTMLSelectElement
-  
-  if (desktopModelDropdown && mobileModelDropdown) {
-    // Sync mobile to desktop
-    mobileModelDropdown.addEventListener('change', () => {
-      desktopModelDropdown.value = mobileModelDropdown.value
-      desktopModelDropdown.dispatchEvent(new Event('change'))
-    })
-    
-    // Sync desktop to mobile
-    desktopModelDropdown.addEventListener('change', () => {
-      mobileModelDropdown.value = desktopModelDropdown.value
-    })
-  }
-  
-  // Quality dropdown sync
-  const desktopQualityDropdown = document.getElementById('quality-dropdown') as HTMLSelectElement
-  const mobileQualityDropdown = document.getElementById('mobile-quality-dropdown') as HTMLSelectElement
-  
-  if (desktopQualityDropdown && mobileQualityDropdown) {
-    // Sync mobile to desktop
-    mobileQualityDropdown.addEventListener('change', () => {
-      desktopQualityDropdown.value = mobileQualityDropdown.value
-      desktopQualityDropdown.dispatchEvent(new Event('change'))
-    })
-    
-    // Sync desktop to mobile
-    desktopQualityDropdown.addEventListener('change', () => {
-      mobileQualityDropdown.value = desktopQualityDropdown.value
-    })
-  }
-  
-  // Point size control sync
-  syncRangeControls('point-size', 'mobile-point-size', 'point-size-value', 'mobile-point-size-value')
-  
-  // Sphere radius control sync
-  syncRangeControls('sphere-radius', 'mobile-sphere-radius', 'sphere-radius-value', 'mobile-sphere-radius-value')
-  
-  // Focal length control sync
-  syncRangeControls('focal-length', 'mobile-focal-length', 'focal-length-value', 'mobile-focal-length-value')
-  
-  // Fog density control sync
-  syncRangeControls('fog-density', 'mobile-fog-density', 'fog-density-value', 'mobile-fog-density-value')
-  
-  // Sphere toggle sync
-  syncCheckboxControls('sphere-toggle', 'mobile-sphere-toggle')
-  
-  // Auto-rotate toggle sync
-  syncCheckboxControls('auto-rotate-toggle', 'mobile-auto-rotate-toggle')
-}
 
-// Helper function to sync range controls
-function syncRangeControls(desktopId: string, mobileId: string, desktopValueId: string, mobileValueId: string) {
-  const desktopControl = document.getElementById(desktopId) as HTMLInputElement
-  const mobileControl = document.getElementById(mobileId) as HTMLInputElement
-  const desktopValue = document.getElementById(desktopValueId) as HTMLSpanElement
-  const mobileValue = document.getElementById(mobileValueId) as HTMLSpanElement
-  
-  if (desktopControl && mobileControl && desktopValue && mobileValue) {
-    // Sync mobile to desktop
-    mobileControl.addEventListener('input', () => {
-      desktopControl.value = mobileControl.value
-      desktopValue.textContent = mobileControl.value
-      mobileValue.textContent = mobileControl.value
-      desktopControl.dispatchEvent(new Event('input'))
-    })
-    
-    // Sync desktop to mobile
-    desktopControl.addEventListener('input', () => {
-      mobileControl.value = desktopControl.value
-      desktopValue.textContent = desktopControl.value
-      mobileValue.textContent = desktopControl.value
-    })
-  }
-}
-
-// Helper function to sync checkbox controls
-function syncCheckboxControls(desktopId: string, mobileId: string) {
-  const desktopControl = document.getElementById(desktopId) as HTMLInputElement
-  const mobileControl = document.getElementById(mobileId) as HTMLInputElement
-  
-  if (desktopControl && mobileControl) {
-    // Sync mobile to desktop
-    mobileControl.addEventListener('change', () => {
-      desktopControl.checked = mobileControl.checked
-      desktopControl.dispatchEvent(new Event('change'))
-    })
-    
-    // Sync desktop to mobile
-    desktopControl.addEventListener('change', () => {
-      mobileControl.checked = desktopControl.checked
-    })
-  }
-}
 
 // Settings button functionality
 function setupSettingsButton() {
@@ -1604,11 +1528,11 @@ async function initialize() {
     setupSettingsButton()
     console.log('✅ Settings button setup complete')
     
-    console.log('📱 Setting up mobile bottom sheet...')
-    setupMobileBottomSheet()
+    console.log('📱 Setting up mobile controls...')
     setupMobileCameraReset()
     setupMobileEffectsButton()
-    console.log('✅ Mobile bottom sheet setup complete')
+    setupMobileSettings()
+    console.log('✅ Mobile controls setup complete')
     
     console.log('🌫️ Setting up fog control...')
     setupFogControl()
