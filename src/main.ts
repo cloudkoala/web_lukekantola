@@ -1431,11 +1431,16 @@ function setupMobileEffectsButton() {
             
             button.addEventListener('click', () => {
               // Add the effect
-              window.effectsChainManager.addEffect(definition.type)
+              const newEffect = window.effectsChainManager.addEffect(definition.type)
               refreshHorizontalEffectsChain()
               
               // Close the selector
               document.body.removeChild(overlay)
+              
+              // Auto-select and show parameters for the newly added effect
+              if (newEffect) {
+                selectEffect(newEffect.id)
+              }
               
               // Enable effects and set to custom
               const desktopDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
@@ -1558,6 +1563,7 @@ function setupMobileEffectsButton() {
         // Refresh mobile effects display to show the new effects
         setTimeout(() => {
           refreshHorizontalEffectsChain()
+          closeParametersBox() // Close any open parameters when preset loads
         }, 100) // Small delay to ensure preset is fully loaded
         
         console.log(`Applied preset: ${preset.name}`)
@@ -1676,58 +1682,73 @@ function createPanelManager() {
   }
   
   function updateMobileButtonPositions() {
-    // Calculate how high the buttons should be positioned based on open panels
-    const openPanels = Array.from(panels.values()).filter(panel => panel.isOpen)
-    if (openPanels.length === 0) {
-      // No panels open, use default position
-      const defaultPosition = 12
-      const defaultTrashPosition = 120
+    // Use requestAnimationFrame to ensure DOM has updated before measuring heights
+    requestAnimationFrame(() => {
+      // Calculate how high the buttons should be positioned based on open panels
+      const openPanels = Array.from(panels.values()).filter(panel => panel.isOpen)
+      if (openPanels.length === 0) {
+        // No panels open, use default position
+        const defaultPosition = 12
+        const defaultTrashPosition = 120
+        const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+        const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+        const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+        const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
+        const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
+        
+        if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
+        if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
+        if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+        if (presetSelector) presetSelector.style.bottom = `${defaultPosition}px`
+        if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
+        return
+      }
+      
+      // Calculate total height of all open panels
+      let totalPanelHeight = 0
+      openPanels.forEach(panel => {
+        if (panel.element.id === 'mobile-horizontal-settings-panel') {
+          // Use actual height for settings panel since it's variable
+          const rect = panel.element.getBoundingClientRect()
+          totalPanelHeight += rect.height
+        } else {
+          // Use standard height for other panels
+          totalPanelHeight += PANEL_HEIGHT
+        }
+      })
+      
+      const buttonBottomPosition = 12 + totalPanelHeight
+      
+      // Calculate trash icon position (above the highest panel with some spacing)
+      const trashBottomPosition = openPanels.length > 0 ? 
+        totalPanelHeight + 20 : // 20px above highest panel
+        120 // Default position when no panels open
+      
+      // Update all mobile button positions
       const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
       const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
       const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
       const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
-      if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
-      if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
-      if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
-      if (presetSelector) presetSelector.style.bottom = `${defaultPosition}px`
-      if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
-      return
-    }
-    
-    const maxPosition = Math.max(...openPanels.map(panel => panel.position || 0), 0)
-    const buttonBottomPosition = 12 + (maxPosition + 1) * PANEL_HEIGHT
-    
-    // Calculate trash icon position (above the highest panel with some spacing)
-    const trashBottomPosition = openPanels.length > 0 ? 
-      (maxPosition + 1) * PANEL_HEIGHT + 20 : // 20px above highest panel
-      120 // Default position when no panels open
-    
-    // Update all mobile button positions
-    const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-    const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
-    const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
-    const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
-    const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
-    
-    if (cameraButtonContainer) {
-      cameraButtonContainer.style.bottom = `${buttonBottomPosition}px`
-    }
-    if (effectsButtonContainer) {
-      effectsButtonContainer.style.bottom = `${buttonBottomPosition}px`
-    }
-    if (settingsButtonContainer) {
-      settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
-    }
-    if (presetSelector) {
-      presetSelector.style.bottom = `${buttonBottomPosition}px`
-    }
-    if (trashIcon) {
-      trashIcon.style.bottom = `${trashBottomPosition}px`
-    }
-    
-    console.log(`Mobile buttons positioned at: ${buttonBottomPosition}px, trash icon at: ${trashBottomPosition}px (max panel position: ${maxPosition})`)
+      if (cameraButtonContainer) {
+        cameraButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      }
+      if (effectsButtonContainer) {
+        effectsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      }
+      if (settingsButtonContainer) {
+        settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      }
+      if (presetSelector) {
+        presetSelector.style.bottom = `${buttonBottomPosition}px`
+      }
+      if (trashIcon) {
+        trashIcon.style.bottom = `${trashBottomPosition}px`
+      }
+      
+      console.log(`Mobile buttons positioned at: ${buttonBottomPosition}px, trash icon at: ${trashBottomPosition}px (total panel height: ${totalPanelHeight}px)`)
+    })
   }
 
   function updateIconActiveStates() {
@@ -1840,175 +1861,7 @@ function initializePanelManager() {
   return panelManager
 }
 
-// Mobile camera button functionality (unified horizontal panel system)
-function setupMobileCameraReset() {
-  const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-  const cameraButton = document.getElementById('camera-reset-button') as HTMLElement
-  const horizontalCameraPanel = document.getElementById('mobile-horizontal-camera-panel') as HTMLElement
-  const horizontalCameraOptions = document.getElementById('horizontal-camera-options') as HTMLElement
-  
-  if (!cameraButtonContainer || !cameraButton || !horizontalCameraPanel || !horizontalCameraOptions) {
-    console.warn('Mobile camera button elements not found')
-    return
-  }
-  
-  // Initialize panel manager and register this panel
-  const manager = initializePanelManager()
-  manager.registerPanel('camera', horizontalCameraPanel)
-  
-  // Camera button is always visible now (no bottom sheet)
-  function updateCameraButtonVisibility() {
-    cameraButtonContainer.style.opacity = '1'
-    cameraButtonContainer.style.pointerEvents = 'auto'
-  }
-  
-  function toggleCameraPanel() {
-    const isOpen = manager.togglePanel('camera')
-    
-    if (isOpen) {
-      refreshHorizontalCameraOptions()
-    } else {
-      // No need to manage active state here - handled centrally
-    }
-  }
-  
-  
-  // Function to update bidirectional rotation slider fill
-  function updateMobileRotationFill() {
-    const slider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
-    const fill = document.getElementById('mobile-rotation-fill') as HTMLElement
-    const valueSpan = document.getElementById('mobile-rotation-speed-value') as HTMLElement
-    
-    if (!slider || !fill || !valueSpan) return
-    
-    const value = parseFloat(slider.value)
-    const min = parseFloat(slider.min) // -2.0
-    const max = parseFloat(slider.max) // 2.0
-    
-    // Update value display
-    valueSpan.textContent = value.toFixed(1)
-    
-    if (value === 0) {
-      // No fill at zero - completely hide
-      fill.style.width = '0%'
-      fill.style.display = 'none'
-    } else if (value > 0) {
-      // Positive values: fill from center (50%) extending right
-      // value +1 should fill 25% (from 50% to 75%)
-      // value +2 should fill 50% (from 50% to 100%)
-      const fillWidth = (value / max) * 50 // Calculate width as percentage of half the card
-      fill.style.display = 'block'
-      fill.style.left = '50%'
-      fill.style.width = `${fillWidth}%`
-    } else {
-      // Negative values: fill from left extending to center (50%)
-      // value -1 should fill 25% (from 25% to 50%)
-      // value -2 should fill 50% (from 0% to 50%)
-      const fillWidth = (Math.abs(value) / Math.abs(min)) * 50 // Calculate width as percentage of half the card
-      const leftPosition = 50 - fillWidth // Position so it ends at 50%
-      fill.style.display = 'block'
-      fill.style.left = `${leftPosition}%`
-      fill.style.width = `${fillWidth}%`
-    }
-  }
-  
-  // Function to setup mobile auto-rotation event listeners
-  function setupMobileAutoRotationEventListeners() {
-    // Setup mobile bidirectional rotation speed control
-    const mobileRotationSpeedSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
-    if (mobileRotationSpeedSlider) {
-      // Initial fill update
-      updateMobileRotationFill()
-      
-      mobileRotationSpeedSlider.addEventListener('input', () => {
-        updateMobileRotationFill()
-        
-        const value = parseFloat(mobileRotationSpeedSlider.value)
-        if (orbitalCamera) {
-          // Use the new bidirectional method
-          orbitalCamera.setBidirectionalRotationSpeed(value)
-          
-          // Sync desktop controls
-          const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
-          const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
-          
-          if (desktopSlider) desktopSlider.value = value.toString()
-          if (desktopValue) desktopValue.textContent = value.toFixed(1)
-        }
-      })
-    }
-  }
-  
-  function refreshHorizontalCameraOptions() {
-    horizontalCameraOptions.innerHTML = ''
-    
-    // Add Reset Camera option
-    const resetCard = document.createElement('div')
-    resetCard.className = 'camera-option-card'
-    resetCard.innerHTML = `
-      <div class="camera-option-name">Reset<br>Camera</div>
-    `
-    resetCard.addEventListener('click', () => {
-      if (orbitalCamera) {
-        orbitalCamera.resetToAnimationEnd()
-      }
-      // Don't close panel - let user manually close it
-    })
-    horizontalCameraOptions.appendChild(resetCard)
-    
-    // Add Play Animation option
-    const animationCard = document.createElement('div')
-    animationCard.className = 'camera-option-card'
-    animationCard.innerHTML = `
-      <div class="camera-option-name">Play<br>Animation</div>
-    `
-    animationCard.addEventListener('click', () => {
-      if (orbitalCamera) {
-        orbitalCamera.startLoadingAnimation()
-      }
-      // Don't close panel - let user manually close it
-    })
-    horizontalCameraOptions.appendChild(animationCard)
-    
-    // Get current rotation speed from orbitalCamera or default
-    const currentSpeed = '0.0' // Default value - will be updated by scene state
-    
-    // Create rotation speed slider card using the same method as settings panel
-    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.1, (value) => {
-      if (orbitalCamera) {
-        orbitalCamera.setBidirectionalRotationSpeed(value)
-        
-        // Sync desktop slider
-        const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
-        const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
-        if (desktopSlider) desktopSlider.value = value.toString()
-        if (desktopValue) desktopValue.textContent = value.toFixed(1)
-      }
-    })
-    speedCard.id = 'mobile-rotation-speed-card'
-    horizontalCameraOptions.appendChild(speedCard)
-    
-    // Re-attach event listeners for the auto-rotation controls
-    setupMobileAutoRotationEventListeners()
-    
-    // Expose the mobile rotation fill function globally
-    ;(window as any).updateMobileRotationFill = updateMobileRotationFill
-  }
-  
-  // Event listeners
-  cameraButton.addEventListener('click', (e) => {
-    e.stopPropagation()
-    toggleCameraPanel()
-  })
-  
-  // No need to monitor bottom sheet state (removed)
-  
-  // Initial setup
-  setTimeout(() => {
-    setMobileButtonPositions()
-    updateCameraButtonVisibility()
-  }, 50)
-}
+// This function has been replaced by combining camera controls with settings
 
 // Shared function for creating slider cards (used by both settings and camera panels)
 function createSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
@@ -2072,7 +1925,7 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
     if (Math.abs(clampedValue - currentSliderValue) < step * 0.01) return
     
     // Update current slider value
-    currentSliderValue = steppedValue
+    currentSliderValue = clampedValue
     
     // Update visual fill - check if this is a bidirectional slider (min < 0 && max > 0)
     const fillElement = card.querySelector('.slider-fill') as HTMLElement
@@ -2081,13 +1934,13 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
     if (fillElement) {
       if (min < 0 && max > 0) {
         // Bidirectional slider - use center-out logic
-        if (steppedValue === 0) {
+        if (clampedValue === 0) {
           // No fill at zero
           fillElement.style.width = '0%'
           fillElement.style.display = 'none'
-        } else if (steppedValue > 0) {
+        } else if (clampedValue > 0) {
           // Positive values: fill from center (50%) extending right
-          const fillWidth = (steppedValue / max) * 50
+          const fillWidth = (clampedValue / max) * 50
           fillElement.style.display = 'block'
           fillElement.style.left = '50%'
           fillElement.style.right = 'auto' // Clear right
@@ -2095,7 +1948,7 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
         } else {
           // Negative values: fill from center (50%) extending left
           // Keep right edge fixed at 50%, grow leftward using 'right' property
-          const fillWidth = (Math.abs(steppedValue) / Math.abs(min)) * 50
+          const fillWidth = (Math.abs(clampedValue) / Math.abs(min)) * 50
           fillElement.style.display = 'block'
           fillElement.style.left = 'auto' // Clear left
           fillElement.style.right = '50%' // Right edge fixed at center
@@ -2103,16 +1956,16 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
         }
       } else {
         // Standard left-to-right fill for non-bidirectional sliders
-        const fillPercent = ((steppedValue - min) / (max - min)) * 100
+        const fillPercent = ((clampedValue - min) / (max - min)) * 100
         fillElement.style.left = '0%'
         fillElement.style.width = `${fillPercent}%`
         fillElement.style.display = 'block'
       }
     }
-    if (valueElement) valueElement.textContent = steppedValue.toFixed(3)
+    if (valueElement) valueElement.textContent = clampedValue.toFixed(3)
     
     // Call the onChange callback
-    onChange(steppedValue)
+    onChange(clampedValue)
   }
   
   card.addEventListener('touchstart', (e) => {
@@ -2198,15 +2051,16 @@ function createSliderCard(label: string, currentValue: string, min: number, max:
   return card
 }
 
-// Mobile settings button functionality (unified horizontal panel system)
+// Combined mobile settings and camera button functionality
 function setupMobileSettings() {
   const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
   const settingsButton = document.getElementById('mobile-settings-button-element') as HTMLElement
   const horizontalSettingsPanel = document.getElementById('mobile-horizontal-settings-panel') as HTMLElement
   const horizontalSettingsOptions = document.getElementById('horizontal-settings-options') as HTMLElement
   
+  
   if (!settingsButtonContainer || !settingsButton || !horizontalSettingsPanel || !horizontalSettingsOptions) {
-    console.warn('Mobile settings button elements not found')
+    console.warn('Mobile combined settings/camera button elements not found')
     return
   }
   
@@ -2214,19 +2068,37 @@ function setupMobileSettings() {
   const manager = initializePanelManager()
   manager.registerPanel('settings', horizontalSettingsPanel)
   
+  // Position settings button to far left
+  settingsButtonContainer.style.left = '12px'
+  
   // Settings button is always visible now (no bottom sheet)
   function updateSettingsButtonVisibility() {
     settingsButtonContainer.style.opacity = '1'
     settingsButtonContainer.style.pointerEvents = 'auto'
   }
   
-  function toggleSettingsPanel() {
+  function toggleCombinedPanel() {
     const isOpen = manager.togglePanel('settings')
     
     if (isOpen) {
+      // Make panel fit content height by combining settings and camera options
+      horizontalSettingsPanel.style.height = 'auto'
+      horizontalSettingsPanel.style.minHeight = 'auto'
+      
+      // Force the options container to wrap to multiple rows with 3 items per row
+      horizontalSettingsOptions.style.display = 'flex'
+      horizontalSettingsOptions.style.flexWrap = 'wrap'
+      horizontalSettingsOptions.style.justifyContent = 'space-between'
+      horizontalSettingsOptions.style.alignContent = 'flex-start'
+      horizontalSettingsOptions.style.gap = '8px'
+      
+      // Refresh both settings and camera options
       refreshHorizontalSettingsOptions()
+      refreshHorizontalCameraOptions()
     } else {
-      // No additional cleanup needed
+      // Reset panel height when closed
+      horizontalSettingsPanel.style.height = ''
+      horizontalSettingsPanel.style.minHeight = ''
     }
   }
   
@@ -2279,6 +2151,7 @@ function setupMobileSettings() {
           sphereRadiusSlider.dispatchEvent(new Event('input'))
         })
       sphereRadiusCard.id = 'mobile-sphere-radius-card'
+      sphereRadiusCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px);'
       horizontalSettingsOptions.appendChild(sphereRadiusCard)
     } else if (!isSphereMode && pointSizeSlider) {
       const pointSizeCard = createSliderCard('Point Size', pointSizeSlider.value, 
@@ -2288,6 +2161,7 @@ function setupMobileSettings() {
           pointSizeSlider.dispatchEvent(new Event('input'))
         })
       pointSizeCard.id = 'mobile-point-size-card'
+      pointSizeCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px);'
       horizontalSettingsOptions.appendChild(pointSizeCard)
     }
     
@@ -2300,6 +2174,7 @@ function setupMobileSettings() {
           focalLengthSlider.dispatchEvent(new Event('input'))
         })
       focalLengthCard.id = 'mobile-focal-length-card'
+      focalLengthCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px);'
       horizontalSettingsOptions.appendChild(focalLengthCard)
     }
     
@@ -2312,9 +2187,9 @@ function setupMobileSettings() {
           fogDensitySlider.dispatchEvent(new Event('input'))
         })
       fogDensityCard.id = 'mobile-fog-density-card'
+      fogDensityCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px);'
       horizontalSettingsOptions.appendChild(fogDensityCard)
     }
-    
     
     // Add Sphere Mode toggle card (affects which size slider is shown)
     if (sphereToggle) {
@@ -2323,16 +2198,82 @@ function setupMobileSettings() {
           sphereToggle.checked = checked
           sphereToggle.dispatchEvent(new Event('change'))
           // Refresh the settings panel to show/hide appropriate slider
-          setTimeout(() => refreshHorizontalSettingsOptions(), 50)
+          setTimeout(() => {
+            refreshHorizontalSettingsOptions()
+            refreshHorizontalCameraOptions()
+          }, 50)
         })
+      sphereModeCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px);'
       horizontalSettingsOptions.appendChild(sphereModeCard)
     }
+  }
+  
+  // Add camera options to the bottom of the combined panel
+  function refreshHorizontalCameraOptions() {
+    // Instead of adding to horizontalCameraOptions, add camera controls directly to horizontalSettingsOptions
+    
+    // Add Reset Camera option
+    const resetCard = document.createElement('div')
+    resetCard.className = 'camera-option-card'
+    resetCard.style.cssText = `
+      flex: 1;
+      min-width: 80px;
+      max-width: calc(33.33% - 8px);
+      order: 100;
+    `
+    resetCard.innerHTML = `
+      <div class="camera-option-name">Reset<br>Camera</div>
+    `
+    resetCard.addEventListener('click', () => {
+      if (orbitalCamera) {
+        orbitalCamera.resetToAnimationEnd()
+      }
+    })
+    horizontalSettingsOptions.appendChild(resetCard)
+    
+    // Add Play Animation option
+    const animationCard = document.createElement('div')
+    animationCard.className = 'camera-option-card'
+    animationCard.style.cssText = `
+      flex: 1;
+      min-width: 80px;
+      max-width: calc(33.33% - 8px);
+      order: 101;
+    `
+    animationCard.innerHTML = `
+      <div class="camera-option-name">Play<br>Animation</div>
+    `
+    animationCard.addEventListener('click', () => {
+      if (orbitalCamera) {
+        orbitalCamera.startLoadingAnimation()
+      }
+    })
+    horizontalSettingsOptions.appendChild(animationCard)
+    
+    // Get current rotation speed from orbitalCamera or default
+    const currentSpeed = '0.0' // Default value - will be updated by scene state
+    
+    // Create rotation speed slider card using the same method as settings panel
+    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.1, (value) => {
+      if (orbitalCamera) {
+        orbitalCamera.setBidirectionalRotationSpeed(value)
+        
+        // Sync desktop slider
+        const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
+        const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
+        if (desktopSlider) desktopSlider.value = value.toString()
+        if (desktopValue) desktopValue.textContent = value.toFixed(1)
+      }
+    })
+    speedCard.id = 'mobile-rotation-speed-card'
+    speedCard.style.cssText += 'flex: 1; min-width: 80px; max-width: calc(33.33% - 8px); order: 102;'
+    horizontalSettingsOptions.appendChild(speedCard)
   }
   
   // Event listeners
   settingsButton.addEventListener('click', (e) => {
     e.stopPropagation()
-    toggleSettingsPanel()
+    toggleCombinedPanel()
   })
   
   // No need to monitor bottom sheet state (removed)
@@ -2606,6 +2547,19 @@ function setupSceneDropdown() {
         const effectsChainManager = orbitalCamera.getEffectsChainManager()
         const loadedEffects = effectsChainManager.getEffectsChain()
         console.log('Effects after scene load:', loadedEffects.length, loadedEffects)
+        
+        // Refresh mobile effects and close any open parameters
+        if ((window as any).refreshHorizontalEffects) {
+          (window as any).refreshHorizontalEffects()
+        }
+        // Close mobile parameters box if it exists
+        const parametersBox = document.getElementById('mobile-effect-parameters-box') as HTMLElement
+        if (parametersBox && parametersBox.style.display !== 'none') {
+          const closeButton = document.getElementById('parameters-box-close') as HTMLElement
+          if (closeButton) {
+            closeButton.click()
+          }
+        }
         
       } catch (error) {
         console.error('Failed to load scene:', selectedScene, error)
@@ -2889,9 +2843,19 @@ async function initialize() {
     console.log('✅ Control buttons setup complete')
     
     console.log('📱 Setting up mobile controls...')
-    setupMobileCameraReset()
     setupMobileEffectsButton()
     setupMobileSettings()
+    
+    // Hide separate camera button and panel since they're now combined with settings
+    const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+    const cameraPanel = document.getElementById('mobile-horizontal-camera-panel') as HTMLElement
+    if (cameraButtonContainer) {
+      cameraButtonContainer.style.display = 'none'
+    }
+    if (cameraPanel) {
+      cameraPanel.style.display = 'none'
+    }
+    
     console.log('✅ Mobile controls setup complete')
     
     console.log('🌫️ Setting up fog control...')

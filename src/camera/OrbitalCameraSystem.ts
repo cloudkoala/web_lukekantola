@@ -262,7 +262,7 @@ export class OrbitalCameraSystem {
     // Get current model configuration
     const modelsConfig = this.modelsConfig()
     const currentModel = modelsConfig.models[modelsConfig.currentModel]
-    if (!currentModel || !currentModel.idleRotation) {
+    if (!currentModel) {
       return
     }
     

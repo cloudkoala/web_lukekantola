@@ -77,7 +77,7 @@ export class EffectsPanel {
 
   private setupEventListeners(): void {
     // Chain updates - debounced to handle bulk operations during scene loading
-    let updateTimeout: NodeJS.Timeout | null = null
+    let updateTimeout: number | null = null
     this.chainManager.onChainUpdated(() => {
       // Clear any pending update
       if (updateTimeout) {
