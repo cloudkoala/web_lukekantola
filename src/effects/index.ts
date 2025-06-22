@@ -1,7 +1,5 @@
 export { ASCIIDitheringPass } from './ASCIIDitheringPass'
 export { HalftoneDitheringPass } from './HalftoneDitheringPass'
-export { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
-export { BrushEffect } from './BrushEffect'
 export { TSLEffect } from './TSLEffect'
 export { TSLPostProcessingPass } from './TSLPostProcessingPass'
 export { PostProcessingPass } from './PostProcessingPass'

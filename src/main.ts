@@ -247,9 +247,6 @@ function animate() {
   
   orbitalCamera.update()
   
-  // Update brush effects continuously (for physics simulation)
-  postProcessingPass.updateBrushEffects()
-  
   // Check if we actually have effects to apply and if post-processing is enabled
   const effectsChain = postProcessingPass.getEffectsChain()
   const hasActiveEffects = postProcessingPass.enabled && (
@@ -293,48 +290,14 @@ function handleResize() {
   detectAndApplyInputType()
 }
 
-// Mouse/touch event handlers for brush effect
-function handleMouseDown(_event: MouseEvent) {
-  // Don't interfere with camera controls
-}
-
-function handleMouseUp() {
-  // Don't interfere with camera controls
-}
-
-function handleMouseMove(event: MouseEvent) {
-  // Always update brush position on mouse move (brush will be active when effect is enabled)
-  postProcessingPass.setBrushPosition(event.clientX, event.clientY, true)
-}
-
-function handleTouchStart(event: TouchEvent) {
-  if (event.touches.length === 1) {
-    event.preventDefault()
-    const touch = event.touches[0]
-    postProcessingPass.setBrushPosition(touch.clientX, touch.clientY, true)
-  }
-}
-
-function handleTouchEnd() {
-  // Touch ended, but brush can still be active on mouse move
-}
-
 function handleTouchMove(event: TouchEvent) {
   if (event.touches.length === 1) {
     event.preventDefault()
-    const touch = event.touches[0]
-    postProcessingPass.setBrushPosition(touch.clientX, touch.clientY, true)
+    // Touch handling code (no brush-specific logic needed)
   }
 }
 
-// Add event listeners
-canvas.addEventListener('mousedown', handleMouseDown)
-canvas.addEventListener('mouseup', handleMouseUp)
-canvas.addEventListener('mousemove', handleMouseMove)
-canvas.addEventListener('mouseleave', handleMouseUp) // Reset when mouse leaves canvas
-
-canvas.addEventListener('touchstart', handleTouchStart, { passive: false })
-canvas.addEventListener('touchend', handleTouchEnd)
+// Add event listeners 
 canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
@@ -1570,11 +1533,11 @@ function setupMobileEffectsButton() {
         },
         'Post-Process': {
           color: '#96CEB4',
-          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'datamosh', 'pixelsort']
         },
         '3D Effects': {
           color: '#FECA57',
-          effects: ['drawrange', 'pointnetwork', 'material', 'brush', 'topographic', 'fog']
+          effects: ['drawrange', 'pointnetwork', 'material', 'topographic', 'fog']
         },
         'In Development': {
           color: '#888888',
@@ -3320,8 +3283,27 @@ async function initialize() {
     animate()
     console.log('✅ Initialization complete!')
     
+    // Hide immediate loading screen with fade out
+    console.log('🎬 Hiding immediate loading screen...')
+    const immediateLoading = document.getElementById('immediate-loading')
+    if (immediateLoading) {
+      immediateLoading.style.opacity = '0'
+      setTimeout(() => {
+        immediateLoading.style.display = 'none'
+      }, 500) // Match CSS transition duration
+    }
+    console.log('✅ Loading screen hidden')
+    
   } catch (error) {
     console.error('❌ Initialization failed:', error)
+    // Also hide loading screen on error
+    const immediateLoading = document.getElementById('immediate-loading')
+    if (immediateLoading) {
+      immediateLoading.style.opacity = '0'
+      setTimeout(() => {
+        immediateLoading.style.display = 'none'
+      }, 500)
+    }
   }
 }
 

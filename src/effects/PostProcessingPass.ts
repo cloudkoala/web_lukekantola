@@ -2,11 +2,9 @@ import * as THREE from 'three'
 import type { EffectInstance } from './EffectsChainManager'
 import { ASCIIDitheringPass } from './ASCIIDitheringPass'
 import { HalftoneDitheringPass } from './HalftoneDitheringPass'
-import { FloydSteinbergDitheringPass } from './FloydSteinbergDitheringPass'
-import { BrushEffect } from './BrushEffect'
 import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'brush' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'floydsteinberg' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -59,12 +57,6 @@ export class PostProcessingPass {
   // Dithering passes
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
-  private floydSteinbergDitheringPass: FloydSteinbergDitheringPass
-  
-  // Brush effect
-  private brushEffect: BrushEffect | null = null
-  private currentMousePosition = { x: 0, y: 0 }
-  
   // TSL effect
   private tslPass: TSLPostProcessingPass | null = null
   
@@ -245,13 +237,8 @@ export class PostProcessingPass {
     // Initialize dithering passes
     this.asciiDitheringPass = new ASCIIDitheringPass(width, height)
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
-    this.floydSteinbergDitheringPass = new FloydSteinbergDitheringPass(width, height)
-    
-    // Initialize brush effect if renderer is provided
+    // Initialize TSL pass for WebGPU/TSL effects if renderer is provided
     if (renderer) {
-      this.brushEffect = new BrushEffect(renderer)
-      
-      // Initialize TSL pass for WebGPU/TSL effects
       this.tslPass = new TSLPostProcessingPass(width, height, renderer)
     }
     
@@ -402,14 +389,6 @@ export class PostProcessingPass {
       return
     }
     
-    // Handle brush effect separately
-    if (effect.type === 'brush') {
-      this.applyBrushEffect(effect)
-      // Brush effects don't modify the rendered image, just copy input to output
-      this.copyTexture(renderer, inputTexture, outputTarget)
-      return
-    }
-    
     // Handle TSL effect separately
     if (effect.type === 'tsl') {
       this.renderTSLEffect(renderer, inputTexture, effect, outputTarget)
@@ -430,7 +409,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'floydsteinberg') {
+    if (effect.type === 'ascii' || effect.type === 'halftone') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -586,7 +565,7 @@ export class PostProcessingPass {
   }
   
   private renderDitheringEffect(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
-    let ditheringPass: ASCIIDitheringPass | HalftoneDitheringPass | FloydSteinbergDitheringPass
+    let ditheringPass: ASCIIDitheringPass | HalftoneDitheringPass
     
     switch (effect.type) {
       case 'ascii':
@@ -601,12 +580,6 @@ export class PostProcessingPass {
         ditheringPass.dotSize = effect.parameters.dotSize ?? 8
         ditheringPass.contrast = effect.parameters.contrast ?? 1.2
         ditheringPass.angle = 0 // Fixed at 0 degrees
-        break
-      case 'floydsteinberg':
-        ditheringPass = this.floydSteinbergDitheringPass
-        ditheringPass.intensity = effect.parameters.intensity ?? 0.5
-        ditheringPass.colorLevels = effect.parameters.colorLevels ?? 4
-        ditheringPass.contrast = effect.parameters.contrast ?? 1.2
         break
       default:
         return
@@ -634,7 +607,6 @@ export class PostProcessingPass {
     // Update dithering passes
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
-    this.floydSteinbergDitheringPass.setSize(width, height)
     
     if (this.tslPass) {
       this.tslPass.setSize(width, height)
@@ -662,7 +634,6 @@ export class PostProcessingPass {
     // Dispose dithering passes
     this.asciiDitheringPass.dispose()
     this.halftoneDitheringPass.dispose()
-    this.floydSteinbergDitheringPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
@@ -739,7 +710,6 @@ export class PostProcessingPass {
       // Dithering effects are handled separately in renderDitheringEffect
       case 'ascii': return 0
       case 'halftone': return 0
-      case 'floydsteinberg': return 0
       default: return 0
     }
   }
@@ -756,11 +726,6 @@ export class PostProcessingPass {
   setMainScene(scene: THREE.Scene, camera?: THREE.Camera): void {
     this.mainScene = scene
     this.updatePointClouds()
-    
-    // Set up brush effect with scene and camera
-    if (this.brushEffect && camera) {
-      this.brushEffect.setScene(scene, camera)
-    }
     
     // Initialize camera for motion blur
     if (camera) {
@@ -2158,41 +2123,6 @@ export class PostProcessingPass {
     return material
   }
   
-  private applyBrushEffect(effect: EffectInstance): void {
-    if (!this.brushEffect) return
-    
-    const brushSize = effect.parameters.brushSize ?? 2.0
-    const brushStrength = effect.parameters.brushStrength ?? 5.0
-    const elasticity = effect.parameters.elasticity ?? 0.2
-    const damping = effect.parameters.damping ?? 0.98
-    
-    // This method is called during effect chain processing
-    // The continuous updates happen in updateBrushEffects()
-    // Just ensure brush is properly initialized here
-    this.brushEffect.updateBrush({
-      enabled: effect.enabled,
-      brushSize,
-      brushStrength,
-      elasticity,
-      damping,
-      pointerX: 0,
-      pointerY: 0,
-      pointerZ: 0,
-      isActive: effect.enabled
-    }, this.currentMousePosition.x, this.currentMousePosition.y)
-  }
-  
-  setBrushPosition(mouseX: number, mouseY: number, _isActive: boolean): void {
-    // Store current mouse position (ignore isActive parameter, always active when enabled)
-    this.currentMousePosition.x = mouseX
-    this.currentMousePosition.y = mouseY
-  }
-  
-  resetBrushEffect(): void {
-    if (this.brushEffect) {
-      this.brushEffect.reset()
-    }
-  }
   
   private renderTSLEffect(
     renderer: THREE.WebGLRenderer, 
@@ -2225,33 +2155,6 @@ export class PostProcessingPass {
     return this.tslPass?.getCapabilityInfo() ?? 'TSL not available'
   }
   
-  updateBrushEffects(): void {
-    // Update brush effects continuously every frame
-    const brushEffects = this.effectsChain.filter(effect => effect.type === 'brush' && effect.enabled)
-    
-    brushEffects.forEach(effect => {
-      if (this.brushEffect) {
-        const brushSize = effect.parameters.brushSize ?? 2.0
-        const brushStrength = effect.parameters.brushStrength ?? 5.0
-        const elasticity = effect.parameters.elasticity ?? 0.2
-        const damping = effect.parameters.damping ?? 0.98
-        
-        // Update brush physics every frame using current mouse position
-        // Brush is always active when the effect is enabled
-        this.brushEffect.updateBrush({
-          enabled: effect.enabled,
-          brushSize,
-          brushStrength,
-          elasticity,
-          damping,
-          pointerX: 0, // Not used in current implementation
-          pointerY: 0,
-          pointerZ: 0,
-          isActive: effect.enabled // Always active when effect is enabled
-        }, this.currentMousePosition.x, this.currentMousePosition.y)
-      }
-    })
-  }
   
   private getVertexShader(): string {
     return `

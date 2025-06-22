@@ -101,22 +101,6 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     }
   },
   {
-    type: 'brush',
-    name: 'Brush Effect',
-    defaultParameters: { 
-      brushSize: 2.0, 
-      brushStrength: 5.0, 
-      elasticity: 0.2, 
-      damping: 0.98
-    },
-    parameterDefinitions: {
-      brushSize: { min: 0.5, max: 10.0, step: 0.1, label: 'Brush Size' },
-      brushStrength: { min: 0.1, max: 20.0, step: 0.1, label: 'Brush Strength' },
-      elasticity: { min: 0.01, max: 1.0, step: 0.01, label: 'Elasticity' },
-      damping: { min: 0.8, max: 0.99, step: 0.01, label: 'Damping' }
-    }
-  },
-  {
     type: 'tsl',
     name: 'TSL Effects (WebGPU)',
     defaultParameters: { 
@@ -460,16 +444,6 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       dotSize: { min: 2, max: 32, step: 0.5, label: 'Dot Size' },
       contrast: { min: 0, max: 2.0, step: 0.05, label: 'Contrast' }
-    }
-  },
-  {
-    type: 'floydsteinberg',
-    name: 'Floyd-Steinberg Dithering',
-    defaultParameters: { intensity: 0.5, colorLevels: 4, contrast: 1.2 },
-    parameterDefinitions: {
-      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      colorLevels: { min: 2, max: 16, step: 1, label: 'Color Levels' },
-      contrast: { min: 0.5, max: 2.0, step: 0.05, label: 'Contrast' }
     }
   },
   {
