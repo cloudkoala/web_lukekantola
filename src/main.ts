@@ -1,7 +1,6 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 import { ProgressiveLoader } from './ProgressiveLoader.js'
 import { OrbitalCameraSystem } from './camera'
 import { ModelManager } from './models'
@@ -87,23 +86,7 @@ renderer.sortObjects = true
 renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1 // Reset to normal exposure
 
-// Using only EXR environment lighting
-
-// Load EXR environment map
-const pmremGenerator = new THREE.PMREMGenerator(renderer)
-pmremGenerator.compileEquirectangularShader()
-
-const exrLoader = new EXRLoader()
-exrLoader.load('/hdr/Twilight Sunset 1k.exr', (texture) => {
-  const envMap = pmremGenerator.fromEquirectangular(texture).texture
-  scene.environment = envMap
-  texture.dispose()
-  pmremGenerator.dispose()
-  console.log('EXR environment loaded successfully')
-}, undefined, (error) => {
-  console.warn('Failed to load EXR environment:', error)
-  console.log('Using fallback lighting only')
-})
+// Basic lighting setup without HDR environment
 
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
