@@ -623,11 +623,25 @@ export class OrbitalCameraSystem {
 
     const createClickHandler = () => {
       return async () => {
+        // Prompt user for scene name (like mobile version)
+        const userSceneName = prompt('Enter a name for your scene:', 'My Custom Scene')
+        
+        // If user cancelled the prompt, exit
+        if (userSceneName === null) {
+          return
+        }
+        
+        // Use provided name or fallback to default
+        const sceneName = userSceneName.trim() || 'Untitled Scene'
+        const sceneKey = sceneName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_')
+        
         // Generate complete scene configuration using actual system state
         const sceneState = this.captureCurrentSceneState()
         
-        // Format as SceneState (ready for scenes config file)
+        // Format as complete scenes-config structure (like mobile version)
         const sceneConfig = {
+          "name": sceneName,
+          "description": `Exported scene configuration - ${new Date().toLocaleDateString()}`,
           "modelKey": sceneState.modelKey,
           "quality": sceneState.quality,
           "cameraPosition": {
@@ -650,7 +664,8 @@ export class OrbitalCameraSystem {
           "autoRotationSpeed": sceneState.autoRotationSpeed,
           "autoRotationDirection": sceneState.autoRotationDirection,
           "timestamp": sceneState.timestamp,
-          "version": sceneState.version
+          "version": sceneState.version,
+          "creator": "User"
         }
         
         const configJson = JSON.stringify(sceneConfig, null, 2)
@@ -658,7 +673,7 @@ export class OrbitalCameraSystem {
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(configJson)
-            this.showCopyFeedback('Complete Scene Config')
+            this.showCopyFeedback(`"${sceneName}"`)
           } else {
             // Fallback for older browsers or insecure contexts
             const textArea = document.createElement('textarea')
@@ -667,7 +682,7 @@ export class OrbitalCameraSystem {
             textArea.select()
             document.execCommand('copy')
             document.body.removeChild(textArea)
-            this.showCopyFeedback('Complete Scene Config')
+            this.showCopyFeedback(`"${sceneName}"`)
           }
         } catch (err) {
           console.error('Failed to copy to clipboard:', err)
@@ -2702,7 +2717,10 @@ export class OrbitalCameraSystem {
       // Camera state
       cameraPosition: this.vector3ToState(this.camera.position),
       cameraTarget: this.vector3ToState(this.controls.target),
-      focalLength: this.camera.fov,
+      focalLength: (() => {
+        const focalLengthSlider = document.querySelector('#focal-length') as HTMLInputElement
+        return focalLengthSlider ? parseFloat(focalLengthSlider.value) : this.camera.fov
+      })(),
       
       // Effects chain and UI state
       effectsChain: this.effectsChainManager.getEffectsChain().map(effect => ({

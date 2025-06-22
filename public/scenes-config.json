@@ -31,6 +31,9 @@
       "sphereMode": false,
       "fogDensity": 0.008,
       "autoRotation": true,
+      "autoRotationSpeed": 0,
+      "autoRotationDirection": 1,
+      "effectsDropdownValue": "custom",
       "timestamp": 1735081200000,
       "version": "1.0",
       "tags": ["colorful", "psychedelic", "arch"],
@@ -62,6 +65,9 @@
       "sphereMode": false,
       "fogDensity": 0.015,
       "autoRotation": false,
+      "autoRotationSpeed": 0,
+      "autoRotationDirection": 1,
+      "effectsDropdownValue": "custom",
       "timestamp": 1735081200000,
       "version": "1.0",
       "tags": ["noir", "dramatic", "contrast"],
@@ -145,21 +151,96 @@
         ],
         "effectsDropdownValue": "custom",
         "pointSize": 0.046,
-        "sphereMode": false,
+        "sphereMode": true,
         "fogDensity": 0.008,
         "autoRotation": false,
         "autoRotationSpeed": 0,
         "autoRotationDirection": 1,
         "timestamp": 1750555380425,
         "version": "1.0"
+      },
+      "delicate_rave": {
+        "name": "Delicate Rave",
+        "description": "Delicate Arch with animated material effects creating a rave atmosphere",
+        "modelKey": "delicate_arch",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -9.87,
+          "y": 6.06,
+          "z": 7.45
+        },
+        "cameraTarget": {
+          "x": -0.04,
+          "y": 4.15,
+          "z": -0.08
+        },
+        "focalLength": 148,
+        "effectsChain": [
+          {
+            "id": "effect_9",
+            "type": "background",
+            "enabled": false,
+            "parameters": {
+              "hue": 0.85,
+              "saturation": 80,
+              "lightness": 15
+            }
+          },
+          {
+            "id": "effect_10",
+            "type": "material",
+            "enabled": true,
+            "parameters": {
+              "transparency": 95,
+              "sizeMultiplier": 10,
+              "useVertexColors": 1,
+              "waveDeformation": 0.08,
+              "twistEffect": 2,
+              "animationSpeed": 1.5,
+              "waveFrequency": 1.87,
+              "pulseEffect": 0,
+              "colorCycling": 1,
+              "deformationEnable": 1
+            }
+          },
+          {
+            "id": "effect_16",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 1.5,
+              "brightness": 2,
+              "contrast": 1.5,
+              "saturation": 1.6
+            }
+          },
+          {
+            "id": "effect_15",
+            "type": "halftone",
+            "enabled": false,
+            "parameters": {
+              "intensity": 1,
+              "dotSize": 7,
+              "contrast": 2
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.046,
+        "sphereMode": true,
+        "fogDensity": 0,
+        "autoRotation": true,
+        "autoRotationSpeed": 0.41,
+        "autoRotationDirection": 1,
+        "timestamp": 1750568946513,
+        "version": "1.0"
       }
-    },
+  },
   "randomScenes": [
-    "cheeky_castleton",
-    "fisher_two_tone", 
     "delicate_disco",
     "delicate_noir",
-    "corona_network"
+    "delicate_noise",
+    "delicate_rave"
   ],
   "defaultScene": "delicate_noir"
 }
