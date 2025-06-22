@@ -5,12 +5,15 @@ export interface EffectInstance {
   type: EffectType
   enabled: boolean
   parameters: { [key: string]: number }
+  blendMode?: 'normal' | 'add' | 'multiply'
 }
 
 export interface EffectDefinition {
   type: EffectType
   name: string
   defaultParameters: { [key: string]: number }
+  defaultBlendMode?: 'normal' | 'add' | 'multiply'
+  supportsBlending?: boolean
   parameterDefinitions: {
     [key: string]: {
       min: number
@@ -103,6 +106,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'gamma',
     name: 'Gamma Correction',
+    supportsBlending: true,
     defaultParameters: { 
       gamma: 2.2,
       brightness: 1.0,
@@ -119,6 +123,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'sepia',
     name: 'Sepia',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' }
@@ -127,6 +132,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'vignette',
     name: 'Vignette',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5, offset: 1.2, feather: 0.5 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -137,6 +143,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'blur',
     name: 'Blur',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5, blurAmount: 0.002, threshold: 0.0, blurType: 0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -148,6 +155,8 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'bloom',
     name: 'Bloom',
+    supportsBlending: true,
+    defaultBlendMode: 'add',
     defaultParameters: { threshold: 0.8, intensity: 1.0, radius: 0.5, quality: 2 },
     parameterDefinitions: {
       threshold: { min: 0, max: 1, step: 0.01, label: 'Threshold' },
@@ -215,6 +224,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'colorify',
     name: 'Colorify',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5, colorR: 1.0, colorG: 0.5, colorB: 0.0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -508,6 +518,8 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'glow',
     name: 'Glow',
+    supportsBlending: true,
+    defaultBlendMode: 'add',
     defaultParameters: { 
       intensity: 1, 
       threshold: 0, 
@@ -588,6 +600,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'threshold',
     name: 'Threshold',
+    supportsBlending: true,
     defaultParameters: { 
       intensity: 1.0,
       threshold: 0.5,
@@ -628,7 +641,8 @@ export class EffectsChainManager {
       id: `effect_${this.nextEffectId++}`,
       type: effectType,
       enabled: true,
-      parameters: parameters ? { ...definition.defaultParameters, ...parameters } : { ...definition.defaultParameters }
+      parameters: parameters ? { ...definition.defaultParameters, ...parameters } : { ...definition.defaultParameters },
+      blendMode: definition.defaultBlendMode || 'normal'
     }
 
     console.log('Created effect instance:', newEffect)
@@ -679,6 +693,14 @@ export class EffectsChainManager {
     if (effect) {
       effect.parameters[parameterName] = value
       this.notifyParameterUpdated(effectId, parameterName, value)
+    }
+  }
+
+  updateEffectBlendMode(effectId: string, blendMode: 'normal' | 'add' | 'multiply'): void {
+    const effect = this.effectsChain.find(e => e.id === effectId)
+    if (effect) {
+      effect.blendMode = blendMode
+      this.notifyChainUpdated()
     }
   }
 

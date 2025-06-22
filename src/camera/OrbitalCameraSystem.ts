@@ -633,7 +633,6 @@ export class OrbitalCameraSystem {
         
         // Use provided name or fallback to default
         const sceneName = userSceneName.trim() || 'Untitled Scene'
-        const sceneKey = sceneName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_')
         
         // Generate complete scene configuration using actual system state
         const sceneState = this.captureCurrentSceneState()
@@ -3024,6 +3023,36 @@ export class OrbitalCameraSystem {
       return successful
     } catch (error) {
       console.error('Fallback clipboard copy failed:', error)
+      return false
+    }
+  }
+
+  /**
+   * Loads the default scene from the scenes configuration
+   */
+  public async loadDefaultScene(): Promise<boolean> {
+    try {
+      const scenesCollection = await this.loadScenesCollection()
+      if (!scenesCollection || !scenesCollection.defaultScene) {
+        console.log('No default scene specified')
+        return false
+      }
+
+      const defaultSceneKey = scenesCollection.defaultScene
+      const sceneDefinition = scenesCollection.scenes[defaultSceneKey]
+      if (!sceneDefinition) {
+        console.warn('Default scene not found:', defaultSceneKey)
+        return false
+      }
+
+      console.log('Loading default scene:', sceneDefinition.name)
+      
+      // Apply the scene
+      await this.applySceneState(sceneDefinition)
+      
+      return true
+    } catch (error) {
+      console.error('Failed to load default scene:', error)
       return false
     }
   }

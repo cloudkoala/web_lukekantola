@@ -41,37 +41,111 @@
     },
     "delicate_noir": {
       "name": "Delicate Noir",
-      "description": "Delicate Arch in dramatic noir style with deep vignette and high contrast",
+      "description": "Exported scene configuration - 6/22/2025",
       "modelKey": "delicate_arch",
       "quality": "low",
-      "cameraPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
-      "cameraTarget": { "x": -0.04, "y": 4.15, "z": -0.08 },
+      "cameraPosition": {
+        "x": -3.75,
+        "y": 3.2,
+        "z": -1.06
+      },
+      "cameraTarget": {
+        "x": 0.01,
+        "y": 3.87,
+        "z": -0.04
+      },
       "focalLength": 135,
       "effectsChain": [
         {
-          "id": "vignette_001",
-          "type": "vignette",
+          "id": "effect_54",
+          "type": "background",
           "enabled": true,
-          "parameters": { "intensity": 0.9, "radius": 0.5 }
+          "parameters": {
+            "hue": 0.62,
+            "saturation": 27,
+            "lightness": 30
+          }
         },
         {
-          "id": "gamma_001",
+          "id": "effect_55",
+          "type": "crtgrain",
+          "enabled": true,
+          "parameters": {
+            "intensity": 0.13,
+            "noiseSeed": 0.15,
+            "scale": 1
+          }
+        },
+        {
+          "id": "effect_56",
+          "type": "halftone",
+          "enabled": true,
+          "parameters": {
+            "intensity": 0.67,
+            "dotSize": 9,
+            "contrast": 2
+          }
+        },
+        {
+          "id": "effect_57",
+          "type": "blur",
+          "enabled": true,
+          "parameters": {
+            "intensity": 0.49,
+            "blurAmount": 0.0005,
+            "threshold": 0,
+            "blurType": 0
+          }
+        },
+        {
+          "id": "effect_58",
+          "type": "sobelthreshold",
+          "enabled": true,
+          "parameters": {
+            "intensity": 0.25,
+            "threshold": 0.87
+          }
+        },
+        {
+          "id": "effect_59",
           "type": "gamma",
           "enabled": true,
-          "parameters": { "intensity": 1.8 }
+          "parameters": {
+            "gamma": 2.6,
+            "brightness": 1.2,
+            "contrast": 2.1,
+            "saturation": 0
+          }
+        },
+        {
+          "id": "effect_60",
+          "type": "sepia",
+          "enabled": true,
+          "parameters": {
+            "intensity": 0.48
+          }
+        },
+        {
+          "id": "effect_61",
+          "type": "vignette",
+          "enabled": true,
+          "parameters": {
+            "intensity": 1,
+            "offset": 0.75,
+            "feather": 0.58
+          }
         }
       ],
+      "effectsDropdownValue": "Delicate Noir",
       "pointSize": 0.046,
-      "sphereMode": false,
+      "sphereMode": true,
       "fogDensity": 0.015,
       "autoRotation": false,
       "autoRotationSpeed": 0,
       "autoRotationDirection": 1,
-      "effectsDropdownValue": "custom",
-      "timestamp": 1735081200000,
+      "timestamp": 1750607716662,
       "version": "1.0",
-      "tags": ["noir", "dramatic", "contrast"],
-      "creator": "System"
+      "creator": "User"
     },
     "delicate_noise": { 
       "name": "Delicate Noise",
@@ -234,13 +308,707 @@
         "autoRotationDirection": 1,
         "timestamp": 1750568946513,
         "version": "1.0"
+      },
+      "delicate_arscii": {
+        "name": "Arscii",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "delicate_arch",
+        "quality": "low",
+        "cameraPosition": {
+          "x": 3.32,
+          "y": 5.36,
+          "z": 2.34
+        },
+        "cameraTarget": {
+          "x": -0.03,
+          "y": 3.96,
+          "z": -0.11
+        },
+        "focalLength": 135,
+        "effectsChain": [
+          {
+            "id": "effect_72",
+            "type": "background",
+            "enabled": true,
+            "parameters": {
+              "hue": 0.62,
+              "saturation": 27,
+              "lightness": 79
+            }
+          },
+          {
+            "id": "effect_73",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.67,
+              "dotSize": 9,
+              "contrast": 2
+            }
+          },
+          {
+            "id": "effect_74",
+            "type": "blur",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.49,
+              "blurAmount": 0.0005,
+              "threshold": 0,
+              "blurType": 0
+            }
+          },
+          {
+            "id": "effect_75",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.25,
+              "threshold": 0.87
+            }
+          },
+          {
+            "id": "effect_76",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 2.6,
+              "brightness": 1.2,
+              "contrast": 2.1,
+              "saturation": 0
+            }
+          },
+          {
+            "id": "effect_77",
+            "type": "sepia",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.48
+            }
+          },
+          {
+            "id": "effect_79",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.5,
+              "offset": 0.75,
+              "feather": 0.58
+            }
+          },
+          {
+            "id": "effect_80",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "threshold": 1
+            }
+          },
+          {
+            "id": "effect_81",
+            "type": "ascii",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.83,
+              "characterSize": 6,
+              "contrast": 1.7
+            }
+          },
+          {
+            "id": "effect_82",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 2.6,
+              "brightness": 0.8,
+              "contrast": 1.8,
+              "saturation": 1
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.046,
+        "sphereMode": true,
+        "fogDensity": 0.008,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750605169791,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "fisher_sobel": {
+        "name": "Fisher Sobel",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "fisher",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -2.5,
+          "y": 1.06,
+          "z": -1.34
+        },
+        "cameraTarget": {
+          "x": 0.33,
+          "y": 0.96,
+          "z": 0.45
+        },
+        "focalLength": 152,
+        "effectsChain": [
+          {
+            "id": "effect_22",
+            "type": "background",
+            "enabled": true,
+            "parameters": {
+              "hue": 0.62,
+              "saturation": 27,
+              "lightness": 14
+            }
+          },
+          {
+            "id": "effect_26",
+            "type": "blur",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.49,
+              "blurAmount": 0.0005,
+              "threshold": 0,
+              "blurType": 0
+            }
+          },
+          {
+            "id": "effect_27",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 0.8,
+              "brightness": 0.8,
+              "contrast": 0.9,
+              "saturation": 2.5
+            }
+          },
+          {
+            "id": "effect_25",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.31,
+              "dotSize": 9.5,
+              "contrast": 2
+            }
+          },
+          {
+            "id": "effect_30",
+            "type": "ascii",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.22,
+              "characterSize": 4,
+              "contrast": 1.6
+            }
+          },
+          {
+            "id": "effect_28",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.25,
+              "threshold": 0.87
+            }
+          },
+          {
+            "id": "effect_29",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.72,
+              "offset": 1.65,
+              "feather": 1.3
+            }
+          },
+          {
+            "id": "effect_33",
+            "type": "threshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.46,
+              "threshold": 0.01,
+              "hardness": 0.9
+            }
+          },
+          {
+            "id": "effect_32",
+            "type": "film35mm",
+            "enabled": false,
+            "parameters": {
+              "intensity": 0.14,
+              "grainSize": 2,
+              "contrast": 1.7,
+              "scale": 5
+            }
+          },
+          {
+            "id": "effect_31",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "threshold": 0.33
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.019,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750606246832,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "fisher_dot_pulse": {
+        "name": "Fisher Dot Pulse",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "fisher",
+        "quality": "low",
+        "cameraPosition": {
+          "x": 3.94,
+          "y": 1.2,
+          "z": 1.26
+        },
+        "cameraTarget": {
+          "x": 1.4,
+          "y": 1.18,
+          "z": 0.6
+        },
+        "focalLength": 152,
+        "effectsChain": [
+          {
+            "id": "effect_34",
+            "type": "background",
+            "enabled": true,
+            "parameters": {
+              "hue": 0.59,
+              "saturation": 100,
+              "lightness": 83
+            }
+          },
+          {
+            "id": "effect_35",
+            "type": "sepia",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0
+            }
+          },
+          {
+            "id": "effect_36",
+            "type": "crtgrain",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.23,
+              "noiseSeed": 0.6,
+              "scale": 1
+            }
+          },
+          {
+            "id": "effect_42",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.29,
+              "offset": 0.5,
+              "feather": 0.34
+            }
+          },
+          {
+            "id": "effect_37",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "dotSize": 12,
+              "contrast": 0.95
+            }
+          },
+          {
+            "id": "effect_38",
+            "type": "blur",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.49,
+              "blurAmount": 0.0005,
+              "threshold": 0,
+              "blurType": 0
+            }
+          },
+          {
+            "id": "effect_39",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 2.6,
+              "brightness": 1.2,
+              "contrast": 3,
+              "saturation": 3
+            }
+          },
+          {
+            "id": "effect_40",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "threshold": 0.41
+            }
+          },
+          {
+            "id": "effect_41",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.72,
+              "offset": 0.8,
+              "feather": 0.8
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.019,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750606562396,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "delicate_dot_pulse": {
+        "name": "Delicate Dot Pulse",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "delicate_arch",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -6.43,
+          "y": 0.99,
+          "z": -3.82
+        },
+        "cameraTarget": {
+          "x": 0.1,
+          "y": 3.8,
+          "z": -0.05
+        },
+        "focalLength": 200,
+        "effectsChain": [
+          {
+            "id": "effect_34",
+            "type": "background",
+            "enabled": true,
+            "parameters": {
+              "hue": 0.59,
+              "saturation": 100,
+              "lightness": 83
+            }
+          },
+          {
+            "id": "effect_35",
+            "type": "sepia",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0
+            }
+          },
+          {
+            "id": "effect_36",
+            "type": "crtgrain",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.23,
+              "noiseSeed": 0.6,
+              "scale": 1
+            }
+          },
+          {
+            "id": "effect_42",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.29,
+              "offset": 0.5,
+              "feather": 0.34
+            }
+          },
+          {
+            "id": "effect_37",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "dotSize": 12,
+              "contrast": 0.95
+            }
+          },
+          {
+            "id": "effect_38",
+            "type": "blur",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.49,
+              "blurAmount": 0.0005,
+              "threshold": 0,
+              "blurType": 0
+            }
+          },
+          {
+            "id": "effect_39",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 2.6,
+              "brightness": 1.2,
+              "contrast": 3,
+              "saturation": 3
+            }
+          },
+          {
+            "id": "effect_40",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "threshold": 0.41
+            }
+          },
+          {
+            "id": "effect_41",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.72,
+              "offset": 0.8,
+              "feather": 0.8
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.046,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750606615282,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "castleton_disco": {
+        "name": "Castleton Disco",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "castleton",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -0.17,
+          "y": 1.12,
+          "z": 0.97
+        },
+        "cameraTarget": {
+          "x": -0.01,
+          "y": 1.14,
+          "z": -0.35
+        },
+        "focalLength": 30,
+        "effectsChain": [
+          {
+            "id": "effect_44",
+            "type": "background",
+            "enabled": true,
+            "parameters": {
+              "hue": 0.62,
+              "saturation": 27,
+              "lightness": 30
+            }
+          },
+          {
+            "id": "effect_45",
+            "type": "sepia",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0
+            }
+          },
+          {
+            "id": "effect_46",
+            "type": "crtgrain",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.03,
+              "noiseSeed": 0.1,
+              "scale": 2.8
+            }
+          },
+          {
+            "id": "effect_47",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "dotSize": 7,
+              "contrast": 2
+            }
+          },
+          {
+            "id": "effect_48",
+            "type": "blur",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.49,
+              "blurAmount": 0.0005,
+              "threshold": 0,
+              "blurType": 0
+            }
+          },
+          {
+            "id": "effect_49",
+            "type": "gamma",
+            "enabled": true,
+            "parameters": {
+              "gamma": 2.6,
+              "brightness": 1.2,
+              "contrast": 2.1,
+              "saturation": 2.3
+            }
+          },
+          {
+            "id": "effect_50",
+            "type": "sobelthreshold",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.25,
+              "threshold": 0.87
+            }
+          },
+          {
+            "id": "effect_51",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.72,
+              "offset": 1.65,
+              "feather": 1.3
+            }
+          }
+        ],
+        "effectsDropdownValue": "Castleton Disco",
+        "pointSize": 0.005,
+        "sphereMode": true,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750606864934,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "castleton_clean": {
+        "name": "Castleton",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "castleton",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -0.52,
+          "y": 1.32,
+          "z": 1.77
+        },
+        "cameraTarget": {
+          "x": -0.01,
+          "y": 1.14,
+          "z": -0.35
+        },
+        "focalLength": 30,
+        "effectsChain": [],
+        "effectsDropdownValue": "none",
+        "pointSize": 0.006,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750607051317,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "delicate_clean": {
+        "name": "Delicate",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "delicate_arch",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -6.7,
+          "y": 5.49,
+          "z": 3.49
+        },
+        "cameraTarget": {
+          "x": -0.04,
+          "y": 4.15,
+          "z": -0.08
+        },
+        "focalLength": 200,
+        "effectsChain": [],
+        "effectsDropdownValue": "none",
+        "pointSize": 0.046,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750607079121,
+        "version": "1.0",
+        "creator": "User"
+      },
+      "fisher_clean": {
+        "name": "Fisher Towers",
+        "description": "Exported scene configuration - 6/22/2025",
+        "modelKey": "fisher",
+        "quality": "low",
+        "cameraPosition": {
+          "x": 7.73,
+          "y": 2.01,
+          "z": 7.13
+        },
+        "cameraTarget": {
+          "x": 0.07,
+          "y": 0.63,
+          "z": -0.39
+        },
+        "focalLength": 152,
+        "effectsChain": [],
+        "effectsDropdownValue": "none",
+        "pointSize": 0.027,
+        "sphereMode": false,
+        "fogDensity": 0,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750607110910,
+        "version": "1.0",
+        "creator": "User"
       }
   },
   "randomScenes": [
     "delicate_disco",
     "delicate_noir",
     "delicate_noise",
-    "delicate_rave"
+    "delicate_rave",
+    "delicate_arscii",
+    "fisher_sobel",
+    "fisher_dot_pulse",
+    "delicate_dot_pulse",
+    "castleton_disco",
+    "castleton_clean",
+    "delicate_clean",
+    "fisher_clean"
   ],
   "defaultScene": "delicate_noir"
 }

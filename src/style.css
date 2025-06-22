@@ -4334,6 +4334,45 @@ body, html {
   background: rgba(255, 100, 100, 0.1);
 }
 
+.effect-blend-mode {
+  background: none;
+  border: none;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.effect-blend-mode.normal {
+  color: rgba(150, 150, 150, 0.8);
+}
+
+.effect-blend-mode.normal:hover {
+  color: rgba(150, 150, 150, 1);
+  background: rgba(150, 150, 150, 0.1);
+}
+
+.effect-blend-mode.add {
+  color: rgba(0, 255, 100, 0.8);
+}
+
+.effect-blend-mode.add:hover {
+  color: rgba(0, 255, 100, 1);
+  background: rgba(0, 255, 100, 0.1);
+}
+
+.effect-blend-mode.multiply {
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.effect-blend-mode.multiply:hover {
+  color: rgba(255, 100, 100, 1);
+  background: rgba(255, 100, 100, 0.1);
+}
+
 .effect-pipeline-connector {
   display: none;
 }

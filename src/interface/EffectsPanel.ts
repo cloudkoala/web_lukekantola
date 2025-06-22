@@ -1062,6 +1062,10 @@ export class EffectsPanel {
     const definition = this.chainManager.getEffectDefinition(effect.type)
     const effectName = definition?.name || effect.type
     const hasParameters = definition && Object.keys(definition.parameterDefinitions).length > 0
+    const supportsBlending = definition?.supportsBlending || false
+    const blendMode = effect.blendMode || 'normal'
+    const blendModeLabel = blendMode === 'add' ? 'A' : blendMode === 'multiply' ? 'M' : 'N'
+    const blendModeClass = blendMode === 'add' ? 'add' : blendMode === 'multiply' ? 'multiply' : 'normal'
 
     card.innerHTML = `
       <div class="effect-card-header">
@@ -1071,6 +1075,13 @@ export class EffectsPanel {
         }
         <div class="effect-name" draggable="true" title="Drag to reorder">${effectName}</div>
         <div class="effect-controls">
+          ${supportsBlending ? 
+            `<button class="effect-blend-mode ${blendModeClass}" 
+                    title="Blend mode: ${blendMode}" 
+                    data-effect-id="${effect.id}">
+              ${blendModeLabel}
+            </button>` : ''
+          }
           <button class="effect-toggle ${effect.enabled ? 'enabled' : 'disabled'}" 
                   title="${effect.enabled ? 'Disable' : 'Enable'} effect">
             ${effect.enabled ? '●' : '○'}
@@ -1127,6 +1138,26 @@ export class EffectsPanel {
         this.mainDropdown.value = 'none'
         this.updateEffectsEnabled(false)
       }
+    })
+
+    // Blend mode cycling
+    const blendModeButton = card.querySelector('.effect-blend-mode') as HTMLElement
+    blendModeButton?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const currentMode = effect.blendMode || 'normal'
+      let nextMode: 'normal' | 'add' | 'multiply'
+      
+      // Cycle through modes: normal -> add -> multiply -> normal
+      if (currentMode === 'normal') {
+        nextMode = 'add'
+      } else if (currentMode === 'add') {
+        nextMode = 'multiply'
+      } else {
+        nextMode = 'normal'
+      }
+      
+      this.chainManager.updateEffectBlendMode(effect.id, nextMode)
+      this.refreshChain() // Refresh to update button appearance
     })
 
     // Expand/collapse parameters

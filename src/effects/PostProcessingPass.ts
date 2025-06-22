@@ -57,6 +57,11 @@ export class PostProcessingPass {
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
   
+  // Blending support
+  private blendMaterial: THREE.ShaderMaterial | null = null
+  private blendScene: THREE.Scene | null = null
+  private blendMesh: THREE.Mesh | null = null
+  
   // Legacy single effect support (for backward compatibility)
   public effectType: EffectType = 'none'
   public intensity: number = 0.5
@@ -124,8 +129,14 @@ export class PostProcessingPass {
   public bloomRadius: number = 0.5
   
   constructor(width: number, height: number, _renderer?: THREE.WebGLRenderer) {
-    // Create render targets for chaining (ping-pong buffers)
+    // Create render targets for chaining (ping-pong buffers + temp for blending)
     this.renderTargets = [
+      new THREE.WebGLRenderTarget(width, height, {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        format: THREE.RGBAFormat,
+        type: THREE.UnsignedByteType
+      }),
       new THREE.WebGLRenderTarget(width, height, {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
@@ -306,7 +317,13 @@ export class PostProcessingPass {
       const isLastEffect = i === effects.length - 1
       const currentTarget = isLastEffect ? outputTarget : this.renderTargets[pingPongIndex]
       
-      this.renderSingleEffectFromInstance(renderer, currentInput, effect, currentTarget)
+      // Handle different blend modes
+      if (effect.blendMode === 'add' || effect.blendMode === 'multiply') {
+        this.renderEffectWithBlending(renderer, currentInput, effect, currentTarget)
+      } else {
+        // Normal blend mode (default)
+        this.renderSingleEffectFromInstance(renderer, currentInput, effect, currentTarget)
+      }
       
       // For next iteration, use the output as input
       if (!isLastEffect) {
@@ -587,6 +604,81 @@ export class PostProcessingPass {
     renderer.clear()
     renderer.render(this.scene, this.camera)
   }
+
+  private renderEffectWithBlending(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
+    // Render the effect to a temporary render target first
+    const tempTarget = this.renderTargets[2]
+    
+    // Render the effect
+    this.renderSingleEffectFromInstance(renderer, inputTexture, effect, tempTarget)
+    
+    // Now blend the effect result with the input using the specified blend mode
+    this.blendTextures(renderer, inputTexture, tempTarget.texture, effect.blendMode || 'normal', outputTarget)
+  }
+
+  private blendTextures(renderer: THREE.WebGLRenderer, baseTexture: THREE.Texture, blendTexture: THREE.Texture, blendMode: 'normal' | 'add' | 'multiply', outputTarget?: THREE.WebGLRenderTarget | null) {
+    // Create a blend material if it doesn't exist
+    if (!this.blendMaterial) {
+      this.blendMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          tBase: { value: null },
+          tBlend: { value: null },
+          blendMode: { value: 0 } // 0=normal, 1=add, 2=multiply
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D tBase;
+          uniform sampler2D tBlend;
+          uniform int blendMode;
+          varying vec2 vUv;
+
+          void main() {
+            vec4 base = texture2D(tBase, vUv);
+            vec4 blend = texture2D(tBlend, vUv);
+            
+            vec4 result;
+            if (blendMode == 1) {
+              // Add blend mode
+              result = vec4(base.rgb + blend.rgb, base.a);
+            } else if (blendMode == 2) {
+              // Multiply blend mode
+              result = vec4(base.rgb * blend.rgb, base.a);
+            } else {
+              // Normal blend mode (default)
+              result = blend;
+            }
+            
+            gl_FragColor = result;
+          }
+        `
+      })
+    }
+
+    // Set uniforms
+    this.blendMaterial.uniforms.tBase.value = baseTexture
+    this.blendMaterial.uniforms.tBlend.value = blendTexture
+    this.blendMaterial.uniforms.blendMode.value = blendMode === 'add' ? 1 : blendMode === 'multiply' ? 2 : 0
+
+    // Create a blend scene if it doesn't exist
+    if (!this.blendScene) {
+      this.blendScene = new THREE.Scene()
+      const blendGeometry = new THREE.PlaneGeometry(2, 2)
+      this.blendMesh = new THREE.Mesh(blendGeometry, this.blendMaterial)
+      this.blendScene.add(this.blendMesh)
+    } else if (this.blendMesh) {
+      this.blendMesh.material = this.blendMaterial
+    }
+
+    renderer.setRenderTarget(outputTarget || null)
+    renderer.clear()
+    renderer.render(this.blendScene, this.camera)
+  }
   
   setSize(width: number, height: number) {
     this.renderTargets.forEach(target => target.setSize(width, height))
@@ -629,6 +721,14 @@ export class PostProcessingPass {
     // Clean up material resources
     this.resetMaterials()
     this.originalMaterials.clear()
+    
+    // Clean up blending resources
+    if (this.blendMaterial) {
+      this.blendMaterial.dispose()
+    }
+    if (this.blendScene) {
+      this.blendScene.clear()
+    }
     
     // Clean up afterimage resources
     if (this.afterimageRenderTarget) {

@@ -2727,8 +2727,59 @@ function expandEffectsPanel() {
   }
 }
 
+// Populate scene dropdown with scenes from randomScenes list
+async function populateSceneDropdown(sceneDropdown: HTMLSelectElement) {
+  try {
+    // Fetch scenes configuration
+    const response = await fetch('scenes-config.json')
+    if (!response.ok) {
+      throw new Error(`Failed to fetch scenes config: ${response.status}`)
+    }
+    
+    const scenesCollection = await response.json()
+    
+    if (!scenesCollection.randomScenes || !scenesCollection.scenes) {
+      throw new Error('Invalid scenes configuration structure')
+    }
+    
+    // Clear existing options
+    sceneDropdown.innerHTML = ''
+    
+    // Add default option
+    const defaultOption = document.createElement('option')
+    defaultOption.value = ''
+    defaultOption.textContent = 'Select a scene...'
+    sceneDropdown.appendChild(defaultOption)
+    
+    // Add scenes from randomScenes list
+    scenesCollection.randomScenes.forEach((sceneKey: string) => {
+      const sceneDefinition = scenesCollection.scenes[sceneKey]
+      if (sceneDefinition) {
+        const option = document.createElement('option')
+        option.value = sceneKey
+        option.textContent = sceneDefinition.name
+        sceneDropdown.appendChild(option)
+      } else {
+        console.warn('Scene definition not found for key:', sceneKey)
+      }
+    })
+    
+    console.log(`Populated scene dropdown with ${scenesCollection.randomScenes.length} scenes`)
+    
+  } catch (error) {
+    console.error('Failed to populate scene dropdown:', error)
+    
+    // Fallback: show error message
+    sceneDropdown.innerHTML = ''
+    const errorOption = document.createElement('option')
+    errorOption.value = ''
+    errorOption.textContent = 'Failed to load scenes'
+    sceneDropdown.appendChild(errorOption)
+  }
+}
+
 // Scene dropdown functionality
-function setupSceneDropdown() {
+async function setupSceneDropdown() {
   console.log('Setting up scene dropdown...')
   const sceneDropdown = document.getElementById('scene-dropdown') as HTMLSelectElement
   
@@ -2736,6 +2787,9 @@ function setupSceneDropdown() {
     console.warn('Scene dropdown not found')
     return
   }
+
+  // Populate dropdown with scenes from randomScenes list
+  await populateSceneDropdown(sceneDropdown)
   
   sceneDropdown.addEventListener('change', async () => {
     const selectedScene = sceneDropdown.value
@@ -3186,7 +3240,7 @@ async function initialize() {
     setupSettingsButton()
     setupEffectsButton()
     setupAutoRotationControl()
-    setupSceneDropdown()
+    await setupSceneDropdown()
     console.log('✅ Control buttons setup complete')
     
     console.log('📱 Setting up mobile controls...')
@@ -3244,16 +3298,26 @@ async function initialize() {
       const hasRandomScene = await orbitalCamera.loadRandomScene()
       
       if (!hasRandomScene) {
-        // No random scene available, load default point cloud
-        console.log('☁️ Loading default point cloud...')
-        modelManager.loadPointCloud().then(() => {
-          console.log('✅ Point cloud loaded, initializing sphere mode...')
-          // Initialize sphere mode immediately after point cloud loads but before it's visible
+        // No random scene available, try to load default scene
+        console.log('🎯 Attempting to load default scene...')
+        const hasDefaultScene = await orbitalCamera.loadDefaultScene()
+        
+        if (!hasDefaultScene) {
+          // No default scene available, load default point cloud
+          console.log('☁️ Loading default point cloud...')
+          modelManager.loadPointCloud().then(() => {
+            console.log('✅ Point cloud loaded, initializing sphere mode...')
+            // Initialize sphere mode immediately after point cloud loads but before it's visible
+            orbitalCamera.initializeSphereMode()
+            console.log('✅ Sphere mode initialization complete')
+          }).catch((error) => {
+            console.error('❌ Point cloud loading failed:', error)
+          })
+        } else {
+          console.log('✅ Default scene loaded')
+          // Initialize sphere mode for default scene
           orbitalCamera.initializeSphereMode()
-          console.log('✅ Sphere mode initialization complete')
-        }).catch((error) => {
-          console.error('❌ Point cloud loading failed:', error)
-        })
+        }
       } else {
         console.log('✅ Random scene loaded')
         // Initialize sphere mode for random scene
