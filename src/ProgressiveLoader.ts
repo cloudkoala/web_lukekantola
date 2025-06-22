@@ -190,7 +190,7 @@ export class ProgressiveLoader {
     console.log(`🚀 Starting progressive loading of ${this.loadingQueue.length} chunks`)
     
     // Load chunks in small batches for better performance
-    const batchSize = 3
+    const batchSize = 6
     for (let i = 0; i < this.loadingQueue.length; i += batchSize) {
       const batch = this.loadingQueue.slice(i, i + batchSize)
       console.log(`📦 Loading batch ${Math.floor(i/batchSize) + 1}: chunks ${i + 1}-${Math.min(i + batchSize, this.loadingQueue.length)}`)

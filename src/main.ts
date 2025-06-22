@@ -253,7 +253,7 @@ function animate() {
   // Check if we actually have effects to apply and if post-processing is enabled
   const effectsChain = postProcessingPass.getEffectsChain()
   const hasActiveEffects = postProcessingPass.enabled && (
-    effectsChain.some(effect => effect.enabled && (
+    effectsChain.some((effect: any) => effect.enabled && (
       effect.type === 'background' || // Background effects are always active when enabled
       effect.type === 'drawrange' ||  // DrawRange effects are always active when enabled
       effect.type === 'pointnetwork' || // Point network effects are always active when enabled
@@ -3206,25 +3206,32 @@ async function initialize() {
     progressEl.style.display = 'none'
     console.log('✅ Loading screen hidden')
     
-    console.log('📁 Loading models config...')
-    await modelManager.loadModelsConfig()
-    console.log('✅ Models config loaded')
-    
-    console.log('📁 Loading projects config...')
-    await contentLoader.loadProjectsConfig()
-    console.log('✅ Projects config loaded')
-    
-    console.log('🔧 Setting up dropdowns...')
-    modelManager.setupModelDropdown()
-    modelManager.setupQualityDropdown()
-    console.log('✅ Dropdowns setup complete')
-    
-    console.log('🎯 Setting up camera system...')
-    orbitalCamera.updateDisplayNameField()
-    orbitalCamera.loadDefaultPointSize()
-    orbitalCamera.loadDefaultFocalLength()
-    orbitalCamera.loadDefaultAutoRotationSpeed()
-    console.log('✅ Camera system setup complete')
+    // Start loading configs asynchronously (non-blocking)
+    console.log('📁 Starting async config loading...')
+    const configLoadPromise = Promise.all([
+      modelManager.loadModelsConfig(),
+      contentLoader.loadProjectsConfig()
+    ]).then(() => {
+      console.log('✅ Configs loaded - setting up dropdowns and camera defaults...')
+      modelManager.setupModelDropdown()
+      modelManager.setupQualityDropdown()
+      
+      // Setup camera system defaults after configs are loaded
+      orbitalCamera.updateDisplayNameField()
+      orbitalCamera.loadDefaultPointSize()
+      orbitalCamera.loadDefaultFocalLength()
+      orbitalCamera.loadDefaultAutoRotationSpeed()
+      
+      // Start loading animation after configs are available
+      console.log('🎬 Starting loading animation...')
+      orbitalCamera.startLoadingAnimation()
+      console.log('✅ Loading animation started')
+      
+      console.log('✅ Dropdowns and camera defaults setup complete')
+    }).catch(error => {
+      console.error('❌ Config loading failed:', error)
+    })
+    console.log('✅ Config loading started in background')
     
     console.log('⚙️ Setting up control buttons...')
     setupSettingsButton()
@@ -3274,10 +3281,9 @@ async function initialize() {
     modelManager.updatePointSizeControlVisibility()
     console.log('✅ Point size controls setup complete')
     
-    // Start loading animation every time (regardless of caching)
-    console.log('🎬 Starting loading animation...')
-    orbitalCamera.startLoadingAnimation()
-    console.log('✅ Loading animation started')
+    // Wait for configs to load before model operations
+    console.log('⏳ Waiting for configs before model loading...')
+    await configLoadPromise
     
     // Check for scene URL parameter and load if present
     console.log('🔗 Checking for shared scene URL...')
