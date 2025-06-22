@@ -1558,7 +1558,7 @@ function setupMobileEffectsButton() {
       const categories = {
         'Color': {
           color: '#FF6B6B',
-          effects: ['background', 'gamma', 'sepia', 'colorify', 'colorgradient', 'invert', 'bleachbypass']
+          effects: ['background', 'gamma', 'sepia', 'colorify', 'splittone', 'gradient', 'invert', 'bleachbypass']
         },
         'Blur': {
           color: '#4ECDC4',
@@ -1570,7 +1570,7 @@ function setupMobileEffectsButton() {
         },
         'Post-Process': {
           color: '#96CEB4',
-          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
         },
         '3D Effects': {
           color: '#FECA57',
@@ -2511,7 +2511,7 @@ function setupMobileSettings() {
     const currentSpeed = '0.0' // Default value - will be updated by scene state
     
     // Create rotation speed slider card using the same method as settings panel
-    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.1, (value) => {
+    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.01, (value) => {
       if (orbitalCamera) {
         orbitalCamera.setBidirectionalRotationSpeed(value)
         
@@ -2519,7 +2519,7 @@ function setupMobileSettings() {
         const desktopSlider = document.getElementById('auto-rotation-speed') as HTMLInputElement
         const desktopValue = document.getElementById('auto-rotation-speed-value') as HTMLElement
         if (desktopSlider) desktopSlider.value = value.toString()
-        if (desktopValue) desktopValue.textContent = value.toFixed(1)
+        if (desktopValue) desktopValue.textContent = value.toFixed(2)
       }
     })
     speedCard.id = 'mobile-rotation-speed-card'
@@ -2843,14 +2843,14 @@ function setupAutoRotationControl() {
       if (orbitalCamera) {
         const speed = parseFloat(autoRotationSpeedSlider.value)
         orbitalCamera.setBidirectionalRotationSpeed(speed)
-        autoRotationSpeedValue.textContent = speed.toFixed(1)
+        autoRotationSpeedValue.textContent = speed.toFixed(2)
         
         // Sync mobile slider
         const mobileSlider = document.getElementById('mobile-rotation-speed') as HTMLInputElement
         const mobileSpeedValue = document.getElementById('mobile-rotation-speed-value') as HTMLSpanElement
         if (mobileSlider && mobileSpeedValue) {
           mobileSlider.value = speed.toString()
-          mobileSpeedValue.textContent = speed.toFixed(1)
+          mobileSpeedValue.textContent = speed.toFixed(2)
         }
       }
     })
@@ -2864,7 +2864,7 @@ function setupAutoRotationControl() {
     const bidirectionalValue = orbitalCamera.getBidirectionalRotationSpeed()
     
     if (mobileSpeedValue) {
-      mobileSpeedValue.textContent = bidirectionalValue.toFixed(1)
+      mobileSpeedValue.textContent = bidirectionalValue.toFixed(2)
     }
     if (mobileSlider) {
       mobileSlider.value = bidirectionalValue.toString()

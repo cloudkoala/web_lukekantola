@@ -755,19 +755,19 @@ export class EffectsPanel {
     // Define categories (same as mobile)
     const categories = {
       'Color': {
-        effects: ['background', 'gamma', 'sepia', 'colorify', 'colorgradient', 'invert', 'bleachbypass']
+        effects: ['background', 'gamma', 'sepia', 'colorify', 'splittone', 'gradient', 'invert', 'bleachbypass', 'posterize']
       },
       'Blur': {
         effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
       },
       'Grain': {
-        effects: ['crtgrain', 'film35mm', 'pixelate']
+        effects: ['crtgrain', 'film35mm', 'pixelate', 'noise2d']
       },
       'Post-Process': {
         effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'floydsteinberg', 'datamosh', 'pixelsort']
       },
       '3D Effects': {
-        effects: ['drawrange', 'pointnetwork', 'material', 'brush', 'topographic', 'fog']
+        effects: ['drawrange', 'pointnetwork', 'material', 'brush', 'topographic', 'fog', 'skysphere', 'sinradius']
       },
       'In Development': {
         effects: ['tsl', 'dotscreen']

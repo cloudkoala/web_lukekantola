@@ -1481,7 +1481,7 @@ export class OrbitalCameraSystem {
       rotationSlider.value = defaultAutoRotationSpeed.toString()
     }
     if (rotationValue) {
-      rotationValue.textContent = defaultAutoRotationSpeed.toFixed(1)
+      rotationValue.textContent = defaultAutoRotationSpeed.toFixed(2)
     }
     
     // Update mobile slider if it exists
@@ -2876,7 +2876,7 @@ export class OrbitalCameraSystem {
       const speedValue = document.getElementById('auto-rotation-speed-value') as HTMLSpanElement
       if (speedSlider && speedValue) {
         speedSlider.value = currentBidirectionalValue.toString()
-        speedValue.textContent = currentBidirectionalValue.toFixed(1)
+        speedValue.textContent = currentBidirectionalValue.toFixed(2)
       }
       
       // Update mobile controls
@@ -2895,8 +2895,8 @@ export class OrbitalCameraSystem {
         
         // Update the value display
         if (mobileSpeedValue) {
-          mobileSpeedValue.textContent = currentBidirectionalValue.toFixed(1)
-          console.log('Updated mobile value display to:', currentBidirectionalValue.toFixed(1))
+          mobileSpeedValue.textContent = currentBidirectionalValue.toFixed(2)
+          console.log('Updated mobile value display to:', currentBidirectionalValue.toFixed(2))
         }
         
         // Trigger updateMobileRotationFill if available

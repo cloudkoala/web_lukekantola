@@ -172,7 +172,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     defaultParameters: { intensity: 0.5, blurAmount: 0.002, threshold: 0.0, blurType: 0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      blurAmount: { min: 0.0005, max: 0.02, step: 0.0005, label: 'Amount' },
+      blurAmount: { min: 0.0005, max: 0.5, step: 0.0005, label: 'Amount' },
       threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
       blurType: { min: 0, max: 5, step: 1, label: 'Type' }
     }
@@ -256,23 +256,173 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     }
   },
   {
-    type: 'colorgradient',
-    name: 'Color Gradient',
+    type: 'splittone',
+    name: 'Split Tone',
     defaultParameters: { 
       intensity: 1.0,
-      color1: 0x000000, // Black
-      color2: 0xFFFFFF, // White
+      color1: 0x000000, // Shadows
+      color2: 0xFFFFFF, // Highlights
       smoothness: 1.0,
       contrast: 1.0,
       midpoint: 0.5
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      color1: { min: 0, max: 16777215, step: 1, label: 'Black Color', type: 'color' },
-      color2: { min: 0, max: 16777215, step: 1, label: 'White Color', type: 'color' },
+      color1: { min: 0, max: 16777215, step: 1, label: 'Shadow Color', type: 'color' },
+      color2: { min: 0, max: 16777215, step: 1, label: 'Highlight Color', type: 'color' },
       smoothness: { min: 0.1, max: 3.0, step: 0.1, label: 'Transition Smoothness' },
       contrast: { min: 0.1, max: 3.0, step: 0.1, label: 'Luminance Contrast' },
       midpoint: { min: 0.0, max: 1.0, step: 0.01, label: 'Gradient Midpoint' }
+    }
+  },
+  {
+    type: 'gradient',
+    name: 'Gradient',
+    defaultParameters: { 
+      intensity: 1.0,
+      gradientColor: 0x000000, // Black by default
+      useBackgroundColor: 0, // 0 = use gradientColor, 1 = use background color
+      backgroundMode: 0, // 0 = overlay, 1 = behind geometry
+      angle: 0.0, // Angle in degrees (0-360)
+      startDistance: 0.0,
+      endDistance: 1.0,
+      feather: 0.1
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      gradientColor: { min: 0, max: 16777215, step: 1, label: 'Gradient Color', type: 'color' },
+      useBackgroundColor: { min: 0, max: 1, step: 1, label: 'Use Background Color' },
+      backgroundMode: { min: 0, max: 1, step: 1, label: 'Background Mode (0=Overlay, 1=Behind)' },
+      angle: { min: 0, max: 360, step: 1, label: 'Angle (degrees)' },
+      startDistance: { min: 0.0, max: 1.0, step: 0.01, label: 'Start Distance' },
+      endDistance: { min: 0.0, max: 2.0, step: 0.01, label: 'End Distance' },
+      feather: { min: 0.01, max: 5.0, step: 0.01, label: 'Feather Amount' }
+    }
+  },
+  {
+    type: 'posterize',
+    name: 'Posterize',
+    defaultParameters: { 
+      intensity: 1.0,
+      levels: 8, // Number of color levels per channel
+      blackAndWhite: 0, // 0 = color posterize, 1 = black and white posterize
+      gamma: 1.0, // Gamma correction before posterization
+      smoothness: 0.0 // Smoothness of level transitions (0 = hard, 1 = smooth)
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      levels: { min: 2, max: 32, step: 1, label: 'Color Levels' },
+      blackAndWhite: { min: 0, max: 1, step: 1, label: 'Black & White Mode' },
+      gamma: { min: 0.1, max: 3.0, step: 0.1, label: 'Gamma Correction' },
+      smoothness: { min: 0.0, max: 1.0, step: 0.01, label: 'Edge Smoothness' }
+    }
+  },
+  {
+    type: 'noise2d',
+    name: '2D Noise',
+    defaultParameters: { 
+      intensity: 0.5,
+      scale: 10.0, // Noise scale/frequency
+      timeSpeed: 1.0, // Time evolution speed
+      noiseType: 0, // 0 = regular noise, 1 = fractal noise, 2 = ridged noise
+      octaves: 3, // Number of octaves for fractal noise
+      persistence: 0.5, // Amplitude falloff for each octave
+      lacunarity: 2.0, // Frequency multiplier for each octave
+      backgroundMode: 0, // 0 = overlay, 1 = behind geometry
+      colorR: 1.0, // Noise color red component
+      colorG: 1.0, // Noise color green component
+      colorB: 1.0, // Noise color blue component
+      contrast: 1.0, // Noise contrast
+      brightness: 0.0, // Noise brightness offset
+      animated: 1 // 0 = static, 1 = animated
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      scale: { min: 1.0, max: 100.0, step: 0.5, label: 'Noise Scale' },
+      timeSpeed: { min: 0.0, max: 5.0, step: 0.1, label: 'Animation Speed' },
+      noiseType: { min: 0, max: 2, step: 1, label: 'Noise Type (0=Regular, 1=Fractal, 2=Ridged)' },
+      octaves: { min: 1, max: 8, step: 1, label: 'Fractal Octaves' },
+      persistence: { min: 0.1, max: 1.0, step: 0.1, label: 'Fractal Persistence' },
+      lacunarity: { min: 1.0, max: 4.0, step: 0.1, label: 'Fractal Lacunarity' },
+      backgroundMode: { min: 0, max: 1, step: 1, label: 'Background Mode (0=Overlay, 1=Behind)' },
+      colorR: { min: 0, max: 1, step: 0.01, label: 'Red Component' },
+      colorG: { min: 0, max: 1, step: 0.01, label: 'Green Component' },
+      colorB: { min: 0, max: 1, step: 0.01, label: 'Blue Component' },
+      contrast: { min: 0.1, max: 3.0, step: 0.1, label: 'Contrast' },
+      brightness: { min: -1.0, max: 1.0, step: 0.01, label: 'Brightness' },
+      animated: { min: 0, max: 1, step: 1, label: 'Animated' }
+    }
+  },
+  {
+    type: 'skysphere',
+    name: 'Sky Sphere',
+    defaultParameters: { 
+      intensity: 1.0,
+      scale: 100.0, // Sphere scale/radius
+      noiseScale: 10.0, // Noise frequency on sphere
+      timeSpeed: 1.0, // Time evolution speed
+      noiseType: 0, // 0 = regular, 1 = fractal, 2 = ridged
+      octaves: 3, // Fractal octaves
+      persistence: 0.5, // Fractal persistence
+      lacunarity: 2.0, // Fractal lacunarity
+      colorR: 0.5, // Sphere color red
+      colorG: 0.7, // Sphere color green
+      colorB: 1.0, // Sphere color blue
+      contrast: 1.0, // Noise contrast
+      brightness: 0.0, // Noise brightness
+      animated: 1, // Enable time animation
+      opacity: 1.0, // Sphere opacity
+      renderBehind: 1 // Render behind geometry
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      scale: { min: 10.0, max: 500.0, step: 5.0, label: 'Sphere Scale' },
+      noiseScale: { min: 0.1, max: 50.0, step: 0.1, label: 'Noise Scale' },
+      timeSpeed: { min: 0.0, max: 5.0, step: 0.1, label: 'Animation Speed' },
+      noiseType: { min: 0, max: 2, step: 1, label: 'Noise Type (0=Regular, 1=Fractal, 2=Ridged)' },
+      octaves: { min: 1, max: 8, step: 1, label: 'Fractal Octaves' },
+      persistence: { min: 0.1, max: 1.0, step: 0.1, label: 'Fractal Persistence' },
+      lacunarity: { min: 1.0, max: 4.0, step: 0.1, label: 'Fractal Lacunarity' },
+      colorR: { min: 0, max: 1, step: 0.01, label: 'Red Component' },
+      colorG: { min: 0, max: 1, step: 0.01, label: 'Green Component' },
+      colorB: { min: 0, max: 1, step: 0.01, label: 'Blue Component' },
+      contrast: { min: 0.1, max: 3.0, step: 0.1, label: 'Contrast' },
+      brightness: { min: -1.0, max: 1.0, step: 0.01, label: 'Brightness' },
+      animated: { min: 0, max: 1, step: 1, label: 'Animated' },
+      opacity: { min: 0.0, max: 1.0, step: 0.01, label: 'Opacity' },
+      renderBehind: { min: 0, max: 1, step: 1, label: 'Render Behind Geometry' }
+    }
+  },
+  {
+    type: 'sinradius',
+    name: 'Sin Wave Radius',
+    defaultParameters: { 
+      intensity: 1.0,
+      minRadius: 0.5, // Minimum radius multiplier
+      maxRadius: 2.0, // Maximum radius multiplier
+      period: 2.0, // Period in seconds for one complete cycle
+      frequency: 1.0, // Frequency multiplier (higher = faster oscillation)
+      phase: 0.0, // Phase offset in radians (0 to 2π)
+      waveType: 0, // 0 = sin, 1 = cos, 2 = triangle, 3 = square
+      affectSpheres: 1, // Affect sphere instances
+      affectPoints: 1, // Affect point clouds
+      smoothing: 0.1, // Smoothing factor for non-sin waves
+      animated: 1, // Enable time animation
+      syncToTime: 1 // Sync to global time vs independent timer
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      minRadius: { min: 0.1, max: 2.0, step: 0.1, label: 'Min Radius Multiplier' },
+      maxRadius: { min: 0.5, max: 5.0, step: 0.1, label: 'Max Radius Multiplier' },
+      period: { min: 0.1, max: 10.0, step: 0.1, label: 'Period (seconds)' },
+      frequency: { min: 0.1, max: 5.0, step: 0.1, label: 'Frequency Multiplier' },
+      phase: { min: 0.0, max: 6.28, step: 0.1, label: 'Phase Offset (radians)' },
+      waveType: { min: 0, max: 3, step: 1, label: 'Wave Type (0=Sin, 1=Cos, 2=Triangle, 3=Square)' },
+      affectSpheres: { min: 0, max: 1, step: 1, label: 'Affect Spheres' },
+      affectPoints: { min: 0, max: 1, step: 1, label: 'Affect Point Clouds' },
+      smoothing: { min: 0.0, max: 1.0, step: 0.01, label: 'Wave Smoothing' },
+      animated: { min: 0, max: 1, step: 1, label: 'Animated' },
+      syncToTime: { min: 0, max: 1, step: 1, label: 'Sync to Global Time' }
     }
   },
   {

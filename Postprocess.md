@@ -396,7 +396,7 @@ Binary image conversion with adjustable threshold levels.
 - Smooth or hard threshold transitions
 - Maintains edge detail with anti-aliasing
 
-### 26. Color Gradient (NEW)
+### 26. Split Tone (NEW)
 Maps image luminance (black-to-white values) to custom color gradients for artistic colorization.
 
 **Parameters:**
@@ -710,7 +710,7 @@ The post-processing system has evolved into a comprehensive visual effects platf
 #### Color Processing Effects
 - **Background Color**: HSL-based scene background control
 - **Colorify**: Luminance-preserving color tinting
-- **Color Gradient**: Multi-type gradient mapping with luminance preservation
+- **Split Tone**: Multi-type gradient mapping with luminance preservation
 - **Gamma Correction**: Brightness, contrast, and saturation adjustment
 - **Sepia**: Classic vintage brown tinting
 - **Color Invert**: Full color inversion
