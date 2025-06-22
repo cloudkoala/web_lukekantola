@@ -14,7 +14,8 @@
       "Bash(npm install)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:sparkjs.dev)",
-      "WebFetch(domain:threejs.org)"
+      "WebFetch(domain:threejs.org)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

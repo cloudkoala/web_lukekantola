@@ -45,6 +45,7 @@ export class ProgressiveLoader {
   private pointSize: number = 0.001
   private onChunkLoaded?: (chunkIndex: number, totalChunks: number) => void
   private onLoadComplete?: () => void
+  private onChunkAddedToScene?: (pointCloud: THREE.Points) => void
   private loadedPointClouds: THREE.Points[] = []
   private modelRotation: { x: number, y: number, z: number } | null = null
   private abortController: AbortController | null = null
@@ -66,6 +67,13 @@ export class ProgressiveLoader {
    */
   public setOnLoadComplete(callback: () => void) {
     this.onLoadComplete = callback
+  }
+  
+  /**
+   * Set callback for when a chunk is added to the scene (for progressive sphere conversion)
+   */
+  public setOnChunkAddedToScene(callback: (pointCloud: THREE.Points) => void) {
+    this.onChunkAddedToScene = callback
   }
   
   /**
@@ -189,8 +197,8 @@ export class ProgressiveLoader {
     this.isLoading = true
     console.log(`🚀 Starting progressive loading of ${this.loadingQueue.length} chunks`)
     
-    // Load chunks in small batches for better performance
-    const batchSize = 6
+    // Load chunks sequentially for true progressive loading
+    const batchSize = 1
     for (let i = 0; i < this.loadingQueue.length; i += batchSize) {
       const batch = this.loadingQueue.slice(i, i + batchSize)
       console.log(`📦 Loading batch ${Math.floor(i/batchSize) + 1}: chunks ${i + 1}-${Math.min(i + batchSize, this.loadingQueue.length)}`)
@@ -337,6 +345,11 @@ export class ProgressiveLoader {
     if (chunkIndex !== -1) {
       this.chunks[chunkIndex].pointCloud = pointCloud
       this.chunks[chunkIndex].loaded = true
+    }
+    
+    // Notify callback for progressive sphere conversion
+    if (this.onChunkAddedToScene) {
+      this.onChunkAddedToScene(pointCloud)
     }
     
     console.log(`🎯 Chunk ${chunkInfo.filename} added to scene (${this.loadedPointClouds.length} total chunks visible)`)

@@ -1,7 +1,5 @@
 export { ASCIIDitheringPass } from './ASCIIDitheringPass'
 export { HalftoneDitheringPass } from './HalftoneDitheringPass'
-export { TSLEffect } from './TSLEffect'
-export { TSLPostProcessingPass } from './TSLPostProcessingPass'
 export { PostProcessingPass } from './PostProcessingPass'
 export type { EffectType } from './PostProcessingPass'
 export { EffectsChainManager, EFFECT_DEFINITIONS } from './EffectsChainManager'

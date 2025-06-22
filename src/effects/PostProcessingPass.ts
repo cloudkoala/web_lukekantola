@@ -2,9 +2,8 @@ import * as THREE from 'three'
 import type { EffectInstance } from './EffectsChainManager'
 import { ASCIIDitheringPass } from './ASCIIDitheringPass'
 import { HalftoneDitheringPass } from './HalftoneDitheringPass'
-import { TSLPostProcessingPass } from './TSLPostProcessingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'tsl' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -57,8 +56,6 @@ export class PostProcessingPass {
   // Dithering passes
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
-  // TSL effect
-  private tslPass: TSLPostProcessingPass | null = null
   
   // Legacy single effect support (for backward compatibility)
   public effectType: EffectType = 'none'
@@ -126,7 +123,7 @@ export class PostProcessingPass {
   public bloomIntensity: number = 1.0
   public bloomRadius: number = 0.5
   
-  constructor(width: number, height: number, renderer?: THREE.WebGLRenderer) {
+  constructor(width: number, height: number, _renderer?: THREE.WebGLRenderer) {
     // Create render targets for chaining (ping-pong buffers)
     this.renderTargets = [
       new THREE.WebGLRenderTarget(width, height, {
@@ -237,10 +234,6 @@ export class PostProcessingPass {
     // Initialize dithering passes
     this.asciiDitheringPass = new ASCIIDitheringPass(width, height)
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
-    // Initialize TSL pass for WebGPU/TSL effects if renderer is provided
-    if (renderer) {
-      this.tslPass = new TSLPostProcessingPass(width, height, renderer)
-    }
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -389,11 +382,6 @@ export class PostProcessingPass {
       return
     }
     
-    // Handle TSL effect separately
-    if (effect.type === 'tsl') {
-      this.renderTSLEffect(renderer, inputTexture, effect, outputTarget)
-      return
-    }
     
     // Handle afterimage effect separately
     if (effect.type === 'afterimage') {
@@ -608,9 +596,6 @@ export class PostProcessingPass {
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
     
-    if (this.tslPass) {
-      this.tslPass.setSize(width, height)
-    }
     
     // Update afterimage render target
     if (this.afterimageRenderTarget) {
@@ -2123,37 +2108,6 @@ export class PostProcessingPass {
     return material
   }
   
-  
-  private renderTSLEffect(
-    renderer: THREE.WebGLRenderer, 
-    inputTexture: THREE.Texture, 
-    effect: EffectInstance, 
-    outputTarget?: THREE.WebGLRenderTarget | null
-  ): void {
-    if (!this.tslPass) {
-      // Fallback to copy if TSL not available
-      this.copyTexture(renderer, inputTexture, outputTarget)
-      return
-    }
-    
-    const tslEffectTypeNum = effect.parameters.tslEffectType ?? 0
-    const effectTypes = ['crt', 'wave', 'noise', 'hologram'] as const
-    const tslEffectType = effectTypes[Math.floor(tslEffectTypeNum)] || 'crt'
-    const intensity = (effect.parameters.intensity ?? 50) / 100
-    const speed = effect.parameters.speed ?? 1.0
-    const scale = effect.parameters.scale ?? 1.0
-    
-    this.tslPass.render(renderer, inputTexture, {
-      effectType: tslEffectType,
-      intensity,
-      speed,
-      scale
-    }, outputTarget)
-  }
-  
-  getTSLCapabilityInfo(): string {
-    return this.tslPass?.getCapabilityInfo() ?? 'TSL not available'
-  }
   
   
   private getVertexShader(): string {

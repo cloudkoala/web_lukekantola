@@ -68,8 +68,23 @@ export class ModelManager {
     }
   }
 
+  /**
+   * Set up progressive sphere conversion callback
+   */
+  setupProgressiveSphereConversion() {
+    this.progressiveLoader.setOnChunkAddedToScene((pointCloud: THREE.Points) => {
+      // Convert this chunk to spheres if sphere mode is enabled
+      this.sphereInstancer.convertSinglePointCloudToSpheresProgressive(pointCloud)
+    })
+    console.log('Progressive sphere conversion callback set up')
+  }
+
   getModelsConfig(): ModelsConfig | null {
     return this.modelsConfig
+  }
+
+  getSphereInstancer(): SphereInstancer {
+    return this.sphereInstancer
   }
 
   getCurrentQuality(): 'low' | 'high' {
@@ -731,9 +746,5 @@ export class ModelManager {
 
   getSphereStats(): { totalSpheres: number, meshCount: number } {
     return this.sphereInstancer.getStats()
-  }
-
-  getSphereInstancer(): SphereInstancer {
-    return this.sphereInstancer
   }
 }

@@ -47,6 +47,55 @@ export class SphereInstancer {
       originalClouds: this.originalPointClouds.length
     })
   }
+
+  /**
+   * Convert a single point cloud to spheres progressively as chunks load
+   * This allows spheres to appear one chunk at a time instead of all at once
+   */
+  convertSinglePointCloudToSpheresProgressive(pointCloud: THREE.Points): void {
+    if (!this.isSpheresEnabled) {
+      // If spheres aren't enabled globally, just return
+      return
+    }
+
+    // Check if this point cloud has already been converted
+    const alreadyConverted = this.originalPointClouds.some(cloud => 
+      cloud === pointCloud || cloud.uuid === pointCloud.uuid
+    )
+    
+    if (alreadyConverted) {
+      console.log('Point cloud already converted to spheres, skipping')
+      return
+    }
+
+    console.log('🔄 Converting single point cloud to spheres progressively')
+    
+    // Convert this specific point cloud
+    const currentIndex = this.instancedMeshes.length
+    this.convertSinglePointCloudToSpheres(pointCloud, currentIndex)
+    
+    console.log(`✅ Progressive sphere conversion complete for chunk ${currentIndex}:`, {
+      chunkVertices: pointCloud.geometry.attributes.position.count,
+      totalSphereChunks: this.instancedMeshes.length,
+      totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0)
+    })
+  }
+
+  /**
+   * Enable sphere mode - sets the flag so progressive loading will create spheres
+   */
+  enableSphereMode(): void {
+    console.log('🔄 Enabling sphere mode for progressive loading')
+    this.isSpheresEnabled = true
+  }
+
+  /**
+   * Disable sphere mode and revert any existing spheres
+   */
+  disableSphereMode(): void {
+    console.log('🔄 Disabling sphere mode')
+    this.revertToPointClouds()
+  }
   
   /**
    * Convert a single point cloud to instanced spheres
@@ -231,10 +280,33 @@ export class SphereInstancer {
   toggleSpheres(): void {
     console.log(`Toggling spheres. Currently enabled: ${this.isSpheresEnabled}, radius: ${this.sphereRadius}`)
     if (this.isSpheresEnabled) {
-      this.revertToPointClouds()
+      this.disableSphereMode()
     } else {
-      this.convertPointCloudsToSpheres()
+      this.enableSphereMode()
+      // Convert any existing point clouds to spheres individually to avoid pop-in
+      this.convertExistingPointCloudsProgressively()
     }
+  }
+
+  /**
+   * Convert existing point clouds progressively to avoid pop-in effect
+   */
+  private convertExistingPointCloudsProgressively(): void {
+    const pointClouds: THREE.Points[] = []
+    this.scene.traverse((child) => {
+      if (child instanceof THREE.Points) {
+        pointClouds.push(child)
+      }
+    })
+
+    console.log(`🔄 Converting ${pointClouds.length} existing point clouds to spheres progressively`)
+
+    // Convert each point cloud with a small delay to avoid pop-in
+    pointClouds.forEach((pointCloud, index) => {
+      setTimeout(() => {
+        this.convertSinglePointCloudToSpheresProgressive(pointCloud)
+      }, index * 50) // 50ms delay between each conversion
+    })
   }
   
   /**

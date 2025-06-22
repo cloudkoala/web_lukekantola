@@ -41,7 +41,7 @@ class ChunkInfo:
     file_size: int
 
 class PLYChunker:
-    def __init__(self, target_chunk_size_mb: float = 1.0):
+    def __init__(self, target_chunk_size_mb: float = 0.2):
         """
         Initialize PLY chunker.
         
@@ -393,7 +393,7 @@ def auto_chunk_pointcloud_models():
     # Define paths
     pointcloud_dir = "public/models/base/pointcloud"
     chunks_dir = "public/models/chunks"
-    chunk_size_mb = 1.0
+    chunk_size_mb = 0.2
     
     if not os.path.exists(pointcloud_dir):
         print(f"Error: Pointcloud directory '{pointcloud_dir}' not found")
@@ -447,7 +447,7 @@ def main():
         # Manual mode - original functionality
         input_file = sys.argv[1]
         output_dir = sys.argv[2]
-        chunk_size_mb = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0
+        chunk_size_mb = float(sys.argv[3]) if len(sys.argv) > 3 else 0.2
         
         if not os.path.exists(input_file):
             print(f"Error: Input file '{input_file}' not found")
@@ -467,7 +467,7 @@ def main():
         print("  Manual mode: python ply_chunker.py <input_ply_file> <output_directory> [chunk_size_mb]")
         print("Examples:")
         print("  python ply_chunker.py")
-        print("  python ply_chunker.py Castleton_001.ply ./chunks 1.0")
+        print("  python ply_chunker.py Castleton_001.ply ./chunks 0.2")
         sys.exit(1)
 
 if __name__ == "__main__":

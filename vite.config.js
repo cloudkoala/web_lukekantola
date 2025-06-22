@@ -27,10 +27,8 @@ export default defineConfig({
             './src/effects/index.ts',
             './src/effects/EffectsChainManager.ts',
             './src/effects/PostProcessingPass.ts',
-            './src/effects/TSLPostProcessingPass.ts',
             './src/effects/ASCIIDitheringPass.ts',
-            './src/effects/HalftoneDitheringPass.ts',
-            './src/effects/TSLEffect.ts'
+            './src/effects/HalftoneDitheringPass.ts'
           ],
           
           // Interface and UI components

@@ -1,7 +1,7 @@
 {
   "original_file": "Corona_Arch_001_hd02.ply",
   "total_vertices": 641178,
-  "chunk_count": 13,
+  "chunk_count": 62,
   "overall_bounding_box": {
     "min": {
       "x": -6.03534455998441,
@@ -14,11 +14,83 @@
       "z": 9.723845704443342
     }
   },
-  "target_chunk_size_mb": 1.0,
+  "target_chunk_size_mb": 0.2,
   "chunks": [
     {
       "filename": "Corona_Arch_001_hd02_chunk_000.ply",
-      "vertex_count": 52428,
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.25635359404705227,
+          "y": -0.23402021922590485,
+          "z": -0.21392450757204745
+        },
+        "max": {
+          "x": 0.17058109218740136,
+          "y": -0.05311401229950884,
+          "z": 0.22921733021047871
+        }
+      },
+      "priority": 0,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_001.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.32821641037039895,
+          "y": -0.2607120510117298,
+          "z": -0.27851045295288424
+        },
+        "max": {
+          "x": 0.23385829990663906,
+          "y": 0.03791243586149136,
+          "z": 0.3014367222286815
+        }
+      },
+      "priority": 1,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_002.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.3791077702911907,
+          "y": -0.2847808425763829,
+          "z": -0.3265803390495008
+        },
+        "max": {
+          "x": 0.35176437763069207,
+          "y": 0.30215939700727984,
+          "z": 0.35569325638288224
+        }
+      },
+      "priority": 2,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_003.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.4097763300514135,
+          "y": -0.28783633300536815,
+          "z": -0.3565585974750408
+        },
+        "max": {
+          "x": 0.38709479037886535,
+          "y": 0.3904996884539031,
+          "z": 0.38455202492350543
+        }
+      },
+      "priority": 3,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_004.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.4396074969461049,
@@ -31,12 +103,84 @@
           "z": 0.4188941239481969
         }
       },
-      "priority": 0,
-      "file_size_bytes": 786719
+      "priority": 4,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_001.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_005.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.4645577001859855,
+          "y": -0.312844348447464,
+          "z": -0.41092860800693315
+        },
+        "max": {
+          "x": 0.4524390966540737,
+          "y": 0.4625729462730326,
+          "z": 0.443833044349296
+        }
+      },
+      "priority": 5,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_006.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.48777018235655634,
+          "y": -0.3119122155547025,
+          "z": -0.43202792898447545
+        },
+        "max": {
+          "x": 0.4731007140385497,
+          "y": 0.4858760536808554,
+          "z": 0.46871347959387055
+        }
+      },
+      "priority": 6,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_007.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.5079772234467769,
+          "y": -0.3196390823605242,
+          "z": -0.4533421416395232
+        },
+        "max": {
+          "x": 0.4928559726803084,
+          "y": 0.5084852116903931,
+          "z": 0.490551829225136
+        }
+      },
+      "priority": 7,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_008.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.5269984723714671,
+          "y": -0.33119926080875184,
+          "z": -0.47353738215030794
+        },
+        "max": {
+          "x": 0.5131676125783894,
+          "y": 0.5267666037933958,
+          "z": 0.5101229914469086
+        }
+      },
+      "priority": 8,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_009.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.544663445925071,
@@ -49,12 +193,84 @@
           "z": 0.5371121887170676
         }
       },
-      "priority": 1,
-      "file_size_bytes": 786719
+      "priority": 9,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_002.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_010.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.5626950623529152,
+          "y": -0.33739028198393595,
+          "z": -0.5096119488590566
+        },
+        "max": {
+          "x": 0.5425795788672881,
+          "y": 0.562481618612585,
+          "z": 0.5443994372662722
+        }
+      },
+      "priority": 10,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_011.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.5795812052616346,
+          "y": -0.3490308122620978,
+          "z": -0.5193029185638187
+        },
+        "max": {
+          "x": 0.5624256700596425,
+          "y": 0.5771376832003258,
+          "z": 0.5653224756916869
+        }
+      },
+      "priority": 11,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_012.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.5952632885515581,
+          "y": -0.3499714840767155,
+          "z": -0.5332040119931681
+        },
+        "max": {
+          "x": 0.5739269237602244,
+          "y": 0.5906916461741722,
+          "z": 0.5815300407810365
+        }
+      },
+      "priority": 12,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_013.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.6088281208229093,
+          "y": -0.3447866066579778,
+          "z": -0.5498065307103842
+        },
+        "max": {
+          "x": 0.5842818247594384,
+          "y": 0.6053092036650918,
+          "z": 0.5952428969505777
+        }
+      },
+      "priority": 13,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_014.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.6217016434135237,
@@ -67,12 +283,84 @@
           "z": 0.6061212619717005
         }
       },
-      "priority": 2,
-      "file_size_bytes": 786719
+      "priority": 14,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_003.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_015.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.6353247014283673,
+          "y": -0.36330538013733665,
+          "z": -0.5750615268964346
+        },
+        "max": {
+          "x": 0.6098444609225508,
+          "y": 0.633358061925845,
+          "z": 0.625591911954926
+        }
+      },
+      "priority": 15,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_016.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.6500303996526453,
+          "y": -0.37053165902612345,
+          "z": -0.588913710657834
+        },
+        "max": {
+          "x": 0.6257066560917034,
+          "y": 0.6499361513162252,
+          "z": 0.6350110580476207
+        }
+      },
+      "priority": 16,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_017.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.6652114803988466,
+          "y": -0.36983385316548234,
+          "z": -0.6031911765782433
+        },
+        "max": {
+          "x": 0.634532518067495,
+          "y": 0.6652799545852225,
+          "z": 0.6529789608981217
+        }
+      },
+      "priority": 17,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_018.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.6797278027680416,
+          "y": -0.37229735437190464,
+          "z": -0.6182166778860181
+        },
+        "max": {
+          "x": 0.6581184225842667,
+          "y": 0.6809875015978798,
+          "z": 0.6732571148068567
+        }
+      },
+      "priority": 18,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_019.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.6963627719932957,
@@ -81,20 +369,92 @@
         },
         "max": {
           "x": 0.6662775073201243,
-          "y": 0.6957789602510002,
+          "y": 0.695101986667871,
           "z": 0.687135021704022
         }
       },
-      "priority": 3,
-      "file_size_bytes": 786719
+      "priority": 19,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_004.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_020.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.7113681921274003,
+          "y": -0.3813198644509597,
+          "z": -0.6496857026867575
+        },
+        "max": {
+          "x": 0.6809914351243584,
+          "y": 0.7107103684360099,
+          "z": 0.6982248637022357
+        }
+      },
+      "priority": 20,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_021.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.7268112116551944,
+          "y": -0.39027434102017045,
+          "z": -0.6670615642150073
+        },
+        "max": {
+          "x": 0.6897136805884988,
+          "y": 0.7195989074224262,
+          "z": 0.7168712933578282
+        }
+      },
+      "priority": 21,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_022.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.7418113013399237,
+          "y": -0.39977207840749346,
+          "z": -0.6790778461296083
+        },
+        "max": {
+          "x": 0.7008624212845141,
+          "y": 0.7321331666104952,
+          "z": 0.7314900415437109
+        }
+      },
+      "priority": 22,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_023.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.756936123105872,
+          "y": -0.395118479963933,
+          "z": -0.69215000963657
+        },
+        "max": {
+          "x": 0.7141039825868557,
+          "y": 0.7401523018144635,
+          "z": 0.7427525429948839
+        }
+      },
+      "priority": 23,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_024.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.7717511308181753,
-          "y": -0.39977207840749346,
+          "y": -0.39895691582778076,
           "z": -0.7049088391046855
         },
         "max": {
@@ -103,12 +463,84 @@
           "z": 0.7626463531602249
         }
       },
-      "priority": 4,
-      "file_size_bytes": 786719
+      "priority": 24,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_005.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_025.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.7875583087163165,
+          "y": -0.4043736097249014,
+          "z": -0.7235561490279309
+        },
+        "max": {
+          "x": 0.744099502290428,
+          "y": 0.7517566021863538,
+          "z": 0.7763074005312355
+        }
+      },
+      "priority": 25,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_026.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.8025672998499008,
+          "y": -0.41138799809532006,
+          "z": -0.7407530893719148
+        },
+        "max": {
+          "x": 0.7584034164006009,
+          "y": 0.7519096971208871,
+          "z": 0.7949564709897866
+        }
+      },
+      "priority": 26,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_027.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.8215880321193473,
+          "y": -0.41823829306989,
+          "z": -0.7603329457291987
+        },
+        "max": {
+          "x": 0.7697854746972727,
+          "y": 0.7612320582735796,
+          "z": 0.8103424033693633
+        }
+      },
+      "priority": 27,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_028.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.8355960536467952,
+          "y": -0.42359595910539805,
+          "z": -0.7757861105859097
+        },
+        "max": {
+          "x": 0.7802499956118224,
+          "y": 0.7496088153232943,
+          "z": 0.8267253707431875
+        }
+      },
+      "priority": 28,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_029.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.8520141644313046,
@@ -117,16 +549,88 @@
         },
         "max": {
           "x": 0.7946161200062445,
-          "y": 0.7612320582735796,
+          "y": 0.7590029101491221,
           "z": 0.8443266839045469
         }
       },
-      "priority": 5,
-      "file_size_bytes": 786719
+      "priority": 29,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_006.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_030.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.8688061632029807,
+          "y": -0.43802183641543035,
+          "z": -0.8138449134669572
+        },
+        "max": {
+          "x": 0.8172582994495728,
+          "y": 0.7587332595282273,
+          "z": 0.8593994385443425
+        }
+      },
+      "priority": 30,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_031.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.8879008553218336,
+          "y": -0.4461770907387761,
+          "z": -0.8275795071460973
+        },
+        "max": {
+          "x": 0.8321055514419807,
+          "y": 0.7708963214609563,
+          "z": 0.8790211146703056
+        }
+      },
+      "priority": 31,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_032.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.9015830714475107,
+          "y": -0.4480873160473901,
+          "z": -0.8433026840652917
+        },
+        "max": {
+          "x": 0.839488807777501,
+          "y": 0.7781834147965058,
+          "z": 0.8952144467760146
+        }
+      },
+      "priority": 32,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_033.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.9212732716887178,
+          "y": -0.4593654474051005,
+          "z": -0.8620203828384639
+        },
+        "max": {
+          "x": 0.854087525803992,
+          "y": 0.7763103506760943,
+          "z": 0.9142591427313314
+        }
+      },
+      "priority": 33,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_034.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.9420279988143392,
@@ -139,12 +643,84 @@
           "z": 0.9343938271229755
         }
       },
-      "priority": 6,
-      "file_size_bytes": 786719
+      "priority": 34,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_007.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_035.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.960346862532855,
+          "y": -0.47410613274099844,
+          "z": -0.9007021775129372
+        },
+        "max": {
+          "x": 0.8828404256068486,
+          "y": 0.800796506332522,
+          "z": 0.9559986008259626
+        }
+      },
+      "priority": 35,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_036.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.9742751281205555,
+          "y": -0.4762894244563317,
+          "z": -0.925440386035073
+        },
+        "max": {
+          "x": 0.8978377713746526,
+          "y": 0.814368274374899,
+          "z": 0.9791009974402322
+        }
+      },
+      "priority": 36,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_037.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.9976414823793458,
+          "y": -0.4704269265499998,
+          "z": -0.9502847986867197
+        },
+        "max": {
+          "x": 0.9175538510506909,
+          "y": 0.8233462479036042,
+          "z": 1.0007580455827154
+        }
+      },
+      "priority": 37,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_038.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.0172563258482494,
+          "y": -0.47417973114881623,
+          "z": -0.9767969071701585
+        },
+        "max": {
+          "x": 0.9386253269155729,
+          "y": 0.8356349742848935,
+          "z": 1.0266801294360102
+        }
+      },
+      "priority": 38,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_039.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.0365128092079674,
@@ -157,12 +733,84 @@
           "z": 1.0537284338027246
         }
       },
-      "priority": 7,
-      "file_size_bytes": 786719
+      "priority": 39,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_008.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_040.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.0592094349965546,
+          "y": -0.4882647668699067,
+          "z": -1.039332807959713
+        },
+        "max": {
+          "x": 0.9934220946789045,
+          "y": 0.8626242757544293,
+          "z": 1.0838700095558373
+        }
+      },
+      "priority": 40,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_041.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.0807046918981726,
+          "y": -0.49276177535816645,
+          "z": -1.0642209029439014
+        },
+        "max": {
+          "x": 1.0206445064357532,
+          "y": 0.8832935007788304,
+          "z": 1.1122105707160352
+        }
+      },
+      "priority": 41,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_042.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.0943025401762636,
+          "y": -0.5140194707053392,
+          "z": -1.0986184023893963
+        },
+        "max": {
+          "x": 1.0508404265055682,
+          "y": 0.903505199364117,
+          "z": 1.1436830047901383
+        }
+      },
+      "priority": 42,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_043.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.1322641966757205,
+          "y": -0.520427326442244,
+          "z": -1.1326319770598254
+        },
+        "max": {
+          "x": 1.0809676151467955,
+          "y": 0.9165113731885961,
+          "z": 1.1785181589852418
+        }
+      },
+      "priority": 43,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_044.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.147514122818578,
@@ -175,15 +823,87 @@
           "z": 1.218056938178927
         }
       },
-      "priority": 8,
-      "file_size_bytes": 786719
+      "priority": 44,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_009.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_045.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.1565302886751532,
+          "y": -0.5569978224875511,
+          "z": -1.2059069217911056
+        },
+        "max": {
+          "x": 1.149735295349061,
+          "y": 0.9740984320271507,
+          "z": 1.2548398934975347
+        }
+      },
+      "priority": 45,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_046.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.1774404877835936,
+          "y": -0.5621555016980936,
+          "z": -1.2554529006027497
+        },
+        "max": {
+          "x": 1.1874899207115086,
+          "y": 0.9899427190138063,
+          "z": 1.302922511455518
+        }
+      },
+      "priority": 46,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_047.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.2786267226336643,
+          "y": -0.5766986336986408,
+          "z": -1.3012093760121095
+        },
+        "max": {
+          "x": 1.23638336177932,
+          "y": 1.0086800854193714,
+          "z": 1.3499846050576307
+        }
+      },
+      "priority": 47,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_048.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.2084032349471547,
+          "y": -0.5828051632894787,
+          "z": -1.3573237579214612
+        },
+        "max": {
+          "x": 1.2952421816110011,
+          "y": 1.0293148410728066,
+          "z": 1.4042034591975643
+        }
+      },
+      "priority": 48,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_049.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.2261333124885374,
           "y": -0.5854174633769568,
           "z": -1.4226746873695646
         },
@@ -193,16 +913,88 @@
           "z": 1.4712883314021545
         }
       },
-      "priority": 9,
-      "file_size_bytes": 786719
+      "priority": 49,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_010.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_050.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
-          "x": -1.5909160867477028,
+          "x": -1.2588255522268625,
+          "y": -0.6089828210790931,
+          "z": -1.5031319649024175
+        },
+        "max": {
+          "x": 1.4560714342909586,
+          "y": 1.1057739364137185,
+          "z": 1.5504943372297768
+        }
+      },
+      "priority": 50,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_051.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.2837505967442688,
+          "y": -0.6439158998948836,
+          "z": -1.589010106478288
+        },
+        "max": {
+          "x": 1.5516710738182071,
+          "y": 1.1311011362555106,
+          "z": 1.6359046995820086
+        }
+      },
+      "priority": 51,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_052.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.3568600272777795,
+          "y": -0.6696438461986524,
+          "z": -1.6953998085671842
+        },
+        "max": {
+          "x": 1.6590968433366977,
+          "y": 1.1693309867554056,
+          "z": 1.7395912853139834
+        }
+      },
+      "priority": 52,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_053.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.4645598954280667,
           "y": -0.684461856155503,
+          "z": -1.8058071672774028
+        },
+        "max": {
+          "x": 1.7463782031883648,
+          "y": 1.2518721867019602,
+          "z": 1.8504644478013204
+        }
+      },
+      "priority": 53,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_054.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.5906436379393738,
+          "y": -0.6809168023206426,
           "z": -1.9304758931042973
         },
         "max": {
@@ -211,12 +1003,84 @@
           "z": 1.9778677668802458
         }
       },
-      "priority": 10,
-      "file_size_bytes": 786719
+      "priority": 54,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_011.ply",
-      "vertex_count": 52428,
+      "filename": "Corona_Arch_001_hd02_chunk_055.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.7756493385923113,
+          "y": -0.7569168169150678,
+          "z": -2.120272366338864
+        },
+        "max": {
+          "x": 1.698794624267095,
+          "y": 1.3527183733979278,
+          "z": 2.1578692490404037
+        }
+      },
+      "priority": 55,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_056.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.0138808950313805,
+          "y": -0.7872875705144251,
+          "z": -2.3586024780219326
+        },
+        "max": {
+          "x": 1.9566047877563353,
+          "y": 1.6135368380233326,
+          "z": 2.390471987700796
+        }
+      },
+      "priority": 56,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_057.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.155099249708425,
+          "y": -0.7990080119459897,
+          "z": -2.5109192494375825
+        },
+        "max": {
+          "x": 1.9769800424594337,
+          "y": 1.8031781518732113,
+          "z": 2.536956861093802
+        }
+      },
+      "priority": 57,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_058.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.3362201153833024,
+          "y": -0.8525680611837337,
+          "z": -2.7060081392749145
+        },
+        "max": {
+          "x": 2.0145342685410483,
+          "y": 1.9976463716094843,
+          "z": 2.7372946642940374
+        }
+      },
+      "priority": 58,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_059.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -2.595597470063659,
@@ -224,17 +1088,35 @@
           "z": -2.9673650758887344
         },
         "max": {
-          "x": 2.0145342685410483,
+          "x": 1.7104963228357368,
           "y": 2.1046028097677842,
           "z": 3.030914463234578
         }
       },
-      "priority": 11,
-      "file_size_bytes": 786719
+      "priority": 59,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Corona_Arch_001_hd02_chunk_012.ply",
-      "vertex_count": 12042,
+      "filename": "Corona_Arch_001_hd02_chunk_060.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -4.602961616667617,
+          "y": -1.1887863237718652,
+          "z": -3.477244809548593
+        },
+        "max": {
+          "x": 3.1602356695325513,
+          "y": 2.2331557518889382,
+          "z": 5.078447165724658
+        }
+      },
+      "priority": 60,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Corona_Arch_001_hd02_chunk_061.ply",
+      "vertex_count": 1593,
       "bounding_box": {
         "min": {
           "x": -6.03534455998441,
@@ -247,8 +1129,8 @@
           "z": 9.723845704443342
         }
       },
-      "priority": 12,
-      "file_size_bytes": 180929
+      "priority": 61,
+      "file_size_bytes": 24193
     }
   ]
 }

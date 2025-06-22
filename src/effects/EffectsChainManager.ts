@@ -101,22 +101,6 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     }
   },
   {
-    type: 'tsl',
-    name: 'TSL Effects (WebGPU)',
-    defaultParameters: { 
-      tslEffectType: 0, // 0=crt, 1=wave, 2=noise, 3=hologram
-      intensity: 50, 
-      speed: 1.0, 
-      scale: 1.0 
-    },
-    parameterDefinitions: {
-      tslEffectType: { min: 0, max: 3, step: 1, label: 'Effect Type (0=CRT, 1=Wave, 2=Noise, 3=Hologram)' },
-      intensity: { min: 0, max: 100, step: 1, label: 'Intensity (%)' },
-      speed: { min: 0.1, max: 5.0, step: 0.1, label: 'Animation Speed' },
-      scale: { min: 0.1, max: 10.0, step: 0.1, label: 'Scale' }
-    }
-  },
-  {
     type: 'gamma',
     name: 'Gamma Correction',
     defaultParameters: { 

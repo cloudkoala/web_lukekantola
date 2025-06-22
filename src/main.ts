@@ -3179,6 +3179,9 @@ async function initialize() {
       modelManager.setupModelDropdown()
       modelManager.setupQualityDropdown()
       
+      // Set up progressive sphere conversion
+      modelManager.setupProgressiveSphereConversion()
+      
       // Setup camera system defaults after configs are loaded
       orbitalCamera.updateDisplayNameField()
       orbitalCamera.loadDefaultPointSize()

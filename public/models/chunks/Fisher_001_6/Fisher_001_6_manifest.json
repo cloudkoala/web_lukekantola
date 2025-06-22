@@ -1,7 +1,7 @@
 {
   "original_file": "Fisher_001_6.ply",
   "total_vertices": 703006,
-  "chunk_count": 14,
+  "chunk_count": 68,
   "overall_bounding_box": {
     "min": {
       "x": -2.53760123,
@@ -14,16 +14,88 @@
       "z": 1.48265934
     }
   },
-  "target_chunk_size_mb": 1.0,
+  "target_chunk_size_mb": 0.2,
   "chunks": [
     {
       "filename": "Fisher_001_6_chunk_000.ply",
-      "vertex_count": 52428,
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.107443608,
+          "y": 0.267779678,
+          "z": -0.169084877
+        },
+        "max": {
+          "x": 0.218568355,
+          "y": 0.423443645,
+          "z": 0.316841662
+        }
+      },
+      "priority": 0,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_001.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.153071329,
+          "y": 0.256426781,
+          "z": -0.249576807
+        },
+        "max": {
+          "x": 0.28437227,
+          "y": 0.4844248,
+          "z": 0.409753472
+        }
+      },
+      "priority": 1,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_002.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.270225972,
+          "y": 0.252958804,
+          "z": -0.271977395
+        },
+        "max": {
+          "x": 0.32280454,
+          "y": 0.528296709,
+          "z": 0.465042889
+        }
+      },
+      "priority": 2,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_003.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.33942759,
+          "y": 0.245838448,
+          "z": -0.277919739
+        },
+        "max": {
+          "x": 0.33487007,
+          "y": 0.559398711,
+          "z": 0.504791617
+        }
+      },
+      "priority": 3,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_004.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.381223232,
           "y": 0.239704207,
-          "z": -0.277919739
+          "z": -0.27592203
         },
         "max": {
           "x": 0.345536411,
@@ -31,16 +103,88 @@
           "z": 0.545079648
         }
       },
-      "priority": 0,
-      "file_size_bytes": 786719
+      "priority": 4,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_001.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_005.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.523183286,
+          "y": 0.23671408,
+          "z": -0.306244701
+        },
+        "max": {
+          "x": 0.360355616,
+          "y": 0.602399528,
+          "z": 0.580657125
+        }
+      },
+      "priority": 5,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_006.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.568091452,
+          "y": 0.233272776,
+          "z": -0.342636645
+        },
+        "max": {
+          "x": 0.433964014,
+          "y": 0.61926657,
+          "z": 0.609481514
+        }
+      },
+      "priority": 6,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_007.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.60375917,
+          "y": 0.231137544,
+          "z": -0.36337027
+        },
+        "max": {
+          "x": 0.494355977,
+          "y": 0.633746505,
+          "z": 0.634025693
+        }
+      },
+      "priority": 7,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_008.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.630026758,
+          "y": 0.232798502,
+          "z": -0.387748748
+        },
+        "max": {
+          "x": 0.525191903,
+          "y": 0.648185492,
+          "z": 0.6530568
+        }
+      },
+      "priority": 8,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_009.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.654204905,
-          "y": 0.231137544,
+          "y": 0.238850906,
           "z": -0.404826164
         },
         "max": {
@@ -49,12 +193,84 @@
           "z": 0.67114681
         }
       },
-      "priority": 1,
-      "file_size_bytes": 786719
+      "priority": 9,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_002.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_010.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.674227834,
+          "y": 0.236975297,
+          "z": -0.420337975
+        },
+        "max": {
+          "x": 0.561353207,
+          "y": 0.675854623,
+          "z": 0.688503206
+        }
+      },
+      "priority": 10,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_011.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.69457978,
+          "y": 0.233724624,
+          "z": -0.429372519
+        },
+        "max": {
+          "x": 0.595323503,
+          "y": 0.685424864,
+          "z": 0.707167327
+        }
+      },
+      "priority": 11,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_012.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.714054406,
+          "y": 0.225103408,
+          "z": -0.442646235
+        },
+        "max": {
+          "x": 0.621631205,
+          "y": 0.69348973,
+          "z": 0.726177156
+        }
+      },
+      "priority": 12,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_013.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.735501766,
+          "y": 0.217109591,
+          "z": -0.458267987
+        },
+        "max": {
+          "x": 0.639952719,
+          "y": 0.705846548,
+          "z": 0.74755466
+        }
+      },
+      "priority": 13,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_014.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.75594008,
@@ -67,12 +283,84 @@
           "z": 0.766154051
         }
       },
-      "priority": 2,
-      "file_size_bytes": 786719
+      "priority": 14,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_003.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_015.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.776138186,
+          "y": 0.20520322,
+          "z": -0.482305288
+        },
+        "max": {
+          "x": 0.675837457,
+          "y": 0.740813851,
+          "z": 0.783876121
+        }
+      },
+      "priority": 15,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_016.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.794041455,
+          "y": 0.198357895,
+          "z": -0.49777171
+        },
+        "max": {
+          "x": 0.68516016,
+          "y": 0.756634653,
+          "z": 0.800212085
+        }
+      },
+      "priority": 16,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_017.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.811563015,
+          "y": 0.194559932,
+          "z": -0.508060515
+        },
+        "max": {
+          "x": 0.691802442,
+          "y": 0.770502269,
+          "z": 0.816484869
+        }
+      },
+      "priority": 17,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_018.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.825461566,
+          "y": 0.19381766,
+          "z": -0.51947087
+        },
+        "max": {
+          "x": 0.697478116,
+          "y": 0.774793386,
+          "z": 0.827875435
+        }
+      },
+      "priority": 18,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_019.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.839844882,
@@ -81,16 +369,88 @@
         },
         "max": {
           "x": 0.703455031,
-          "y": 0.774793386,
+          "y": 0.774334311,
           "z": 0.844288349
         }
       },
-      "priority": 3,
-      "file_size_bytes": 786719
+      "priority": 19,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_004.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_020.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.85429889,
+          "y": 0.179031879,
+          "z": -0.546199977
+        },
+        "max": {
+          "x": 0.716115236,
+          "y": 0.786731541,
+          "z": 0.8595047
+        }
+      },
+      "priority": 20,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_021.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.86861068,
+          "y": 0.17684865,
+          "z": -0.561730683
+        },
+        "max": {
+          "x": 0.753192663,
+          "y": 0.797549784,
+          "z": 0.873399734
+        }
+      },
+      "priority": 21,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_022.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.882912815,
+          "y": 0.170453832,
+          "z": -0.572993934
+        },
+        "max": {
+          "x": 0.772787929,
+          "y": 0.807646751,
+          "z": 0.887537897
+        }
+      },
+      "priority": 22,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_023.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.897843301,
+          "y": 0.169770434,
+          "z": -0.585329294
+        },
+        "max": {
+          "x": 0.786851704,
+          "y": 0.821113408,
+          "z": 0.901568532
+        }
+      },
+      "priority": 23,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_024.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -0.915820301,
@@ -103,16 +463,88 @@
           "z": 0.919061303
         }
       },
-      "priority": 4,
-      "file_size_bytes": 786719
+      "priority": 24,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_005.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_025.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.935324311,
+          "y": 0.157756254,
+          "z": -0.618784308
+        },
+        "max": {
+          "x": 0.81899339,
+          "y": 0.855760574,
+          "z": 0.935651779
+        }
+      },
+      "priority": 25,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_026.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.951081395,
+          "y": 0.155283064,
+          "z": -0.635710418
+        },
+        "max": {
+          "x": 0.837738991,
+          "y": 0.868629932,
+          "z": 0.951771259
+        }
+      },
+      "priority": 26,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_027.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.967189968,
+          "y": 0.15411596,
+          "z": -0.651713312
+        },
+        "max": {
+          "x": 0.854463041,
+          "y": 0.883026302,
+          "z": 0.967797577
+        }
+      },
+      "priority": 27,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_028.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -0.982707024,
+          "y": 0.156677783,
+          "z": -0.665895224
+        },
+        "max": {
+          "x": 0.867052972,
+          "y": 0.899399459,
+          "z": 0.98239845
+        }
+      },
+      "priority": 28,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_029.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.00028908,
-          "y": 0.15411596,
+          "y": 0.156701624,
           "z": -0.681147337
         },
         "max": {
@@ -121,12 +553,84 @@
           "z": 0.998806417
         }
       },
-      "priority": 5,
-      "file_size_bytes": 786719
+      "priority": 29,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_006.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_030.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.01746416,
+          "y": 0.152901307,
+          "z": -0.69713819
+        },
+        "max": {
+          "x": 0.896195352,
+          "y": 0.933074951,
+          "z": 1.01463735
+        }
+      },
+      "priority": 30,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_031.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.03446066,
+          "y": 0.152232066,
+          "z": -0.711767137
+        },
+        "max": {
+          "x": 0.909964383,
+          "y": 0.949294865,
+          "z": 1.03123081
+        }
+      },
+      "priority": 31,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_032.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.05289209,
+          "y": 0.143959194,
+          "z": -0.727298021
+        },
+        "max": {
+          "x": 0.92525351,
+          "y": 0.967799187,
+          "z": 1.04726017
+        }
+      },
+      "priority": 32,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_033.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.07147467,
+          "y": 0.138539702,
+          "z": -0.741886079
+        },
+        "max": {
+          "x": 0.941669643,
+          "y": 0.9870947,
+          "z": 1.06413782
+        }
+      },
+      "priority": 33,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_034.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.0917536,
@@ -139,12 +643,84 @@
           "z": 1.0820688
         }
       },
-      "priority": 6,
-      "file_size_bytes": 786719
+      "priority": 34,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_007.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_035.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.11044168,
+          "y": 0.125101104,
+          "z": -0.77112025
+        },
+        "max": {
+          "x": 0.972241521,
+          "y": 1.02523172,
+          "z": 1.10233486
+        }
+      },
+      "priority": 35,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_036.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.13184285,
+          "y": 0.124064244,
+          "z": -0.784688294
+        },
+        "max": {
+          "x": 1.00624478,
+          "y": 1.04700696,
+          "z": 1.12458646
+        }
+      },
+      "priority": 36,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_037.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.15409219,
+          "y": 0.124893546,
+          "z": -0.805466771
+        },
+        "max": {
+          "x": 1.03833044,
+          "y": 1.07002306,
+          "z": 1.14732063
+        }
+      },
+      "priority": 37,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_038.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.17766607,
+          "y": 0.121649824,
+          "z": -0.829991043
+        },
+        "max": {
+          "x": 1.07028377,
+          "y": 1.09757507,
+          "z": 1.17020345
+        }
+      },
+      "priority": 38,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_039.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.20525301,
@@ -157,30 +733,174 @@
           "z": 1.19612122
         }
       },
-      "priority": 7,
-      "file_size_bytes": 786719
+      "priority": 39,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_008.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_040.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
-          "x": -1.37395215,
+          "x": -1.23353994,
+          "y": 0.108384669,
+          "z": -0.891849518
+        },
+        "max": {
+          "x": 1.11261821,
+          "y": 1.15323246,
+          "z": 1.224895
+        }
+      },
+      "priority": 40,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_041.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.2596662,
+          "y": 0.0979723707,
+          "z": -0.931433141
+        },
+        "max": {
+          "x": 1.13966596,
+          "y": 1.17551529,
+          "z": 1.25026143
+        }
+      },
+      "priority": 41,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_042.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.29410398,
+          "y": 0.0908821672,
+          "z": -0.963785768
+        },
+        "max": {
+          "x": 1.16874039,
+          "y": 1.18639314,
+          "z": 1.28530109
+        }
+      },
+      "priority": 42,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_043.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.33298814,
+          "y": 0.0912672207,
+          "z": -1.01287901
+        },
+        "max": {
+          "x": 1.197155,
+          "y": 1.02039337,
+          "z": 1.32461584
+        }
+      },
+      "priority": 43,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_044.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.37224805,
           "y": 0.0817014799,
           "z": -1.06163812
         },
         "max": {
           "x": 1.23120785,
-          "y": 1.18639314,
+          "y": 1.07188559,
           "z": 1.36043584
         }
       },
-      "priority": 8,
-      "file_size_bytes": 786719
+      "priority": 44,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_009.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_045.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.41185105,
+          "y": 0.0695975572,
+          "z": -1.1123724
+        },
+        "max": {
+          "x": 1.26088881,
+          "y": 1.11824858,
+          "z": 1.38288212
+        }
+      },
+      "priority": 45,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_046.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.44508886,
+          "y": 0.064050734,
+          "z": -1.15970552
+        },
+        "max": {
+          "x": 1.28662026,
+          "y": 1.15784395,
+          "z": 1.42693937
+        }
+      },
+      "priority": 46,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_047.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.4801476,
+          "y": 0.059495043,
+          "z": -1.20252299
+        },
+        "max": {
+          "x": 1.30721891,
+          "y": 1.17970014,
+          "z": 1.44247031
+        }
+      },
+      "priority": 47,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_048.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.51620853,
+          "y": 0.0566465072,
+          "z": -1.23824263
+        },
+        "max": {
+          "x": 1.33127427,
+          "y": 1.19240677,
+          "z": 1.44784272
+        }
+      },
+      "priority": 48,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_049.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.53806269,
@@ -193,12 +913,84 @@
           "z": 1.46144223
         }
       },
-      "priority": 9,
-      "file_size_bytes": 786719
+      "priority": 49,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_010.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_050.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.56302106,
+          "y": 0.0493548475,
+          "z": -1.28549504
+        },
+        "max": {
+          "x": 1.39536595,
+          "y": 1.21932101,
+          "z": 1.46978617
+        }
+      },
+      "priority": 50,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_051.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.58727849,
+          "y": 0.0445274487,
+          "z": -1.30506337
+        },
+        "max": {
+          "x": 1.42992485,
+          "y": 1.2409724,
+          "z": 1.46515894
+        }
+      },
+      "priority": 51,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_052.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.61095083,
+          "y": 0.0399930179,
+          "z": -1.3240689
+        },
+        "max": {
+          "x": 1.47078896,
+          "y": 1.26523173,
+          "z": 1.48190796
+        }
+      },
+      "priority": 52,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_053.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.63912547,
+          "y": 0.0382493846,
+          "z": -1.34793389
+        },
+        "max": {
+          "x": 1.50986588,
+          "y": 1.28118801,
+          "z": 1.44808459
+        }
+      },
+      "priority": 53,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_054.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.66762316,
@@ -208,15 +1000,87 @@
         "max": {
           "x": 1.55024886,
           "y": 1.29687679,
-          "z": 1.48190796
+          "z": 1.45124567
         }
       },
-      "priority": 10,
-      "file_size_bytes": 786719
+      "priority": 54,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_011.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_055.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.69384944,
+          "y": 0.0356413499,
+          "z": -1.39685988
+        },
+        "max": {
+          "x": 1.58532751,
+          "y": 1.3327626,
+          "z": 1.43135905
+        }
+      },
+      "priority": 55,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_056.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.72228336,
+          "y": 0.0367605351,
+          "z": -1.42092752
+        },
+        "max": {
+          "x": 1.61567652,
+          "y": 1.34577751,
+          "z": 1.47686124
+        }
+      },
+      "priority": 56,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_057.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.75406969,
+          "y": 0.0355251096,
+          "z": -1.44906843
+        },
+        "max": {
+          "x": 1.66173446,
+          "y": 1.36055326,
+          "z": 1.47756588
+        }
+      },
+      "priority": 57,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_058.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.79062259,
+          "y": 0.0358024091,
+          "z": -1.4757781
+        },
+        "max": {
+          "x": 1.68786812,
+          "y": 1.37931275,
+          "z": 1.47811902
+        }
+      },
+      "priority": 58,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_059.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -1.82779753,
@@ -229,30 +1093,120 @@
           "z": 1.48265934
         }
       },
-      "priority": 11,
-      "file_size_bytes": 786719
+      "priority": 59,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_012.ply",
-      "vertex_count": 52428,
+      "filename": "Fisher_001_6_chunk_060.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
-          "x": -2.10663247,
+          "x": -1.86798751,
+          "y": 0.0288738552,
+          "z": -1.53954196
+        },
+        "max": {
+          "x": 1.75161362,
+          "y": 1.42209315,
+          "z": 1.48190689
+        }
+      },
+      "priority": 60,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_061.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.9116658,
+          "y": 0.0305303968,
+          "z": -1.56572497
+        },
+        "max": {
+          "x": 1.81767738,
+          "y": 1.46201527,
+          "z": 1.48150933
+        }
+      },
+      "priority": 61,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_062.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -1.95850301,
+          "y": 0.0228166319,
+          "z": -1.59490228
+        },
+        "max": {
+          "x": 1.85520864,
+          "y": 1.48151171,
+          "z": 1.47183204
+        }
+      },
+      "priority": 62,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_063.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.02113676,
+          "y": 0.0214336943,
+          "z": -1.65052891
+        },
+        "max": {
+          "x": 1.91517293,
+          "y": 1.50564992,
+          "z": 1.46410072
+        }
+      },
+      "priority": 63,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_064.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.10577273,
           "y": 0.0162746292,
           "z": -1.69456136
         },
         "max": {
           "x": 1.98629844,
-          "y": 1.54632735,
-          "z": 1.48190689
+          "y": 1.54392624,
+          "z": 1.46712959
         }
       },
-      "priority": 12,
-      "file_size_bytes": 786719
+      "priority": 64,
+      "file_size_bytes": 157574
     },
     {
-      "filename": "Fisher_001_6_chunk_013.ply",
-      "vertex_count": 21442,
+      "filename": "Fisher_001_6_chunk_065.ply",
+      "vertex_count": 10485,
+      "bounding_box": {
+        "min": {
+          "x": -2.22834539,
+          "y": 0.0182996672,
+          "z": -1.7866627
+        },
+        "max": {
+          "x": 2.13024402,
+          "y": 1.61100852,
+          "z": 1.45373571
+        }
+      },
+      "priority": 65,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_066.ply",
+      "vertex_count": 10485,
       "bounding_box": {
         "min": {
           "x": -2.53760123,
@@ -260,13 +1214,31 @@
           "z": -2.17024159
         },
         "max": {
-          "x": 3.65926218,
+          "x": 2.98606539,
           "y": 1.79992998,
-          "z": 1.45373571
+          "z": 1.38476264
         }
       },
-      "priority": 13,
-      "file_size_bytes": 321929
+      "priority": 66,
+      "file_size_bytes": 157574
+    },
+    {
+      "filename": "Fisher_001_6_chunk_067.ply",
+      "vertex_count": 511,
+      "bounding_box": {
+        "min": {
+          "x": 2.39158535,
+          "y": 0.330949038,
+          "z": -1.15736187
+        },
+        "max": {
+          "x": 3.65926218,
+          "y": 1.62140501,
+          "z": 0.957426667
+        }
+      },
+      "priority": 67,
+      "file_size_bytes": 7962
     }
   ]
 }

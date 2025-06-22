@@ -1,36 +1,5 @@
 {
   "scenes": {
-    "fisher_two_tone": {
-      "name": "Fisher Two-Tone",
-      "description": "Fisher Towers with dramatic edge detection and halftone effects for a graphic novel look",
-      "modelKey": "fisher",
-      "quality": "low",
-      "cameraPosition": { "x": 7.73, "y": 2.01, "z": 7.13 },
-      "cameraTarget": { "x": 0.07, "y": 0.63, "z": -0.39 },
-      "focalLength": 76,
-      "effectsChain": [
-        {
-          "id": "sobel_001",
-          "type": "sobelthreshold",
-          "enabled": true,
-          "parameters": { "intensity": 0.8, "threshold": 0.3 }
-        },
-        {
-          "id": "halftone_001", 
-          "type": "halftone",
-          "enabled": true,
-          "parameters": { "intensity": 0.6, "dotSize": 4 }
-        }
-      ],
-      "pointSize": 0.019,
-      "sphereMode": false,
-      "fogDensity": 0.001,
-      "autoRotation": false,
-      "timestamp": 1735081200000,
-      "version": "1.0",
-      "tags": ["graphic", "edges", "halftone"],
-      "creator": "System"
-    },
     "delicate_disco": {
       "name": "Delicate Disco",
       "description": "Delicate Arch with colorful background and material effects creating a psychedelic atmosphere",
@@ -98,64 +67,93 @@
       "tags": ["noir", "dramatic", "contrast"],
       "creator": "System"
     },
-    "corona_network": {
-      "name": "Corona Network",
-      "description": "Corona Arch with animated point network connections creating a sci-fi visualization",
-      "modelKey": "corona_arch",
+    "delicate_noise": { 
+      "name": "Delicate Noise",
+      "description": "Delicate Arch with subtle noise and fog creating a dreamlike atmosphere",
+      "modelKey": "delicate_arch",
       "quality": "low",
-      "cameraPosition": { "x": 1.02, "y": -0.08, "z": 2.81 },
-      "cameraTarget": { "x": 0.36, "y": 0.36, "z": -0.22 },
-      "focalLength": 120,
-      "effectsChain": [
-        {
-          "id": "pointnetwork_001",
-          "type": "pointnetwork",
-          "enabled": true,
-          "parameters": {
-            "showConnections": 1,
-            "connectionDistance": 15,
-            "maxConnections": 1,
-            "lineOpacity": 20,
-            "enableAnimation": 1,
-            "movementSpeed": 0.05,
-            "movementRange": 20
-          }
+      "cameraPosition": {
+          "x": -2.9,
+          "y": 4.8,
+          "z": 0.61
         },
-        {
-          "id": "background_001",
-          "type": "background",
-          "enabled": true,
-          "parameters": { "hue": 0.6, "saturation": 30, "lightness": 5 }
-        }
-      ],
-      "pointSize": 0.002,
-      "sphereMode": false,
-      "fogDensity": 0.002,
-      "autoRotation": false,
-      "timestamp": 1735081200000,
-      "version": "1.0",
-      "tags": ["network", "sci-fi", "animated"],
-      "creator": "System"
+        "cameraTarget": {
+          "x": -0.04,
+          "y": 4.15,
+          "z": -0.08
+        },
+        "focalLength": 15.18928673718289,
+        "effectsChain": [
+          {
+            "id": "effect_9",
+            "type": "background",
+            "enabled": false,
+            "parameters": {
+              "hue": 0.85,
+              "saturation": 80,
+              "lightness": 15
+            }
+          },
+          {
+            "id": "effect_10",
+            "type": "material",
+            "enabled": false,
+            "parameters": {
+              "transparency": 0,
+              "sizeMultiplier": 150,
+              "useVertexColors": 1,
+              "waveDeformation": 0,
+              "twistEffect": 0,
+              "animationSpeed": 1.5,
+              "waveFrequency": 2,
+              "pulseEffect": 1,
+              "colorCycling": 0,
+              "deformationEnable": 0
+            }
+          },
+          {
+            "id": "effect_11",
+            "type": "noise2d",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "scale": 18,
+              "timeSpeed": 0.6,
+              "noiseType": 2,
+              "octaves": 1,
+              "persistence": 0.1,
+              "lacunarity": 1,
+              "backgroundMode": 0,
+              "colorR": 1,
+              "colorG": 1,
+              "colorB": 1,
+              "contrast": 1,
+              "brightness": 0,
+              "animated": 1
+            }
+          },
+          {
+            "id": "effect_12",
+            "type": "halftone",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "dotSize": 32,
+              "contrast": 1.2
+            }
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.046,
+        "sphereMode": false,
+        "fogDensity": 0.008,
+        "autoRotation": false,
+        "autoRotationSpeed": 0,
+        "autoRotationDirection": 1,
+        "timestamp": 1750555380425,
+        "version": "1.0"
+      }
     },
-    "castleton_minimalist": {
-      "name": "Castleton Minimalist",
-      "description": "Clean, minimalist view of Castleton Tower with subtle fog and perfect framing",
-      "modelKey": "castleton",
-      "quality": "low",
-      "cameraPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },
-      "cameraTarget": { "x": -0.13, "y": 0.87, "z": -0.29 },
-      "focalLength": 50,
-      "effectsChain": [],
-      "pointSize": 0.005,
-      "sphereMode": false,
-      "fogDensity": 0.004,
-      "autoRotation": true,
-      "timestamp": 1735081200000,
-      "version": "1.0",
-      "tags": ["minimalist", "clean", "natural"],
-      "creator": "System"
-    }
-  },
   "randomScenes": [
     "cheeky_castleton",
     "fisher_two_tone", 
