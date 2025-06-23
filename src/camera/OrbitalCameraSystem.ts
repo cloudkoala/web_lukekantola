@@ -2645,6 +2645,11 @@ export class OrbitalCameraSystem {
         this.updatePostProcessingChain()
       })
       
+      // Set up parameter updates to also trigger post-processing updates
+      this.effectsChainManager.onParameterUpdated(() => {
+        this.updatePostProcessingChain()
+      })
+      
       // Initial update to sync any effects that were loaded during initialization
       setTimeout(() => {
         this.updatePostProcessingChain()

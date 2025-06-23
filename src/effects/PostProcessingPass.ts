@@ -24,6 +24,12 @@ export class PostProcessingPass {
   private connectionLines: THREE.LineSegments | null = null
   private networkAnimationStartTime: number = 0
   
+  // Debouncing for material effects during chunk loading
+  private lastUpdateTime: number = 0
+  private updateDebounceDelay: number = 50 // Reduced to 50ms for better performance
+  private isUpdatingPointClouds: boolean = false
+  private materialEffectsPaused: boolean = false
+  
   // Afterimage effect state
   private afterimageRenderTarget: THREE.WebGLRenderTarget | null = null
   private afterimageMaterial: THREE.ShaderMaterial | null = null
@@ -40,6 +46,10 @@ export class PostProcessingPass {
   private originalSphereMaterials: Map<THREE.InstancedMesh, THREE.Material | THREE.Material[]> = new Map()
   private customSphereMaterials: Map<THREE.InstancedMesh, THREE.ShaderMaterial> = new Map()
   private materialAnimationStartTime: number = 0
+  
+  // Sky sphere effect state
+  private skySphereMesh: THREE.Mesh | null = null
+  private skySphereMaterial: THREE.ShaderMaterial | null = null
   
   // Topographic effect state
   private topographicAnimationStartTime: number = 0
@@ -156,7 +166,7 @@ export class PostProcessingPass {
       uniforms: {
         tDiffuse: { value: null },
         resolution: { value: new THREE.Vector2(width, height) },
-        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=crtgrain, 7=film35mm, 8=dotscreen, 9=bleachbypass, 10=invert, 11=colorify, 12=sobel, 13=sobelthreshold, 14=motionblur, 15=oilpainting, 16=datamosh, 17=pixelsort, 18=glow, 19=pixelate, 20=fog
+        effectType: { value: 0 }, // 0=none, 1=gamma, 2=sepia, 3=vignette, 4=blur, 5=bloom, 6=crtgrain, 7=film35mm, 8=dotscreen, 9=bleachbypass, 10=invert, 11=colorify, 12=sobel, 13=sobelthreshold, 14=motionblur, 15=oilpainting, 16=datamosh, 17=pixelsort, 18=glow, 19=pixelate, 20=fog, 21=threshold, 22=colorgradient, 23=noise2d, 24=skysphere
         intensity: { value: this.intensity },
         colorTint: { value: new THREE.Vector3(this.colorR, this.colorG, this.colorB) },
         vignetteOffset: { value: this.vignetteOffset },
@@ -226,7 +236,46 @@ export class PostProcessingPass {
         gradientColor2: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
         gradientSmoothness: { value: 1.0 },
         gradientContrast: { value: 1.0 },
-        gradientMidpoint: { value: 0.5 }
+        gradientMidpoint: { value: 0.5 },
+        // Split Tone uniforms
+        splitToneColor1: { value: new THREE.Vector3(0.0, 0.0, 0.0) },
+        splitToneColor2: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
+        splitToneSmoothness: { value: 1.0 },
+        splitToneContrast: { value: 1.0 },
+        splitToneMidpoint: { value: 0.5 },
+        // Noise2D uniforms
+        noiseScale: { value: 10.0 },
+        noiseTimeSpeed: { value: 1.0 },
+        noiseType: { value: 0 },
+        noiseOctaves: { value: 3 },
+        noisePersistence: { value: 0.5 },
+        noiseLacunarity: { value: 2.0 },
+        noiseColorR: { value: 1.0 },
+        noiseColorG: { value: 1.0 },
+        noiseColorB: { value: 1.0 },
+        noiseContrast: { value: 1.0 },
+        noiseBrightness: { value: 0.0 },
+        noiseAnimated: { value: 1.0 },
+        noiseAngle: { value: 0.0 },
+        noiseEvolution: { value: 1.0 },
+        // Sky Sphere uniforms
+        skyScale: { value: 100.0 },
+        skyNoiseScale: { value: 10.0 },
+        skyTimeSpeed: { value: 1.0 },
+        skyNoiseType: { value: 0 },
+        skyOctaves: { value: 3 },
+        skyPersistence: { value: 0.5 },
+        skyLacunarity: { value: 2.0 },
+        skyColorR: { value: 0.5 },
+        skyColorG: { value: 0.7 },
+        skyColorB: { value: 1.0 },
+        skyContrast: { value: 1.0 },
+        skyBrightness: { value: 0.0 },
+        skyAnimated: { value: 1.0 },
+        skyOpacity: { value: 1.0 },
+        skyRenderBehind: { value: 1.0 },
+        skyAngle: { value: 0.0 },
+        skyEvolution: { value: 1.0 }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -309,6 +358,7 @@ export class PostProcessingPass {
   }
   
   private renderEffectChain(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effects: EffectInstance[], outputTarget?: THREE.WebGLRenderTarget | null) {
+    console.log('🔗 Processing effects chain with', effects.length, 'effects:', effects.map(e => `${e.type}(${e.enabled ? 'ON' : 'OFF'})`).join(', '))
     let currentInput = inputTexture
     let pingPongIndex = 0
     
@@ -359,6 +409,7 @@ export class PostProcessingPass {
   }
   
   private renderSingleEffectFromInstance(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
+    console.log('🔄 Rendering effect:', effect.type, 'enabled:', effect.enabled, 'intensity:', effect.parameters.intensity)
     // Handle background effect separately
     if (effect.type === 'background') {
       this.applyBackgroundEffect(effect)
@@ -395,6 +446,14 @@ export class PostProcessingPass {
     if (effect.type === 'topographic') {
       this.applyTopographicEffect(effect)
       // Topographic effects don't modify the rendered image, just copy input to output
+      this.copyTexture(renderer, inputTexture, outputTarget)
+      return
+    }
+    
+    // Handle sky sphere effect separately
+    if (effect.type === 'skysphere') {
+      this.applySkySpherEffect(effect)
+      // Sky sphere effects don't modify the rendered image, just copy input to output
       this.copyTexture(renderer, inputTexture, outputTarget)
       return
     }
@@ -560,9 +619,66 @@ export class PostProcessingPass {
         this.material.uniforms.gradientContrast.value = effect.parameters.contrast ?? 1.0
         this.material.uniforms.gradientMidpoint.value = effect.parameters.midpoint ?? 0.5
         break
+      
+      case 'splittone':
+        console.log('🎨 Split Tone effect processing - Parameters:', effect.parameters)
+        console.log('🎨 Split Tone intensity:', effect.parameters.intensity ?? 0.5)
+        
+        // Convert hex colors to RGB (0-1 range) 
+        const splitColor1 = effect.parameters.color1 ?? 0x000000
+        const splitColor2 = effect.parameters.color2 ?? 0xFFFFFF
+        
+        const color1RGB = [
+          ((splitColor1 >> 16) & 255) / 255.0,  // Red
+          ((splitColor1 >> 8) & 255) / 255.0,   // Green
+          (splitColor1 & 255) / 255.0           // Blue
+        ]
+        const color2RGB = [
+          ((splitColor2 >> 16) & 255) / 255.0,  // Red
+          ((splitColor2 >> 8) & 255) / 255.0,   // Green
+          (splitColor2 & 255) / 255.0           // Blue
+        ]
+        
+        console.log('🎨 Split Tone color1 (RGB):', color1RGB)
+        console.log('🎨 Split Tone color2 (RGB):', color2RGB)
+        
+        this.material.uniforms.splitToneColor1.value.set(...color1RGB)
+        this.material.uniforms.splitToneColor2.value.set(...color2RGB)
+        this.material.uniforms.splitToneSmoothness.value = effect.parameters.smoothness ?? 1.0
+        this.material.uniforms.splitToneContrast.value = effect.parameters.contrast ?? 1.0
+        this.material.uniforms.splitToneMidpoint.value = effect.parameters.midpoint ?? 0.5
+        
+        console.log('🎨 Split Tone uniforms set - smoothness:', this.material.uniforms.splitToneSmoothness.value,
+                   'contrast:', this.material.uniforms.splitToneContrast.value,
+                   'midpoint:', this.material.uniforms.splitToneMidpoint.value)
+        break
+      
+      case 'noise2d':
+        this.material.uniforms.noiseScale.value = effect.parameters.scale ?? 10.0
+        this.material.uniforms.noiseTimeSpeed.value = effect.parameters.timeSpeed ?? 1.0
+        this.material.uniforms.noiseType.value = effect.parameters.noiseType ?? 0
+        this.material.uniforms.noiseOctaves.value = effect.parameters.octaves ?? 3
+        this.material.uniforms.noisePersistence.value = effect.parameters.persistence ?? 0.5
+        this.material.uniforms.noiseLacunarity.value = effect.parameters.lacunarity ?? 2.0
+        this.material.uniforms.noiseColorR.value = effect.parameters.colorR ?? 1.0
+        this.material.uniforms.noiseColorG.value = effect.parameters.colorG ?? 1.0
+        this.material.uniforms.noiseColorB.value = effect.parameters.colorB ?? 1.0
+        this.material.uniforms.noiseContrast.value = effect.parameters.contrast ?? 1.0
+        this.material.uniforms.noiseBrightness.value = effect.parameters.brightness ?? 0.0
+        this.material.uniforms.noiseAnimated.value = effect.parameters.animated ?? 1.0
+        this.material.uniforms.noiseAngle.value = (effect.parameters.angle ?? 0.0) * (Math.PI / 180.0) // Convert degrees to radians
+        this.material.uniforms.noiseEvolution.value = effect.parameters.evolution ?? 1.0
+        break
+      
     }
     
+    console.log('🔧 Final effect type index:', this.material.uniforms.effectType.value, 'for effect:', effect.type)
+    console.log('🔧 Final intensity:', this.material.uniforms.intensity.value)
+    
     this.material.uniforms.time.value = performance.now() * 0.001
+    
+    // Update sky sphere uniforms if active
+    this.updateSkySpherUniforms()
     
     renderer.setRenderTarget(outputTarget || null)
     renderer.clear()
@@ -751,6 +867,224 @@ export class PostProcessingPass {
     if (this.dofBlurMaterial) {
       this.dofBlurMaterial.dispose()
     }
+    
+    // Clean up sky sphere
+    this.cleanupSkySphere()
+  }
+  
+  private applySkySpherEffect(effect: EffectInstance): void {
+    if (!this.mainScene) return
+    
+    console.log('🌌 Creating sky sphere geometry with intensity:', effect.parameters.intensity)
+    
+    // Clean up existing sky sphere
+    this.cleanupSkySphere()
+    
+    // Get parameters
+    const scale = effect.parameters.scale ?? 500.0
+    const noiseScale = effect.parameters.noiseScale ?? 10.0
+    const timeSpeed = effect.parameters.timeSpeed ?? 1.0
+    const noiseType = effect.parameters.noiseType ?? 0
+    const octaves = effect.parameters.octaves ?? 3
+    const persistence = effect.parameters.persistence ?? 0.5
+    const lacunarity = effect.parameters.lacunarity ?? 2.0
+    const colorR = effect.parameters.colorR ?? 0.5
+    const colorG = effect.parameters.colorG ?? 0.7
+    const colorB = effect.parameters.colorB ?? 1.0
+    const contrast = effect.parameters.contrast ?? 1.0
+    const brightness = effect.parameters.brightness ?? 0.0
+    const animated = effect.parameters.animated ?? 1.0
+    const opacity = effect.parameters.opacity ?? 1.0
+    const angle = (effect.parameters.angle ?? 0.0) * (Math.PI / 180.0)
+    const evolution = effect.parameters.evolution ?? 1.0
+    
+    // Create sphere geometry
+    const geometry = new THREE.SphereGeometry(scale, 32, 16)
+    
+    // Create shader material with 3D Perlin noise
+    this.skySphereMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0.0 },
+        noiseScale: { value: noiseScale },
+        timeSpeed: { value: timeSpeed },
+        noiseType: { value: noiseType },
+        octaves: { value: octaves },
+        persistence: { value: persistence },
+        lacunarity: { value: lacunarity },
+        skyColor: { value: new THREE.Vector3(colorR, colorG, colorB) },
+        contrast: { value: contrast },
+        brightness: { value: brightness },
+        animated: { value: animated },
+        opacity: { value: opacity },
+        angle: { value: angle },
+        evolution: { value: evolution }
+      },
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        varying vec2 vUv;
+        
+        void main() {
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: this.getSkySpherFragmentShader(),
+      side: THREE.DoubleSide, // Render both sides for maximum visibility
+      transparent: true
+    })
+    
+    // Create mesh
+    this.skySphereMesh = new THREE.Mesh(geometry, this.skySphereMaterial)
+    this.skySphereMesh.renderOrder = -1000 // Ensure it renders behind everything
+    this.skySphereMesh.userData.isSkySphereMesh = true // Mark for SphereInstancer detection
+    this.mainScene.add(this.skySphereMesh)
+    
+    console.log('🌌 Sky sphere added to scene')
+    
+    // Update uniforms with current time
+    this.updateSkySpherUniforms()
+  }
+  
+  private cleanupSkySphere(): void {
+    if (this.skySphereMesh && this.mainScene) {
+      this.mainScene.remove(this.skySphereMesh)
+      this.skySphereMesh.geometry.dispose()
+      this.skySphereMesh = null
+    }
+    
+    if (this.skySphereMaterial) {
+      this.skySphereMaterial.dispose()
+      this.skySphereMaterial = null
+    }
+  }
+  
+  private getSkySpherFragmentShader(): string {
+    return `
+      uniform float time;
+      uniform float noiseScale;
+      uniform float timeSpeed;
+      uniform int noiseType;
+      uniform int octaves;
+      uniform float persistence;
+      uniform float lacunarity;
+      uniform vec3 skyColor;
+      uniform float contrast;
+      uniform float brightness;
+      uniform float animated;
+      uniform float opacity;
+      uniform float angle;
+      uniform float evolution;
+      
+      varying vec3 vWorldPosition;
+      varying vec2 vUv;
+      
+      // 3D gradient function
+      vec3 grad3d(vec3 p) {
+        float h = fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+        float a = h * 6.283185307179586;
+        float b = h * 12.566370614359172;
+        return normalize(vec3(cos(a) * sin(b), sin(a) * sin(b), cos(b)));
+      }
+      
+      // 3D Perlin noise
+      float perlin3d(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+        
+        vec3 g000 = grad3d(i + vec3(0.0, 0.0, 0.0));
+        vec3 g100 = grad3d(i + vec3(1.0, 0.0, 0.0));
+        vec3 g010 = grad3d(i + vec3(0.0, 1.0, 0.0));
+        vec3 g110 = grad3d(i + vec3(1.0, 1.0, 0.0));
+        vec3 g001 = grad3d(i + vec3(0.0, 0.0, 1.0));
+        vec3 g101 = grad3d(i + vec3(1.0, 0.0, 1.0));
+        vec3 g011 = grad3d(i + vec3(0.0, 1.0, 1.0));
+        vec3 g111 = grad3d(i + vec3(1.0, 1.0, 1.0));
+        
+        float v000 = dot(g000, f - vec3(0.0, 0.0, 0.0));
+        float v100 = dot(g100, f - vec3(1.0, 0.0, 0.0));
+        float v010 = dot(g010, f - vec3(0.0, 1.0, 0.0));
+        float v110 = dot(g110, f - vec3(1.0, 1.0, 0.0));
+        float v001 = dot(g001, f - vec3(0.0, 0.0, 1.0));
+        float v101 = dot(g101, f - vec3(1.0, 0.0, 1.0));
+        float v011 = dot(g011, f - vec3(0.0, 1.0, 1.0));
+        float v111 = dot(g111, f - vec3(1.0, 1.0, 1.0));
+        
+        float x00 = mix(v000, v100, u.x);
+        float x10 = mix(v010, v110, u.x);
+        float x01 = mix(v001, v101, u.x);
+        float x11 = mix(v011, v111, u.x);
+        
+        float y0 = mix(x00, x10, u.y);
+        float y1 = mix(x01, x11, u.y);
+        
+        return mix(y0, y1, u.z);
+      }
+      
+      void main() {
+        // Use world position for 3D noise sampling
+        vec3 noisePos = normalize(vWorldPosition) * noiseScale;
+        
+        // Animation and evolution
+        vec3 directionalOffset = vec3(0.0);
+        float evolutionZ = 0.0;
+        
+        if (animated > 0.5) {
+          float timeOffset = time * timeSpeed;
+          vec2 direction2D = vec2(cos(angle), sin(angle)) * timeOffset * 0.1;
+          directionalOffset = vec3(direction2D, 0.0);
+        }
+        
+        evolutionZ = time * evolution * 0.1;
+        
+        // Fractal noise
+        float noiseValue = 0.0;
+        float amplitude = 1.0;
+        float frequency = 1.0;
+        float maxValue = 0.0;
+        
+        for (int i = 0; i < 8; i++) {
+          if (i >= octaves) break;
+          
+          vec3 samplePos = noisePos * frequency + directionalOffset * frequency;
+          samplePos.z += evolutionZ * frequency;
+          
+          float n = perlin3d(samplePos);
+          
+          if (noiseType == 0) {
+            noiseValue += n * amplitude;
+          } else if (noiseType == 1) {
+            noiseValue += n * amplitude;
+          } else if (noiseType == 2) {
+            n = 1.0 - abs(n);
+            n = n * n;
+            noiseValue += n * amplitude;
+          }
+          
+          maxValue += amplitude;
+          amplitude *= persistence;
+          frequency *= lacunarity;
+        }
+        
+        if (maxValue > 0.0) {
+          noiseValue = (noiseValue / maxValue) * 0.5 + 0.5;
+        }
+        
+        noiseValue = (noiseValue - 0.5) * contrast + 0.5 + brightness;
+        noiseValue = clamp(noiseValue, 0.0, 1.0);
+        
+        vec3 finalColor = skyColor * noiseValue;
+        gl_FragColor = vec4(finalColor, opacity);
+      }
+    `
+  }
+  
+  private updateSkySpherUniforms(): void {
+    if (this.skySphereMaterial) {
+      this.skySphereMaterial.uniforms.time.value = performance.now() * 0.001
+    }
   }
   
   private getEffectTypeIndex(): number {
@@ -782,6 +1116,9 @@ export class PostProcessingPass {
       case 'fog': return 20
       case 'threshold': return 21
       case 'colorgradient': return 22
+      case 'noise2d': return 23
+      case 'skysphere': return 24
+      case 'splittone': return 25
       // Background effects are handled separately in applyBackgroundEffect
       case 'background': return 0
       // Topographic effects are handled separately in applyTopographicEffect
@@ -843,6 +1180,15 @@ export class PostProcessingPass {
   updatePointClouds(): void {
     if (!this.mainScene) return
     
+    // Debounce updates during chunk loading to prevent flashing
+    const now = performance.now()
+    if (this.isUpdatingPointClouds || (now - this.lastUpdateTime) < this.updateDebounceDelay) {
+      return
+    }
+    
+    this.isUpdatingPointClouds = true
+    this.lastUpdateTime = now
+    
     // Find all point clouds and sphere meshes in the scene
     this.pointClouds = []
     this.sphereMeshes = []
@@ -889,6 +1235,37 @@ export class PostProcessingPass {
         }
       }
     })
+    
+    // Reset the updating flag after processing
+    this.isUpdatingPointClouds = false
+  }
+  
+  /**
+   * Pause material effects to prevent flashing during chunk loading
+   */
+  pauseMaterialEffects(): void {
+    // Only pause if effects are actually enabled and active
+    if (this.enabled && this.effectsChain.some(effect => effect.type === 'material')) {
+      this.materialEffectsPaused = true
+      console.log('🔇 Material effects paused to prevent flashing during chunk loading')
+    } else {
+      console.log('ℹ️ Material effects not paused (effects disabled or no material effects active)')
+    }
+  }
+  
+  /**
+   * Resume material effects after chunk loading is complete
+   */
+  resumeMaterialEffects(): void {
+    if (this.materialEffectsPaused) {
+      this.materialEffectsPaused = false
+      // Force update when resuming
+      this.lastUpdateTime = 0
+      this.isUpdatingPointClouds = false
+      console.log('🔊 Material effects resumed after chunk loading')
+    } else {
+      console.log('ℹ️ Material effects resume skipped (were not paused)')
+    }
   }
   
   // Reset all draw ranges to original values
@@ -1803,6 +2180,11 @@ export class PostProcessingPass {
   }
   
   private applyMaterialEffect(effect: EffectInstance): void {
+    // Skip material effects if paused during chunk loading
+    if (this.materialEffectsPaused) {
+      return
+    }
+    
     // Update point clouds and sphere meshes in case scene changed
     this.updatePointClouds()
     
@@ -2296,6 +2678,42 @@ export class PostProcessingPass {
       uniform float gradientSmoothness;
       uniform float gradientContrast;
       uniform float gradientMidpoint;
+      uniform vec3 splitToneColor1;
+      uniform vec3 splitToneColor2;
+      uniform float splitToneSmoothness;
+      uniform float splitToneContrast;
+      uniform float splitToneMidpoint;
+      uniform float noiseScale;
+      uniform float noiseTimeSpeed;
+      uniform int noiseType;
+      uniform int noiseOctaves;
+      uniform float noisePersistence;
+      uniform float noiseLacunarity;
+      uniform float noiseColorR;
+      uniform float noiseColorG;
+      uniform float noiseColorB;
+      uniform float noiseContrast;
+      uniform float noiseBrightness;
+      uniform float noiseAnimated;
+      uniform float noiseAngle;
+      uniform float noiseEvolution;
+      uniform float skyScale;
+      uniform float skyNoiseScale;
+      uniform float skyTimeSpeed;
+      uniform int skyNoiseType;
+      uniform int skyOctaves;
+      uniform float skyPersistence;
+      uniform float skyLacunarity;
+      uniform float skyColorR;
+      uniform float skyColorG;
+      uniform float skyColorB;
+      uniform float skyContrast;
+      uniform float skyBrightness;
+      uniform float skyAnimated;
+      uniform float skyOpacity;
+      uniform float skyRenderBehind;
+      uniform float skyAngle;
+      uniform float skyEvolution;
       
       varying vec2 vUv;
       
@@ -2607,6 +3025,164 @@ export class PostProcessingPass {
         
         // Blend with original color based on intensity
         return mix(color, gradientColor, intensity);
+      }
+      
+      // Split Tone Effect - Maps luminance to custom color gradient
+      vec3 splitTone(vec3 color, vec2 uv) {
+        // Calculate luminance using standard formula
+        float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+        
+        // Apply contrast to luminance
+        luminance = pow(luminance, splitToneContrast);
+        
+        // Adjust luminance based on midpoint
+        // This allows shifting where the gradient center appears
+        float adjustedLuminance = luminance;
+        if (luminance < splitToneMidpoint) {
+          adjustedLuminance = (luminance / splitToneMidpoint) * 0.5;
+        } else {
+          adjustedLuminance = 0.5 + ((luminance - splitToneMidpoint) / (1.0 - splitToneMidpoint)) * 0.5;
+        }
+        
+        // Apply smoothness to the gradient transition
+        if (splitToneSmoothness != 1.0) {
+          adjustedLuminance = pow(adjustedLuminance, 1.0 / splitToneSmoothness);
+        }
+        
+        // Clamp to valid range
+        adjustedLuminance = clamp(adjustedLuminance, 0.0, 1.0);
+        
+        // Map luminance to split tone: black pixels (0) -> splitToneColor1, white pixels (1) -> splitToneColor2
+        vec3 splitToneColor = mix(splitToneColor1, splitToneColor2, adjustedLuminance);
+        
+        // Blend with original color based on intensity
+        return mix(color, splitToneColor, intensity);
+      }
+      
+      // 3D gradient function for proper evolution
+      vec3 grad3d(vec3 p) {
+        float h = fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+        float a = h * 6.283185307179586; // 2 * PI
+        float b = h * 12.566370614359172; // 4 * PI
+        return normalize(vec3(cos(a) * sin(b), sin(a) * sin(b), cos(b)));
+      }
+      
+      // 3D Perlin noise function for evolution
+      float perlin3d(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        
+        // Smooth interpolation (quintic)
+        vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+        
+        // 8 corner gradients
+        vec3 g000 = grad3d(i + vec3(0.0, 0.0, 0.0));
+        vec3 g100 = grad3d(i + vec3(1.0, 0.0, 0.0));
+        vec3 g010 = grad3d(i + vec3(0.0, 1.0, 0.0));
+        vec3 g110 = grad3d(i + vec3(1.0, 1.0, 0.0));
+        vec3 g001 = grad3d(i + vec3(0.0, 0.0, 1.0));
+        vec3 g101 = grad3d(i + vec3(1.0, 0.0, 1.0));
+        vec3 g011 = grad3d(i + vec3(0.0, 1.0, 1.0));
+        vec3 g111 = grad3d(i + vec3(1.0, 1.0, 1.0));
+        
+        // Dot products with distance vectors
+        float v000 = dot(g000, f - vec3(0.0, 0.0, 0.0));
+        float v100 = dot(g100, f - vec3(1.0, 0.0, 0.0));
+        float v010 = dot(g010, f - vec3(0.0, 1.0, 0.0));
+        float v110 = dot(g110, f - vec3(1.0, 1.0, 0.0));
+        float v001 = dot(g001, f - vec3(0.0, 0.0, 1.0));
+        float v101 = dot(g101, f - vec3(1.0, 0.0, 1.0));
+        float v011 = dot(g011, f - vec3(0.0, 1.0, 1.0));
+        float v111 = dot(g111, f - vec3(1.0, 1.0, 1.0));
+        
+        // Trilinear interpolation
+        float x00 = mix(v000, v100, u.x);
+        float x10 = mix(v010, v110, u.x);
+        float x01 = mix(v001, v101, u.x);
+        float x11 = mix(v011, v111, u.x);
+        
+        float y0 = mix(x00, x10, u.y);
+        float y1 = mix(x01, x11, u.y);
+        
+        return mix(y0, y1, u.z);
+      }
+      
+      // 2D Perlin Noise with fractal and ridged variants, angle, and evolution
+      vec3 noise2d(vec3 color, vec2 uv) {
+        vec2 pos = uv * noiseScale;
+        float noiseValue = 0.0;
+        float amplitude = 1.0;
+        float frequency = 1.0;
+        float maxValue = 0.0;
+        
+        // Calculate time-based evolution and directional offset
+        vec2 directionalOffset = vec2(0.0);
+        float evolutionZ = 0.0;
+        
+        // Directional animation (only when animated)
+        if (noiseAnimated > 0.5) {
+          float timeOffset = time * noiseTimeSpeed;
+          directionalOffset = vec2(cos(noiseAngle), sin(noiseAngle)) * timeOffset * 0.1;
+        }
+        
+        // Evolution through 3D noise space (independent of directional animation)
+        evolutionZ = time * noiseEvolution * 0.1;
+        
+        // Fractal noise generation
+        for (int i = 0; i < 8; i++) {
+          if (i >= noiseOctaves) break;
+          
+          vec2 samplePos = pos * frequency + directionalOffset * frequency;
+          vec3 samplePos3D = vec3(samplePos, evolutionZ * frequency);
+          
+          // Sample 3D Perlin noise for true evolution
+          float n = perlin3d(samplePos3D);
+          
+          if (noiseType == 0) {
+            // Regular Perlin noise
+            noiseValue += n * amplitude;
+          } else if (noiseType == 1) {
+            // Fractal Brownian Motion (fBm) - same as regular for 3D
+            noiseValue += n * amplitude;
+          } else if (noiseType == 2) {
+            // Ridged noise (inverted and absolute)
+            n = 1.0 - abs(n);
+            n = n * n; // Square for sharper ridges
+            noiseValue += n * amplitude;
+          }
+          
+          maxValue += amplitude;
+          amplitude *= noisePersistence;
+          frequency *= noiseLacunarity;
+        }
+        
+        // Normalize noise to [0, 1] range
+        if (maxValue > 0.0) {
+          noiseValue = (noiseValue / maxValue) * 0.5 + 0.5;
+        }
+        
+        // Apply contrast and brightness
+        noiseValue = (noiseValue - 0.5) * noiseContrast + 0.5 + noiseBrightness;
+        noiseValue = clamp(noiseValue, 0.0, 1.0);
+        
+        // Apply noise color
+        vec3 noiseColor = vec3(noiseColorR, noiseColorG, noiseColorB) * noiseValue;
+        
+        // Blend with original color based on intensity
+        return mix(color, noiseColor, intensity);
+      }
+      
+      // Sky Sphere effect with 3D Perlin noise, angle, and evolution
+      vec3 skysphere(vec3 color, vec2 uv) {
+        // Create a simple pattern based on UV coordinates
+        vec3 testColor = vec3(skyColorR, skyColorG, skyColorB);
+        
+        // Create a gradient pattern for testing
+        float pattern = sin(uv.x * 10.0) * cos(uv.y * 10.0) * 0.5 + 0.5;
+        testColor *= pattern;
+        
+        // Blend with original color using intensity
+        return mix(color, testColor, intensity);
       }
       
       // Sobel edge detection  
@@ -3374,6 +3950,12 @@ export class PostProcessingPass {
         } else if (effectType == 22) {
           // Color Gradient Effect
           color = colorGradient(color, vUv);
+        } else if (effectType == 23) {
+          // Noise 2D Effect
+          color = noise2d(color, vUv);
+        } else if (effectType == 25) {
+          // Split Tone Effect
+          color = splitTone(color, vUv);
         }
         
         gl_FragColor = vec4(color, originalColor.a);

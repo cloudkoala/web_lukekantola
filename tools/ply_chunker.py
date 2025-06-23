@@ -164,8 +164,9 @@ class PLYChunker:
         }
     
     def chunk_vertices_radial(self, vertices: List[Vertex]) -> List[List[Vertex]]:
-        """Chunk vertices in radiating circles from origin for natural loading pattern."""
+        """Chunk vertices using feathered probability-based loading for smooth form appearance."""
         import math
+        import random
         
         # Estimate bytes per vertex 
         bytes_per_vertex = 20  # Conservative estimate including PLY overhead
@@ -173,35 +174,83 @@ class PLYChunker:
         
         print(f"Target chunk size: {self.target_chunk_size_mb}MB")
         print(f"Estimated vertices per chunk: {vertices_per_chunk}")
-        print(f"Using radial chunking from origin...")
+        print(f"Using feathered probability-based chunking from origin...")
         
-        # Calculate distance from origin for each vertex
+        # Calculate distance from origin for each vertex and find max distance
         vertex_distances = []
+        max_distance = 0
+        
         for i, vertex in enumerate(vertices):
             distance = math.sqrt(vertex.x * vertex.x + vertex.y * vertex.y + vertex.z * vertex.z)
             vertex_distances.append((distance, i, vertex))
+            max_distance = max(max_distance, distance)
+        
+        print(f"Max distance from origin: {max_distance:.2f}")
         
         # Sort by distance from origin (closest first)
         vertex_distances.sort(key=lambda x: x[0])
         
-        # Group into chunks based on distance
+        # Create feathered chunks using probability-based selection
         chunks = []
-        current_chunk = []
+        remaining_vertices = vertex_distances.copy()
+        chunk_num = 0
         
-        for distance, original_index, vertex in vertex_distances:
-            current_chunk.append(vertex)
+        while remaining_vertices:
+            chunk_num += 1
+            current_chunk = []
+            vertices_to_remove = []
             
-            if len(current_chunk) >= vertices_per_chunk:
+            # Calculate probability for each remaining vertex
+            for i, (distance, original_index, vertex) in enumerate(remaining_vertices):
+                # Probability decreases linearly from 100% at origin to 20% at max distance
+                # This ensures the whole form is visible early while maintaining detail progression
+                base_probability = 1.0 - (distance / max_distance * 0.8)  # 100% -> 20%
+                
+                # Increase probability for later chunks to ensure all vertices eventually load
+                chunk_boost = min(0.3, (chunk_num - 1) * 0.1)  # Up to 30% boost for later chunks
+                final_probability = min(1.0, base_probability + chunk_boost)
+                
+                # Special handling for final chunks to clean up remaining vertices
+                if len(remaining_vertices) <= vertices_per_chunk * 1.5:
+                    final_probability = 1.0  # Include everything in final chunks
+                
+                # Random selection based on probability
+                if random.random() < final_probability:
+                    current_chunk.append(vertex)
+                    vertices_to_remove.append(i)
+                    
+                    # Stop when chunk is full
+                    if len(current_chunk) >= vertices_per_chunk:
+                        break
+            
+            # Remove selected vertices from remaining list (in reverse order to maintain indices)
+            for i in reversed(vertices_to_remove):
+                remaining_vertices.pop(i)
+            
+            # Add chunk if it has vertices
+            if current_chunk:
                 chunks.append(current_chunk)
-                first_distance = math.sqrt(current_chunk[0].x**2 + current_chunk[0].y**2 + current_chunk[0].z**2)
-                print(f"Chunk {len(chunks)}: {len(current_chunk)} vertices (distance range: {first_distance:.2f} to {distance:.2f})")
-                current_chunk = []
+                
+                # Calculate distance range for this chunk
+                chunk_distances = [math.sqrt(v.x**2 + v.y**2 + v.z**2) for v in current_chunk]
+                min_dist = min(chunk_distances)
+                max_dist = max(chunk_distances)
+                avg_dist = sum(chunk_distances) / len(chunk_distances)
+                
+                print(f"Chunk {chunk_num}: {len(current_chunk)} vertices (distance range: {min_dist:.2f} to {max_dist:.2f}, avg: {avg_dist:.2f})")
+                print(f"  Remaining vertices: {len(remaining_vertices)}")
+            
+            # Safety check to prevent infinite loops
+            if len(vertices_to_remove) == 0 and remaining_vertices:
+                print(f"Warning: No vertices selected in chunk {chunk_num}, forcing inclusion of remaining {len(remaining_vertices)} vertices")
+                # Force remaining vertices into final chunk
+                final_chunk = [vertex for _, _, vertex in remaining_vertices]
+                if final_chunk:
+                    chunks.append(final_chunk)
+                    print(f"Final chunk: {len(final_chunk)} vertices (forced inclusion)")
+                break
         
-        # Add remaining vertices as final chunk
-        if current_chunk:
-            chunks.append(current_chunk)
-            print(f"Chunk {len(chunks)}: {len(current_chunk)} vertices (final chunk)")
-        
+        print(f"Feathered chunking complete: {len(chunks)} chunks created")
         return chunks
 
     def chunk_vertices_sequential(self, vertices: List[Vertex]) -> List[List[Vertex]]:

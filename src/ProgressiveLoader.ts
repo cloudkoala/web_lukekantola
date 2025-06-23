@@ -33,6 +33,7 @@ interface LoadedChunk {
   info: ChunkInfo
   pointCloud: THREE.Points
   loaded: boolean
+  downloadProgress: number
 }
 
 export class ProgressiveLoader {
@@ -45,10 +46,17 @@ export class ProgressiveLoader {
   private pointSize: number = 0.001
   private onChunkLoaded?: (chunkIndex: number, totalChunks: number) => void
   private onLoadComplete?: () => void
-  private onChunkAddedToScene?: (pointCloud: THREE.Points) => void
+  private onChunkAddedToScene?: (pointCloud: THREE.Points) => Promise<void> | void
   private loadedPointClouds: THREE.Points[] = []
   private modelRotation: { x: number, y: number, z: number } | null = null
   private abortController: AbortController | null = null
+  
+  // Concurrent loading properties
+  private downloadingChunks: Map<string, Promise<THREE.BufferGeometry>> = new Map()
+  private readyBuffer: Map<string, THREE.BufferGeometry> = new Map()
+  private maxConcurrentDownloads: number = 2 // Optimized for better performance
+  private maxBufferSize: number = 2 // Optimized buffer for smoother loading
+  private overlapThreshold: number = 0.5 // Start next download at 50% progress
   
   constructor(scene: THREE.Scene, basePath: string = '') {
     this.scene = scene
@@ -72,7 +80,7 @@ export class ProgressiveLoader {
   /**
    * Set callback for when a chunk is added to the scene (for progressive sphere conversion)
    */
-  public setOnChunkAddedToScene(callback: (pointCloud: THREE.Points) => void) {
+  public setOnChunkAddedToScene(callback: (pointCloud: THREE.Points) => Promise<void> | void) {
     this.onChunkAddedToScene = callback
   }
   
@@ -98,6 +106,28 @@ export class ProgressiveLoader {
   public setModelRotation(rotation: { x: number, y: number, z: number } | null) {
     this.modelRotation = rotation
   }
+  
+  /**
+   * Configure concurrent loading settings
+   */
+  public setConcurrentLoadingSettings(maxConcurrent: number = 1, maxBuffer: number = 1) {
+    this.maxConcurrentDownloads = Math.max(1, maxConcurrent)
+    this.maxBufferSize = Math.max(1, maxBuffer)
+    console.log(`🔧 Concurrent loading configured: ${this.maxConcurrentDownloads} concurrent, ${this.maxBufferSize} buffer size`)
+  }
+  
+  /**
+   * Enable/disable concurrent loading (convenience method)
+   */
+  public setSequentialMode(sequential: boolean = true) {
+    if (sequential) {
+      this.setConcurrentLoadingSettings(1, 1)
+      console.log('📈 Sequential loading mode enabled (safer for geometry)')
+    } else {
+      this.setConcurrentLoadingSettings(2, 2)
+      console.log('⚡ Concurrent loading mode enabled (faster but may cause clipping)')
+    }
+  }
 
   /**
    * Cancel current loading and clean up resources
@@ -114,6 +144,11 @@ export class ProgressiveLoader {
     // Clear loading state
     this.isLoading = false
     this.loadingQueue = []
+    
+    // Clear concurrent loading state
+    this.downloadingChunks.clear()
+    this.readyBuffer.forEach(geometry => geometry.dispose())
+    this.readyBuffer.clear()
     
     // Remove all loaded point clouds from scene
     this.loadedPointClouds.forEach(pointCloud => {
@@ -134,6 +169,12 @@ export class ProgressiveLoader {
     this.loadedPointClouds = []
     this.chunks = []
     this.manifest = null
+    
+    // Resume material effects if they were paused during loading
+    const postProcessingPass = (window as any).postProcessingPass
+    if (postProcessingPass && postProcessingPass.resumeMaterialEffects) {
+      postProcessingPass.resumeMaterialEffects()
+    }
     
     console.log('✅ ProgressiveLoader: Cleanup complete')
   }
@@ -170,7 +211,8 @@ export class ProgressiveLoader {
       this.chunks = this.manifest.chunks.map(chunkInfo => ({
         info: chunkInfo,
         pointCloud: new THREE.Points(),
-        loaded: false
+        loaded: false,
+        downloadProgress: 0
       }))
       
       // Sort chunks by priority for loading order
@@ -186,7 +228,7 @@ export class ProgressiveLoader {
   }
   
   /**
-   * Start loading chunks progressively
+   * Start loading chunks progressively with concurrent downloads
    */
   private async startProgressiveLoading() {
     if (this.isLoading || this.loadingQueue.length === 0) {
@@ -195,46 +237,59 @@ export class ProgressiveLoader {
     }
     
     this.isLoading = true
-    console.log(`🚀 Starting progressive loading of ${this.loadingQueue.length} chunks`)
+    console.log(`🚀 Starting concurrent progressive loading of ${this.loadingQueue.length} chunks`)
+    console.log(`📊 Settings: maxConcurrent=${this.maxConcurrentDownloads}, overlapThreshold=${this.overlapThreshold * 100}%`)
     
-    // Load chunks sequentially for true progressive loading
-    const batchSize = 1
-    for (let i = 0; i < this.loadingQueue.length; i += batchSize) {
-      const batch = this.loadingQueue.slice(i, i + batchSize)
-      console.log(`📦 Loading batch ${Math.floor(i/batchSize) + 1}: chunks ${i + 1}-${Math.min(i + batchSize, this.loadingQueue.length)}`)
-      
-      // Load batch in parallel
-      const batchPromises = batch.map(async (chunkInfo, batchIndex) => {
-        try {
-          await this.loadChunk(chunkInfo)
-          console.log(`✅ Successfully loaded chunk: ${chunkInfo.filename}`)
-          
-          // Notify progress
-          if (this.onChunkLoaded) {
-            this.onChunkLoaded(i + batchIndex + 1, this.loadingQueue.length)
-          }
-        } catch (error) {
-          console.error(`❌ Failed to load chunk ${chunkInfo.filename}:`, error)
-        }
-      })
-      
-      await Promise.all(batchPromises)
-      
-      // Check if loading was cancelled between batches
+    let processedCount = 0
+    
+    // Start initial downloads
+    this.startNextDownloads(0)
+    
+    // Process chunks as they become ready
+    while (processedCount < this.loadingQueue.length) {
+      // Check if loading was cancelled
       if (this.abortController?.signal.aborted) {
-        console.log('🛑 Progressive loading cancelled between batches')
+        console.log('🛑 Progressive loading cancelled during processing')
         this.isLoading = false
         return
       }
       
-      // Small delay between batches
-      if (i + batchSize < this.loadingQueue.length) {
-        await new Promise(resolve => setTimeout(resolve, 100))
+      // Look for ready chunks in priority order
+      const nextChunk = this.loadingQueue[processedCount]
+      const readyGeometry = this.readyBuffer.get(nextChunk.filename)
+      
+      if (readyGeometry) {
+        // Process the ready chunk
+        console.log(`✨ Processing ready chunk: ${nextChunk.filename} (${processedCount + 1}/${this.loadingQueue.length})`)
+        
+        this.onChunkGeometryLoaded(nextChunk, readyGeometry)
+        this.readyBuffer.delete(nextChunk.filename)
+        
+        processedCount++
+        
+        // Notify progress
+        if (this.onChunkLoaded) {
+          this.onChunkLoaded(processedCount, this.loadingQueue.length)
+        }
+        
+        // Start more downloads if needed, but limit buffer size
+        if (this.readyBuffer.size < this.maxBufferSize) {
+          // Look for next undownloaded chunk starting from current position
+          console.log(`🔧 Triggering next downloads after processing chunk ${processedCount}`)
+          this.startNextDownloads(processedCount)
+        }
+        
+        // Reduced delay for better performance
+        await new Promise(resolve => setTimeout(resolve, 25))
+        
+      } else {
+        // Wait a bit before checking again
+        await new Promise(resolve => setTimeout(resolve, 50))
       }
     }
     
     this.isLoading = false
-    console.log(`🎉 Progressive loading complete! ${this.loadedPointClouds.length} chunks loaded`)
+    console.log(`🎉 Concurrent progressive loading complete! ${this.loadedPointClouds.length} chunks loaded`)
     
     // Only call completion callback if not cancelled
     if (!this.abortController?.signal.aborted && this.onLoadComplete) {
@@ -243,9 +298,68 @@ export class ProgressiveLoader {
   }
   
   /**
-   * Load a single chunk
+   * Start downloads for next available chunks
    */
-  private async loadChunk(chunkInfo: ChunkInfo): Promise<void> {
+  private startNextDownloads(fromIndex: number = 0) {
+    const currentDownloads = this.downloadingChunks.size
+    const currentBuffered = this.readyBuffer.size
+    
+    console.log(`🔍 Looking for next downloads from index ${fromIndex} (${currentDownloads} downloading, ${currentBuffered} buffered)`)
+    
+    // Don't start more downloads if buffer is at capacity
+    if (currentBuffered >= this.maxBufferSize) {
+      console.log(`📦 Buffer full (${currentBuffered}/${this.maxBufferSize}), waiting before starting new downloads`)
+      return
+    }
+    
+    const slotsAvailable = this.maxConcurrentDownloads - currentDownloads
+    console.log(`📊 ${slotsAvailable} download slots available`)
+    
+    let started = 0
+    
+    // Find next chunks to download starting from fromIndex
+    for (let i = fromIndex; i < this.loadingQueue.length && started < slotsAvailable; i++) {
+      const chunkInfo = this.loadingQueue[i]
+      
+      // Skip if already downloading or ready
+      if (this.downloadingChunks.has(chunkInfo.filename) || this.readyBuffer.has(chunkInfo.filename)) {
+        console.log(`⏭️ Skipping ${chunkInfo.filename} (already downloading or buffered)`)
+        continue
+      }
+      
+      // Start download
+      const downloadPromise = this.loadChunkGeometry(chunkInfo)
+      this.downloadingChunks.set(chunkInfo.filename, downloadPromise)
+      started++
+      
+      console.log(`📥 Started download: ${chunkInfo.filename} (${this.downloadingChunks.size}/${this.maxConcurrentDownloads} slots, ${currentBuffered}/${this.maxBufferSize} buffered)`)
+      
+      // Handle completion
+      downloadPromise.then(geometry => {
+        // Only buffer if we haven't exceeded buffer size
+        if (this.readyBuffer.size < this.maxBufferSize) {
+          this.readyBuffer.set(chunkInfo.filename, geometry)
+          console.log(`📦 Download ready: ${chunkInfo.filename} (buffered ${this.readyBuffer.size}/${this.maxBufferSize})`)
+        } else {
+          console.log(`⚠️ Buffer full, disposing geometry for: ${chunkInfo.filename}`)
+          geometry.dispose()
+        }
+        this.downloadingChunks.delete(chunkInfo.filename)
+      }).catch(error => {
+        this.downloadingChunks.delete(chunkInfo.filename)
+        console.error(`❌ Download failed: ${chunkInfo.filename}`, error)
+      })
+    }
+    
+    if (started === 0) {
+      console.log(`ℹ️ No new downloads started from index ${fromIndex}`)
+    }
+  }
+  
+  /**
+   * Load chunk geometry only (for concurrent loading)
+   */
+  private async loadChunkGeometry(chunkInfo: ChunkInfo): Promise<THREE.BufferGeometry> {
     return new Promise((resolve, reject) => {
       // Check if loading has been cancelled
       if (this.abortController?.signal.aborted) {
@@ -259,12 +373,11 @@ export class ProgressiveLoader {
       const manifestPathParts = this.manifest?.original_file.replace('.ply', '') || 'unknown'
       const chunkPath = `${this.basePath}models/chunks/${manifestPathParts}/${chunkInfo.filename}`
       
-      console.log(`Loading chunk: ${chunkInfo.filename} (${chunkInfo.vertex_count} vertices)`)
-      console.log(`Full chunk path: ${chunkPath}`)
+      console.log(`📥 Downloading chunk: ${chunkInfo.filename} (${chunkInfo.vertex_count} vertices)`)
       
       // Set up abort signal listener
       const abortListener = () => {
-        console.log(`🛑 Aborting chunk load: ${chunkInfo.filename}`)
+        console.log(`🛑 Aborting chunk download: ${chunkInfo.filename}`)
         reject(new Error('Loading cancelled'))
       }
       
@@ -273,21 +386,25 @@ export class ProgressiveLoader {
       loader.load(
         chunkPath,
         (geometry) => {
-          // Check if loading was cancelled before processing
+          // Check if loading was cancelled before resolving
           if (this.abortController?.signal.aborted) {
-            console.log(`🛑 Chunk loaded but cancelled: ${chunkInfo.filename}`)
+            console.log(`🛑 Chunk downloaded but cancelled: ${chunkInfo.filename}`)
+            geometry.dispose()
             reject(new Error('Loading cancelled'))
             return
           }
           
-          this.onChunkGeometryLoaded(chunkInfo, geometry)
-          resolve()
+          resolve(geometry)
         },
-        (_progress) => {
-          // Progress callback - could be used for detailed progress tracking
+        (progress) => {
+          // Track download progress for potential overlap triggering
+          if (progress.lengthComputable) {
+            const percentComplete = progress.loaded / progress.total
+            this.updateChunkProgress(chunkInfo.filename, percentComplete)
+          }
         },
         (error) => {
-          console.error(`Error loading chunk ${chunkInfo.filename}:`, error)
+          console.error(`❌ Error downloading chunk ${chunkInfo.filename}:`, error)
           reject(error)
         }
       )
@@ -295,9 +412,19 @@ export class ProgressiveLoader {
   }
   
   /**
+   * Update chunk download progress
+   */
+  private updateChunkProgress(filename: string, progress: number) {
+    const chunkIndex = this.chunks.findIndex(chunk => chunk.info.filename === filename)
+    if (chunkIndex !== -1) {
+      this.chunks[chunkIndex].downloadProgress = progress
+    }
+  }
+  
+  /**
    * Handle loaded chunk geometry
    */
-  private onChunkGeometryLoaded(chunkInfo: ChunkInfo, geometry: THREE.BufferGeometry) {
+  private async onChunkGeometryLoaded(chunkInfo: ChunkInfo, geometry: THREE.BufferGeometry) {
     // Double-check if loading was cancelled before adding to scene
     if (this.abortController?.signal.aborted) {
       console.log(`🛑 Chunk processed but cancelled, not adding to scene: ${chunkInfo.filename}`)
@@ -336,8 +463,28 @@ export class ProgressiveLoader {
       pointCloud.rotateZ((this.modelRotation.z * Math.PI) / 180)
     }
     
-    // Add to scene immediately for streaming effect
+    // Add to scene immediately for better performance
     this.scene.add(pointCloud)
+    pointCloud.updateMatrixWorld(true)
+    
+    // Process sphere conversion asynchronously without blocking display
+    if (this.onChunkAddedToScene) {
+      console.log(`🔄 Async sphere processing for ${chunkInfo.filename}`)
+      
+      // Process spheres asynchronously in the background
+      setTimeout(async () => {
+        try {
+          const result = this.onChunkAddedToScene!(pointCloud)
+          if (result && typeof result.then === 'function') {
+            await result
+          }
+          console.log(`✅ Async sphere processing complete for ${chunkInfo.filename}`)
+        } catch (error) {
+          console.error(`❌ Async sphere processing failed for ${chunkInfo.filename}:`, error)
+        }
+      }, 10) // Very small delay to allow GPU to process the scene addition
+    }
+    
     this.loadedPointClouds.push(pointCloud)
     
     // Update chunk tracking
@@ -345,11 +492,6 @@ export class ProgressiveLoader {
     if (chunkIndex !== -1) {
       this.chunks[chunkIndex].pointCloud = pointCloud
       this.chunks[chunkIndex].loaded = true
-    }
-    
-    // Notify callback for progressive sphere conversion
-    if (this.onChunkAddedToScene) {
-      this.onChunkAddedToScene(pointCloud)
     }
     
     console.log(`🎯 Chunk ${chunkInfo.filename} added to scene (${this.loadedPointClouds.length} total chunks visible)`)
@@ -459,6 +601,11 @@ export class ProgressiveLoader {
    * Clear all loaded chunks from scene
    */
   public clear() {
+    // Clear concurrent loading state
+    this.downloadingChunks.clear()
+    this.readyBuffer.forEach(geometry => geometry.dispose())
+    this.readyBuffer.clear()
+    
     // Remove all individual point clouds from scene
     this.loadedPointClouds.forEach(pointCloud => {
       this.scene.remove(pointCloud)

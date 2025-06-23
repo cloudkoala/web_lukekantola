@@ -35,6 +35,9 @@ export class ModelManager {
     this.orbitalCamera = orbitalCamera
     this.sphereInstancer = new SphereInstancer(scene)
     
+    // Configure progressive loader for optimized performance
+    this.progressiveLoader.setSequentialMode(false) // Enable concurrent loading
+    
     console.log('ModelManager initialized')
     
     // Initialize Gaussian Splatting Loader - try different possible names
@@ -72,9 +75,9 @@ export class ModelManager {
    * Set up progressive sphere conversion callback
    */
   setupProgressiveSphereConversion() {
-    this.progressiveLoader.setOnChunkAddedToScene((pointCloud: THREE.Points) => {
+    this.progressiveLoader.setOnChunkAddedToScene(async (pointCloud: THREE.Points) => {
       // Convert this chunk to spheres if sphere mode is enabled
-      this.sphereInstancer.convertSinglePointCloudToSpheresProgressive(pointCloud)
+      await this.sphereInstancer.convertSinglePointCloudToSpheresProgressive(pointCloud)
     })
     console.log('Progressive sphere conversion callback set up')
   }
@@ -387,6 +390,12 @@ export class ModelManager {
             this.orbitalCamera.setCurrentPointCloud(loadedPointClouds[0])
           }
           
+          // Resume material effects after loading is complete
+          const postProcessingPass = (window as any).postProcessingPass
+          if (postProcessingPass && postProcessingPass.resumeMaterialEffects) {
+            postProcessingPass.resumeMaterialEffects()
+          }
+          
           // Reset switching flags
           if (this.isModelSwitching) {
             this.isModelSwitching = false
@@ -396,12 +405,25 @@ export class ModelManager {
           }
         })
         
+        // Pause material effects to prevent flashing during chunk loading
+        const postProcessingPass = (window as any).postProcessingPass
+        if (postProcessingPass && postProcessingPass.pauseMaterialEffects) {
+          postProcessingPass.pauseMaterialEffects()
+        }
+        
         // Start progressive loading
         await this.progressiveLoader.loadChunkedModel(manifestPath)
         
       } else {
         // No chunked version found, fall back to regular loading
         console.log('No chunked version found, loading single file...')
+        
+        // Resume material effects if they were paused
+        const postProcessingPass = (window as any).postProcessingPass
+        if (postProcessingPass && postProcessingPass.resumeMaterialEffects) {
+          postProcessingPass.resumeMaterialEffects()
+        }
+        
         // Cancel any ongoing progressive loading
         this.progressiveLoader.cancelLoading()
         this.loadSinglePointCloud(fileName, isComparisonLoad)
@@ -409,6 +431,13 @@ export class ModelManager {
       
     } catch (error) {
       console.log('Error checking for chunked version, falling back to single file loading:', error)
+      
+      // Resume material effects if they were paused
+      const postProcessingPass = (window as any).postProcessingPass
+      if (postProcessingPass && postProcessingPass.resumeMaterialEffects) {
+        postProcessingPass.resumeMaterialEffects()
+      }
+      
       // Cancel any ongoing progressive loading
       this.progressiveLoader.cancelLoading()
       this.loadSinglePointCloud(fileName, isComparisonLoad)
@@ -746,5 +775,13 @@ export class ModelManager {
 
   getSphereStats(): { totalSpheres: number, meshCount: number } {
     return this.sphereInstancer.getStats()
+  }
+  
+  /**
+   * Configure progressive loading mode (for debugging geometry issues)
+   */
+  public setProgressiveLoadingMode(sequential: boolean = true) {
+    this.progressiveLoader.setSequentialMode(sequential)
+    console.log(`ModelManager: Progressive loading mode set to ${sequential ? 'sequential' : 'concurrent'}`)
   }
 }

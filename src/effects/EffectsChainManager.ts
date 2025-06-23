@@ -312,7 +312,9 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       colorB: 1.0, // Noise color blue component
       contrast: 1.0, // Noise contrast
       brightness: 0.0, // Noise brightness offset
-      animated: 1 // 0 = static, 1 = animated
+      animated: 1, // 0 = static, 1 = animated
+      angle: 0.0, // Animation direction angle in degrees
+      evolution: 1.0 // Evolution speed through 3D noise space
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -328,7 +330,9 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       colorB: { min: 0, max: 1, step: 0.01, label: 'Blue Component' },
       contrast: { min: 0.1, max: 3.0, step: 0.1, label: 'Contrast' },
       brightness: { min: -1.0, max: 1.0, step: 0.01, label: 'Brightness' },
-      animated: { min: 0, max: 1, step: 1, label: 'Animated' }
+      animated: { min: 0, max: 1, step: 1, label: 'Animated' },
+      angle: { min: 0, max: 360, step: 1, label: 'Animation Angle (degrees)' },
+      evolution: { min: 0.0, max: 5.0, step: 0.1, label: 'Evolution Speed' }
     }
   },
   {
@@ -336,7 +340,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     name: 'Sky Sphere',
     defaultParameters: { 
       intensity: 1.0,
-      scale: 100.0, // Sphere scale/radius
+      scale: 500.0, // Sphere scale/radius
       noiseScale: 10.0, // Noise frequency on sphere
       timeSpeed: 1.0, // Time evolution speed
       noiseType: 0, // 0 = regular, 1 = fractal, 2 = ridged
@@ -350,11 +354,13 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       brightness: 0.0, // Noise brightness
       animated: 1, // Enable time animation
       opacity: 1.0, // Sphere opacity
-      renderBehind: 1 // Render behind geometry
+      renderBehind: 1, // Render behind geometry
+      angle: 0.0, // Animation direction angle in degrees
+      evolution: 1.0 // Evolution speed through 3D noise space
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      scale: { min: 10.0, max: 500.0, step: 5.0, label: 'Sphere Scale' },
+      scale: { min: 5.0, max: 200.0, step: 1.0, label: 'Sphere Scale' },
       noiseScale: { min: 0.1, max: 50.0, step: 0.1, label: 'Noise Scale' },
       timeSpeed: { min: 0.0, max: 5.0, step: 0.1, label: 'Animation Speed' },
       noiseType: { min: 0, max: 2, step: 1, label: 'Noise Type (0=Regular, 1=Fractal, 2=Ridged)' },
@@ -368,7 +374,9 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       brightness: { min: -1.0, max: 1.0, step: 0.01, label: 'Brightness' },
       animated: { min: 0, max: 1, step: 1, label: 'Animated' },
       opacity: { min: 0.0, max: 1.0, step: 0.01, label: 'Opacity' },
-      renderBehind: { min: 0, max: 1, step: 1, label: 'Render Behind Geometry' }
+      renderBehind: { min: 0, max: 1, step: 1, label: 'Render Behind Geometry' },
+      angle: { min: 0, max: 360, step: 1, label: 'Animation Angle (degrees)' },
+      evolution: { min: 0.0, max: 5.0, step: 0.1, label: 'Evolution Speed' }
     }
   },
   {

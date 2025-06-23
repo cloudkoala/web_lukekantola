@@ -51,11 +51,12 @@ export class SphereInstancer {
   /**
    * Convert a single point cloud to spheres progressively as chunks load
    * This allows spheres to appear one chunk at a time instead of all at once
+   * Returns a promise that resolves when conversion is complete
    */
-  convertSinglePointCloudToSpheresProgressive(pointCloud: THREE.Points): void {
+  async convertSinglePointCloudToSpheresProgressive(pointCloud: THREE.Points): Promise<void> {
     if (!this.isSpheresEnabled) {
       // If spheres aren't enabled globally, just return
-      return
+      return Promise.resolve()
     }
 
     // Check if this point cloud has already been converted
@@ -65,19 +66,31 @@ export class SphereInstancer {
     
     if (alreadyConverted) {
       console.log('Point cloud already converted to spheres, skipping')
-      return
+      return Promise.resolve()
     }
 
     console.log('🔄 Converting single point cloud to spheres progressively')
     
     // Convert this specific point cloud
     const currentIndex = this.instancedMeshes.length
-    this.convertSinglePointCloudToSpheres(pointCloud, currentIndex)
     
-    console.log(`✅ Progressive sphere conversion complete for chunk ${currentIndex}:`, {
-      chunkVertices: pointCloud.geometry.attributes.position.count,
-      totalSphereChunks: this.instancedMeshes.length,
-      totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0)
+    // Process conversion synchronously but return a promise for async handling
+    return new Promise<void>((resolve) => {
+      try {
+        this.convertSinglePointCloudToSpheres(pointCloud, currentIndex)
+        
+        console.log(`✅ Progressive sphere conversion complete for chunk ${currentIndex}:`, {
+          chunkVertices: pointCloud.geometry.attributes.position.count,
+          totalSphereChunks: this.instancedMeshes.length,
+          totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0)
+        })
+        
+        // Reduced delay for better performance
+        setTimeout(() => resolve(), 25)
+      } catch (error) {
+        console.error('Error in sphere conversion:', error)
+        resolve() // Don't fail loading if sphere conversion fails
+      }
     })
   }
 
@@ -97,6 +110,20 @@ export class SphereInstancer {
     this.revertToPointClouds()
   }
   
+  /**
+   * Check if sky sphere effect is currently active in the scene
+   */
+  private isSkySpherActive(): boolean {
+    // Look for sky sphere mesh in scene
+    let hasSkySphereMesh = false
+    this.scene.traverse((child) => {
+      if (child.userData && child.userData.isSkySphereMesh) {
+        hasSkySphereMesh = true
+      }
+    })
+    return hasSkySphereMesh
+  }
+
   /**
    * Convert a single point cloud to instanced spheres
    */
@@ -232,7 +259,13 @@ export class SphereInstancer {
     })
     
     // Hide original point cloud and add instanced mesh
-    pointCloud.visible = false
+    // Exception: Don't hide point cloud if sky sphere is active (background effect)
+    const skySpherActive = this.isSkySpherActive()
+    if (!skySpherActive) {
+      pointCloud.visible = false
+    } else {
+      console.log('Sky sphere active - keeping point cloud visible alongside spheres')
+    }
     this.scene.add(instancedMesh)
     
     // Store references

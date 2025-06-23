@@ -1289,6 +1289,15 @@ export class EffectsPanel {
             input.style.left = '-9999px'
             document.body.appendChild(input)
             
+            // Real-time updates while color picking is active
+            input.addEventListener('input', () => {
+              const newHex = input.value
+              const numericValue = parseInt(newHex.replace('#', ''), 16)
+              colorSwatch.style.backgroundColor = newHex
+              this.chainManager.updateEffectParameter(selectedEffect.id, paramName, numericValue)
+            })
+            
+            // Final update when color picker is closed
             input.addEventListener('change', () => {
               const newHex = input.value
               const numericValue = parseInt(newHex.replace('#', ''), 16)
@@ -1507,6 +1516,15 @@ export class EffectsPanel {
           input.style.left = '-9999px'
           document.body.appendChild(input)
           
+          // Real-time updates while color picking is active
+          input.addEventListener('input', () => {
+            const newHex = input.value
+            const numericValue = parseInt(newHex.replace('#', ''), 16)
+            colorSwatch.style.backgroundColor = newHex
+            this.chainManager.updateEffectParameter(effect.id, parameterName, numericValue)
+          })
+          
+          // Final update when color picker is closed
           input.addEventListener('change', () => {
             const newHex = input.value
             const numericValue = parseInt(newHex.replace('#', ''), 16)
