@@ -1383,20 +1383,6 @@ body, html {
   max-width: 260px;
 }
 
-/* Effects Panel - Same styling as Settings Panel */
-.effects-panel {
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 8px;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-}
 
 /* Settings Close Button */
 .settings-close-button {
@@ -1716,77 +1702,6 @@ body, html {
 }
 
 
-.controls-panel {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 15px;
-  z-index: 999;
-  max-height: 300px;
-  pointer-events: auto;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.controls-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  cursor: pointer;
-}
-
-.controls-header h3 {
-  color: white;
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 300;
-  letter-spacing: 1px;
-}
-
-.collapse-button {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  font-weight: bold;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 3px;
-  transition: background 0.2s ease;
-}
-
-.collapse-button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.controls-content {
-  transition: max-height 0.3s ease, opacity 0.3s ease;
-  overflow-y: auto;
-  max-height: none;
-  opacity: 1;
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
-}
-
-.controls-content.collapsed {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-}
 
 .control-group {
   margin-bottom: 0;
@@ -2938,9 +2853,12 @@ body, html {
     bottom: 20px; /* Desktop: further from bottom */
   }
   
-  .controls-panel {
-    max-height: 200px; /* Desktop: reduced height to avoid nav overlap */
+  .effects-panel-content {
+    max-height: calc(100vh - 320px); /* Desktop: flexible height for content area only */
+    overflow-y: auto;
+    overflow-x: hidden; /* Keep horizontal overflow hidden */
   }
+  
   
   .nav-indicator {
     padding: 8px 16px; /* Desktop: larger padding */
@@ -3930,10 +3848,14 @@ body, html {
 
 
 
-/* Effects Panel (New Chaining System) */
+/* Effects Panel (Desktop Chaining System) */
 .effects-panel {
-  background: transparent;
-  padding: 0;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  padding: 15px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: fit-content;
   pointer-events: auto;
@@ -3960,7 +3882,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 19px 6px 6px 6px;
+  margin: 6px;
 }
 
 .effects-panel-title-row label {
@@ -3997,41 +3919,7 @@ body, html {
 }
 
 .effects-panel-collapse-arrow {
-  color: rgba(0, 255, 128, 0.9);
-  font-size: 0.7rem;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.3s ease;
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.effects-panel-collapse-arrow span {
-  display: inline-block;
-  transition: transform 0.2s ease;
-  line-height: 1;
-}
-
-.effects-panel-collapse-arrow:hover {
-  color: rgba(0, 255, 128, 1);
-  background: rgba(0, 255, 0, 0.2);
-  border-color: rgba(0, 255, 0, 0.5);
-  box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
-}
-
-.effects-panel-collapse-arrow.collapsed span {
-  transform: rotate(-90deg);
+  display: none; /* Hide collapse arrow completely */
 }
 
 .effects-panel-title {

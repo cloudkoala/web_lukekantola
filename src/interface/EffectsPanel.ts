@@ -24,7 +24,7 @@ export class EffectsPanel {
   private panelCollapsible: HTMLElement
   private mainDropdown: HTMLSelectElement
   private savePresetButton: HTMLElement
-  private isCollapsed: boolean = true
+  private isCollapsed: boolean = false
   private expandedEffects: Set<string> = new Set() // Track which effects have expanded parameters
   
   // Mobile elements
