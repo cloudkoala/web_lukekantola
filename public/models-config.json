@@ -5,7 +5,7 @@
   },
   "models": {
     "castleton": {
-      "fileName": "Castleton_002_01.ply",
+      "fileName": "Castleton_002_hd01.ply",
       "gaussianSplatFile": "Castelton_003_orient.ply",
       "displayName": "Castleton Tower",
       "renderType": "point-cloud",

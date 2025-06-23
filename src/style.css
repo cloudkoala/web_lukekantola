@@ -2938,6 +2938,10 @@ body, html {
     bottom: 20px; /* Desktop: further from bottom */
   }
   
+  .controls-panel {
+    max-height: 200px; /* Desktop: reduced height to avoid nav overlap */
+  }
+  
   .nav-indicator {
     padding: 8px 16px; /* Desktop: larger padding */
   }

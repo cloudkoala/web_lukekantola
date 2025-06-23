@@ -1006,6 +1006,18 @@ export class OrbitalCameraSystem {
       this.currentPointCloud = null
     }
   }
+
+  /**
+   * Check if any models are currently loaded in the scene
+   */
+  hasLoadedModel(): boolean {
+    const loadedModels = this.scene.children.filter(child => 
+      child instanceof THREE.Points || 
+      (child as any).isSplatMesh ||
+      (child.type === 'Mesh' && child.userData?.isSplatMesh)
+    )
+    return loadedModels.length > 0
+  }
   
   clearClickedPoint() {
     const origin = new THREE.Vector3(0, 0, 0)
@@ -2763,9 +2775,16 @@ export class OrbitalCameraSystem {
       if (this.modelManager && sceneState.modelKey) {
         const modelsConfig = this.modelsConfig()
         if (modelsConfig.models[sceneState.modelKey]) {
-          // Switch model if different
-          if (modelsConfig.currentModel !== sceneState.modelKey) {
+          // Check if we need to load the model (either different model or no model currently loaded)
+          const needsModelLoad = modelsConfig.currentModel !== sceneState.modelKey || 
+                                !this.hasLoadedModel()
+          
+          if (needsModelLoad) {
+            console.log('Scene loading requires model load:', sceneState.modelKey, 
+                       'hasLoadedModel:', this.hasLoadedModel())
             await this.modelManager.switchToModel(sceneState.modelKey)
+          } else {
+            console.log('Scene loading - model already loaded:', sceneState.modelKey)
           }
           
           // Switch quality if different

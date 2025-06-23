@@ -55,7 +55,7 @@ export class ProgressiveLoader {
   private downloadingChunks: Map<string, Promise<THREE.BufferGeometry>> = new Map()
   private readyBuffer: Map<string, THREE.BufferGeometry> = new Map()
   private maxConcurrentDownloads: number = 2 // Optimized for better performance
-  private maxBufferSize: number = 2 // Optimized buffer for smoother loading
+  private maxBufferSize: number = 8 // Increased buffer to handle concurrent downloads better
   private overlapThreshold: number = 0.5 // Start next download at 50% progress
   
   constructor(scene: THREE.Scene, basePath: string = '') {
@@ -207,6 +207,11 @@ export class ProgressiveLoader {
         throw new Error('Failed to parse manifest file')
       }
       
+      // Dynamically adjust buffer size based on chunk count
+      const chunkCount = this.manifest.chunk_count
+      this.maxBufferSize = Math.max(8, Math.min(chunkCount, 15)) // Buffer 8-15 chunks based on model size
+      console.log(`📊 Dynamic buffer sizing: ${chunkCount} chunks → buffer size: ${this.maxBufferSize}`)
+      
       // Initialize chunks array
       this.chunks = this.manifest.chunks.map(chunkInfo => ({
         info: chunkInfo,
@@ -336,13 +341,49 @@ export class ProgressiveLoader {
       
       // Handle completion
       downloadPromise.then(geometry => {
-        // Only buffer if we haven't exceeded buffer size
+        // Check if we can buffer this chunk
         if (this.readyBuffer.size < this.maxBufferSize) {
           this.readyBuffer.set(chunkInfo.filename, geometry)
           console.log(`📦 Download ready: ${chunkInfo.filename} (buffered ${this.readyBuffer.size}/${this.maxBufferSize})`)
         } else {
-          console.log(`⚠️ Buffer full, disposing geometry for: ${chunkInfo.filename}`)
-          geometry.dispose()
+          // Buffer is full - check if this chunk will be needed soon
+          const chunkIndex = this.loadingQueue.findIndex(chunk => chunk.filename === chunkInfo.filename)
+          const processedCount = this.chunks.filter(chunk => chunk.loaded).length
+          const distanceFromCurrent = chunkIndex - processedCount
+          
+          console.log(`📊 Buffer analysis: ${chunkInfo.filename} is ${distanceFromCurrent} positions from current (${processedCount} processed, ${chunkIndex} target)`)
+          
+          if (distanceFromCurrent <= 5) {
+            // Chunk is needed soon - make room by removing oldest chunk that's further away
+            const oldestFarChunk = this.findOldestFarChunk(processedCount)
+            if (oldestFarChunk) {
+              console.log(`🔄 Buffer optimization: swapping ${oldestFarChunk} for ${chunkInfo.filename}`)
+              this.readyBuffer.get(oldestFarChunk)?.dispose()
+              this.readyBuffer.delete(oldestFarChunk)
+              this.readyBuffer.set(chunkInfo.filename, geometry)
+            } else {
+              console.log(`⚠️ Buffer full, no swappable chunks. Disposing: ${chunkInfo.filename}`)
+              geometry.dispose()
+            }
+          } else {
+            // Only dispose if this chunk is really far away (>10 positions)
+            if (distanceFromCurrent > 10) {
+              console.log(`⚠️ Buffer full, disposing very far chunk: ${chunkInfo.filename} (distance: ${distanceFromCurrent})`)
+              geometry.dispose()
+            } else {
+              // Force make room even for moderately far chunks by removing the furthest one
+              const furthestChunk = this.findFurthestChunk(processedCount)
+              if (furthestChunk) {
+                console.log(`🔄 Force buffer swap: removing ${furthestChunk} for ${chunkInfo.filename} (distance: ${distanceFromCurrent})`)
+                this.readyBuffer.get(furthestChunk)?.dispose()
+                this.readyBuffer.delete(furthestChunk)
+                this.readyBuffer.set(chunkInfo.filename, geometry)
+              } else {
+                console.log(`⚠️ Buffer full, no swappable chunks. Disposing: ${chunkInfo.filename} (distance: ${distanceFromCurrent})`)
+                geometry.dispose()
+              }
+            }
+          }
         }
         this.downloadingChunks.delete(chunkInfo.filename)
       }).catch(error => {
@@ -623,5 +664,47 @@ export class ProgressiveLoader {
    */
   public getLoadedPointClouds(): THREE.Points[] {
     return this.loadedPointClouds
+  }
+  
+  /**
+   * Find the oldest chunk in buffer that's far from current processing position
+   */
+  private findOldestFarChunk(processedCount: number): string | null {
+    let oldestFarChunk: string | null = null
+    let maxDistance = 0
+    
+    for (const [filename] of this.readyBuffer) {
+      const chunkIndex = this.loadingQueue.findIndex(chunk => chunk.filename === filename)
+      const distance = chunkIndex - processedCount
+      
+      // Only consider chunks that are far enough away (more than 5 positions ahead)
+      if (distance > 5 && distance > maxDistance) {
+        maxDistance = distance
+        oldestFarChunk = filename
+      }
+    }
+    
+    return oldestFarChunk
+  }
+  
+  /**
+   * Find the furthest chunk in buffer from current processing position
+   */
+  private findFurthestChunk(processedCount: number): string | null {
+    let furthestChunk: string | null = null
+    let maxDistance = 0
+    
+    for (const [filename] of this.readyBuffer) {
+      const chunkIndex = this.loadingQueue.findIndex(chunk => chunk.filename === filename)
+      const distance = chunkIndex - processedCount
+      
+      // Find any chunk that's further than current max
+      if (distance > maxDistance) {
+        maxDistance = distance
+        furthestChunk = filename
+      }
+    }
+    
+    return furthestChunk
   }
 }

@@ -2,8 +2,9 @@ import * as THREE from 'three'
 import type { EffectInstance } from './EffectsChainManager'
 import { ASCIIDitheringPass } from './ASCIIDitheringPass'
 import { HalftoneDitheringPass } from './HalftoneDitheringPass'
+import { EngravingPass } from './EngravingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius'
+export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -66,6 +67,7 @@ export class PostProcessingPass {
   // Dithering passes
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
+  private engravingPass: EngravingPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -294,6 +296,7 @@ export class PostProcessingPass {
     // Initialize dithering passes
     this.asciiDitheringPass = new ASCIIDitheringPass(width, height)
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
+    this.engravingPass = new EngravingPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -358,7 +361,6 @@ export class PostProcessingPass {
   }
   
   private renderEffectChain(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effects: EffectInstance[], outputTarget?: THREE.WebGLRenderTarget | null) {
-    console.log('🔗 Processing effects chain with', effects.length, 'effects:', effects.map(e => `${e.type}(${e.enabled ? 'ON' : 'OFF'})`).join(', '))
     let currentInput = inputTexture
     let pingPongIndex = 0
     
@@ -409,7 +411,6 @@ export class PostProcessingPass {
   }
   
   private renderSingleEffectFromInstance(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
-    console.log('🔄 Rendering effect:', effect.type, 'enabled:', effect.enabled, 'intensity:', effect.parameters.intensity)
     // Handle background effect separately
     if (effect.type === 'background') {
       this.applyBackgroundEffect(effect)
@@ -467,13 +468,12 @@ export class PostProcessingPass {
     
     // Handle DOF effect separately
     if (effect.type === 'dof') {
-      console.log('🔵 DOF effect detected in rendering pipeline!')
       this.renderDOFEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -621,8 +621,6 @@ export class PostProcessingPass {
         break
       
       case 'splittone':
-        console.log('🎨 Split Tone effect processing - Parameters:', effect.parameters)
-        console.log('🎨 Split Tone intensity:', effect.parameters.intensity ?? 0.5)
         
         // Convert hex colors to RGB (0-1 range) 
         const splitColor1 = effect.parameters.color1 ?? 0x000000
@@ -639,8 +637,6 @@ export class PostProcessingPass {
           (splitColor2 & 255) / 255.0           // Blue
         ]
         
-        console.log('🎨 Split Tone color1 (RGB):', color1RGB)
-        console.log('🎨 Split Tone color2 (RGB):', color2RGB)
         
         this.material.uniforms.splitToneColor1.value.set(...color1RGB)
         this.material.uniforms.splitToneColor2.value.set(...color2RGB)
@@ -648,9 +644,6 @@ export class PostProcessingPass {
         this.material.uniforms.splitToneContrast.value = effect.parameters.contrast ?? 1.0
         this.material.uniforms.splitToneMidpoint.value = effect.parameters.midpoint ?? 0.5
         
-        console.log('🎨 Split Tone uniforms set - smoothness:', this.material.uniforms.splitToneSmoothness.value,
-                   'contrast:', this.material.uniforms.splitToneContrast.value,
-                   'midpoint:', this.material.uniforms.splitToneMidpoint.value)
         break
       
       case 'noise2d':
@@ -672,8 +665,6 @@ export class PostProcessingPass {
       
     }
     
-    console.log('🔧 Final effect type index:', this.material.uniforms.effectType.value, 'for effect:', effect.type)
-    console.log('🔧 Final intensity:', this.material.uniforms.intensity.value)
     
     this.material.uniforms.time.value = performance.now() * 0.001
     
@@ -701,6 +692,17 @@ export class PostProcessingPass {
         ditheringPass.dotSize = effect.parameters.dotSize ?? 8
         ditheringPass.contrast = effect.parameters.contrast ?? 1.2
         ditheringPass.angle = 0 // Fixed at 0 degrees
+        break
+      case 'engraving':
+        this.engravingPass.setIntensity(effect.parameters.intensity ?? 1.0)
+        this.engravingPass.setAngle(effect.parameters.angle ?? 90.0)
+        this.engravingPass.setMinWidth(effect.parameters.minWidth ?? 0.0)
+        this.engravingPass.setMaxWidth(effect.parameters.maxWidth ?? 1.0)
+        this.engravingPass.setDetail(effect.parameters.detail ?? 45.0)
+        this.engravingPass.setLineSpacing(effect.parameters.lineSpacing ?? 13.0)
+        this.engravingPass.setInterpolationMode(effect.parameters.interpolationMode ?? 3.0)
+        this.engravingPass.render(renderer, inputTexture, outputTarget || undefined)
+        return
         break
       default:
         return
@@ -760,11 +762,17 @@ export class PostProcessingPass {
             
             vec4 result;
             if (blendMode == 1) {
-              // Add blend mode
-              result = vec4(base.rgb + blend.rgb, base.a);
+              // Add blend mode - corrected
+              // Effect outputs: black = no effect, white = full effect
+              // For add: black blend = no change, white blend = brighten
+              // So black (0.0) + base = base, white (1.0) + base = base + 1.0
+              result = vec4(clamp(base.rgb + blend.rgb, 0.0, 1.0), base.a);
             } else if (blendMode == 2) {
-              // Multiply blend mode
-              result = vec4(base.rgb * blend.rgb, base.a);
+              // Multiply blend mode - corrected
+              // Effect outputs: black = no effect, white = full effect
+              // For multiply: white blend = no change, black blend = darken
+              // So we need to invert the effect output for multiply
+              result = vec4(base.rgb * (1.0 - blend.rgb), base.a);
             } else {
               // Normal blend mode (default)
               result = blend;
@@ -803,6 +811,7 @@ export class PostProcessingPass {
     // Update dithering passes
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
+    this.engravingPass.setSize(width, height)
     
     
     // Update afterimage render target
@@ -827,6 +836,7 @@ export class PostProcessingPass {
     // Dispose dithering passes
     this.asciiDitheringPass.dispose()
     this.halftoneDitheringPass.dispose()
+    this.engravingPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
@@ -875,7 +885,6 @@ export class PostProcessingPass {
   private applySkySpherEffect(effect: EffectInstance): void {
     if (!this.mainScene) return
     
-    console.log('🌌 Creating sky sphere geometry with intensity:', effect.parameters.intensity)
     
     // Clean up existing sky sphere
     this.cleanupSkySphere()
@@ -941,7 +950,6 @@ export class PostProcessingPass {
     this.skySphereMesh.userData.isSkySphereMesh = true // Mark for SphereInstancer detection
     this.mainScene.add(this.skySphereMesh)
     
-    console.log('🌌 Sky sphere added to scene')
     
     // Update uniforms with current time
     this.updateSkySpherUniforms()
@@ -1132,6 +1140,7 @@ export class PostProcessingPass {
       // Dithering effects are handled separately in renderDitheringEffect
       case 'ascii': return 0
       case 'halftone': return 0
+      case 'engraving': return 0
       default: return 0
     }
   }
@@ -1247,9 +1256,7 @@ export class PostProcessingPass {
     // Only pause if effects are actually enabled and active
     if (this.enabled && this.effectsChain.some(effect => effect.type === 'material')) {
       this.materialEffectsPaused = true
-      console.log('🔇 Material effects paused to prevent flashing during chunk loading')
     } else {
-      console.log('ℹ️ Material effects not paused (effects disabled or no material effects active)')
     }
   }
   
@@ -1262,9 +1269,7 @@ export class PostProcessingPass {
       // Force update when resuming
       this.lastUpdateTime = 0
       this.isUpdatingPointClouds = false
-      console.log('🔊 Material effects resumed after chunk loading')
     } else {
-      console.log('ℹ️ Material effects resume skipped (were not paused)')
     }
   }
   
@@ -4046,7 +4051,6 @@ export class PostProcessingPass {
   
   private renderDOFEffect(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null): void {
     if (!this.dofMaterial) {
-      console.warn('DOF material not initialized')
       return
     }
     

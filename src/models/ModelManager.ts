@@ -339,8 +339,6 @@ export class ModelManager {
       console.log('Loading as comparison alongside Gaussian splat')
     }
     
-    
-    
     // Check if chunked version exists by looking for manifest file in model subfolder
     const baseFileName = fileName.replace('.ply', '')
     const manifestPath = `models/chunks/${baseFileName}/${baseFileName}_manifest.json`
@@ -353,6 +351,8 @@ export class ModelManager {
       
       if (manifestResponse.ok) {
         console.log('Found chunked version, loading progressively...')
+        const manifestData = await manifestResponse.json()
+        console.log('Manifest data loaded:', manifestData.chunk_count, 'chunks')
         
         // Hide loading screen immediately for streaming effect
         this.progressEl.style.display = 'none'
@@ -416,7 +416,7 @@ export class ModelManager {
         
       } else {
         // No chunked version found, fall back to regular loading
-        console.log('No chunked version found, loading single file...')
+        console.log('No chunked version found (status:', manifestResponse.status, '), loading single file...')
         
         // Resume material effects if they were paused
         const postProcessingPass = (window as any).postProcessingPass
@@ -577,25 +577,24 @@ export class ModelManager {
   }
 
   async loadPointCloud() {
-    console.log('loadPointCloud() called')
+    console.log('Loading point cloud - currentModel:', this.modelsConfig?.currentModel)
     
     if (!this.modelsConfig) {
       console.error('Models configuration not loaded')
       return
     }
     
-    console.log('Models config loaded:', this.modelsConfig)
-    
     const currentModel = this.modelsConfig.models[this.modelsConfig.currentModel]
     if (!currentModel) {
-      console.error('Current model not found in configuration')
+      console.error('Current model not found in configuration:', this.modelsConfig.currentModel)
       return
     }
     
-    console.log('Current model:', currentModel)
+    console.log('Loading model:', currentModel.displayName, 'fileName:', currentModel.fileName)
     
     // Load the normal model first
     await this.loadModelByFileName(currentModel.fileName)
+    console.log('Model loading completed for:', currentModel.fileName)
   }
 
   private onLoad(geometry: THREE.BufferGeometry, isComparisonLoad: boolean = false) {

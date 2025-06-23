@@ -202,9 +202,9 @@ class PLYChunker:
             
             # Calculate probability for each remaining vertex
             for i, (distance, original_index, vertex) in enumerate(remaining_vertices):
-                # Probability decreases linearly from 100% at origin to 20% at max distance
-                # This ensures the whole form is visible early while maintaining detail progression
-                base_probability = 1.0 - (distance / max_distance * 0.8)  # 100% -> 20%
+                # Probability decreases linearly from 30% at origin to 5% at max distance
+                # This creates better form recognition without dense center blob
+                base_probability = 0.30 - (distance / max_distance * 0.25)  # 30% -> 5%
                 
                 # Increase probability for later chunks to ensure all vertices eventually load
                 chunk_boost = min(0.3, (chunk_num - 1) * 0.1)  # Up to 30% boost for later chunks

@@ -93,7 +93,7 @@ controls.enableDamping = true
 controls.dampingFactor = 0.05
 
 // Progressive loader
-const progressiveLoader = new ProgressiveLoader(scene)
+const progressiveLoader = new ProgressiveLoader(scene, `${import.meta.env.BASE_URL}`)
 
 // Post-processing effects (includes effects chain management)
 const postProcessingPass = new PostProcessingPass(window.innerWidth, window.innerHeight, renderer)
@@ -1516,7 +1516,7 @@ function setupMobileEffectsButton() {
         },
         'Post-Process': {
           color: '#96CEB4',
-          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'datamosh', 'pixelsort']
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'engraving', 'datamosh', 'pixelsort']
         },
         '3D Effects': {
           color: '#FECA57',

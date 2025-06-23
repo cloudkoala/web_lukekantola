@@ -1,0 +1,326 @@
+{
+  "original_file": "Castleton_002_hd01.ply",
+  "total_vertices": 124533,
+  "chunk_count": 17,
+  "overall_bounding_box": {
+    "min": {
+      "x": -1.49529839,
+      "y": 0.0292802807,
+      "z": -2.77550006
+    },
+    "max": {
+      "x": 1.61819875,
+      "y": 1.35805666,
+      "z": 1.55469346
+    }
+  },
+  "target_chunk_size_mb": 0.15,
+  "chunks": [
+    {
+      "filename": "Castleton_002_hd01_chunk_000.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.71538198,
+          "y": 0.34509775,
+          "z": -0.774678528
+        },
+        "max": {
+          "x": 0.876575947,
+          "y": 0.950739324,
+          "z": 0.810705841
+        }
+      },
+      "priority": 0,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_001.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.711014807,
+          "y": 0.381692767,
+          "z": -0.75531143
+        },
+        "max": {
+          "x": 0.83231467,
+          "y": 0.942585468,
+          "z": 0.799282432
+        }
+      },
+      "priority": 1,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_002.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.724710286,
+          "y": 0.347344339,
+          "z": -0.775728524
+        },
+        "max": {
+          "x": 0.845780194,
+          "y": 0.951020837,
+          "z": 0.824555397
+        }
+      },
+      "priority": 2,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_003.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.740273416,
+          "y": 0.337551624,
+          "z": -0.796542406
+        },
+        "max": {
+          "x": 0.892421901,
+          "y": 0.961022556,
+          "z": 0.834459305
+        }
+      },
+      "priority": 3,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_004.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.782975256,
+          "y": 0.306678385,
+          "z": -0.835227787
+        },
+        "max": {
+          "x": 0.909000695,
+          "y": 0.985417366,
+          "z": 0.857407391
+        }
+      },
+      "priority": 4,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_005.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.86593765,
+          "y": 0.277580947,
+          "z": -0.897660196
+        },
+        "max": {
+          "x": 0.967064023,
+          "y": 1.01731825,
+          "z": 0.919238269
+        }
+      },
+      "priority": 5,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_006.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -0.99700892,
+          "y": 0.244546205,
+          "z": -1.01356924
+        },
+        "max": {
+          "x": 1.04619563,
+          "y": 1.09542418,
+          "z": 1.01217687
+        }
+      },
+      "priority": 6,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_007.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.16499293,
+          "y": 0.244558856,
+          "z": -1.16515863
+        },
+        "max": {
+          "x": 1.12872458,
+          "y": 1.22619283,
+          "z": 1.16220057
+        }
+      },
+      "priority": 7,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_008.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.31836748,
+          "y": 0.227751493,
+          "z": -1.29756081
+        },
+        "max": {
+          "x": 1.26210117,
+          "y": 1.35633659,
+          "z": 1.21698105
+        }
+      },
+      "priority": 8,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_009.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.33088696,
+          "y": 0.0905639455,
+          "z": -1.47399521
+        },
+        "max": {
+          "x": 1.3963362,
+          "y": 1.35730636,
+          "z": 1.4634856
+        }
+      },
+      "priority": 9,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_010.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.49529839,
+          "y": 0.0292802807,
+          "z": -1.6819123
+        },
+        "max": {
+          "x": 1.49340856,
+          "y": 1.35763919,
+          "z": 1.55469346
+        }
+      },
+      "priority": 10,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_011.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.16202247,
+          "y": 0.111489736,
+          "z": -1.77757633
+        },
+        "max": {
+          "x": 1.58553696,
+          "y": 1.35715723,
+          "z": 1.1957624
+        }
+      },
+      "priority": 11,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_012.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.33057141,
+          "y": 0.115873098,
+          "z": -1.93645799
+        },
+        "max": {
+          "x": 1.56680429,
+          "y": 1.35704792,
+          "z": 1.2263087
+        }
+      },
+      "priority": 12,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_013.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.23579586,
+          "y": 0.197366491,
+          "z": -2.06591678
+        },
+        "max": {
+          "x": 1.6079464,
+          "y": 1.3542006,
+          "z": 1.38072324
+        }
+      },
+      "priority": 13,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_014.ply",
+      "vertex_count": 6312,
+      "bounding_box": {
+        "min": {
+          "x": -1.30176127,
+          "y": 0.26704812,
+          "z": -2.77550006
+        },
+        "max": {
+          "x": 1.61356831,
+          "y": 1.35805666,
+          "z": 1.16162336
+        }
+      },
+      "priority": 14,
+      "file_size_bytes": 94978
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_015.ply",
+      "vertex_count": 7864,
+      "bounding_box": {
+        "min": {
+          "x": -1.02944958,
+          "y": 0.293438643,
+          "z": -2.256253
+        },
+        "max": {
+          "x": 1.56331718,
+          "y": 1.35693824,
+          "z": 0.927044988
+        }
+      },
+      "priority": 15,
+      "file_size_bytes": 118258
+    },
+    {
+      "filename": "Castleton_002_hd01_chunk_016.ply",
+      "vertex_count": 261,
+      "bounding_box": {
+        "min": {
+          "x": 0.301615745,
+          "y": 0.287209213,
+          "z": -2.7732141
+        },
+        "max": {
+          "x": 1.61819875,
+          "y": 1.21808434,
+          "z": -1.79680192
+        }
+      },
+      "priority": 16,
+      "file_size_bytes": 4212
+    }
+  ]
+}

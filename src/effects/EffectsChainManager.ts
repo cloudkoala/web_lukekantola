@@ -189,6 +189,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'dotscreen',
     name: 'Dot Screen',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.7, centerX: 0.5, centerY: 0.5, scale: 1.0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -256,6 +257,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'gradient',
     name: 'Gradient',
+    supportsBlending: true,
     defaultParameters: { 
       intensity: 1.0,
       gradientColor: 0x000000, // Black by default
@@ -298,6 +300,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'noise2d',
     name: '2D Noise',
+    supportsBlending: true,
     defaultParameters: { 
       intensity: 0.5,
       scale: 10.0, // Noise scale/frequency
@@ -414,6 +417,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'sobel',
     name: 'Sobel Edge Detection',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' }
@@ -422,6 +426,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'sobelthreshold',
     name: 'Sobel with Threshold',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5, threshold: 0.1 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -431,6 +436,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'ascii',
     name: 'ASCII Dithering',
+    supportsBlending: true,
     defaultParameters: { intensity: 0.5, characterSize: 8, contrast: 1.2 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -441,6 +447,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'halftone',
     name: 'Halftone Dithering',
+    supportsBlending: true,
     defaultParameters: { intensity: 1, dotSize: 4, contrast: 1.2 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -618,6 +625,29 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       threshold: { min: 0, max: 1, step: 0.01, label: 'Threshold' },
       hardness: { min: 0, max: 2, step: 0.1, label: 'Edge Hardness' }
+    }
+  },
+  {
+    type: 'engraving',
+    name: 'Engraving',
+    supportsBlending: true,
+    defaultParameters: { 
+      intensity: 1.0,
+      angle: 90.0,
+      minWidth: 0.0,
+      maxWidth: 1.0,
+      detail: 45.0,
+      lineSpacing: 13.0,
+      interpolationMode: 3.0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      angle: { min: 0, max: 360, step: 5, label: 'Line Angle (degrees)' },
+      minWidth: { min: 0, max: 50, step: 0.1, label: 'Minimum Width (px)' },
+      maxWidth: { min: 0, max: 2, step: 0.01, label: 'Maximum Width (× Line Spacing)' },
+      detail: { min: 1.0, max: 256.0, step: 1.0, label: 'Detail Level' },
+      lineSpacing: { min: 1.0, max: 50.0, step: 0.1, label: 'Line Spacing (px)' },
+      interpolationMode: { min: 0, max: 4, step: 1, label: 'Interpolation (0=None, 1=Linear, 2=Smooth, 3=Cubic, 4=Ultra)' }
     }
   }
 ]
