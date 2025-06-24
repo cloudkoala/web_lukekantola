@@ -667,12 +667,10 @@ export class EffectsPanel {
   }
 
   private loadDefaultPreset(): void {
-    console.log('Loading default preset: Delicate Noir')
-    // Load "Delicate Noir" preset by default
-    this.loadPreset('Delicate Noir')
-    this.mainDropdown.value = 'Delicate Noir'
+    console.log('Initializing effects system without default preset')
+    // Initialize effects pipeline but don't load a preset
     this.updateEffectsEnabled(true)
-    console.log('Default preset loaded, effects enabled')
+    console.log('Effects system ready, waiting for scene to load effects')
   }
 
 

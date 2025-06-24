@@ -243,9 +243,9 @@ export class ASCIIDitheringPass {
         // Create ASCII-style output using the average color from the cell
         vec3 asciiColor = cellAvgColor * pattern;
         
-        // For blend mode support, output the effect result with intensity applied
+        // For blend mode support, blend between original image and effect based on intensity
         // The blending will be handled by the PostProcessingPass
-        vec3 effectColor = mix(vec3(0.0), asciiColor, intensity);
+        vec3 effectColor = mix(color.rgb, asciiColor, intensity);
         
         gl_FragColor = vec4(effectColor, color.a);
       }

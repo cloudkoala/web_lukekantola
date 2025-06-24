@@ -166,6 +166,70 @@ gsplat-showcase/
 
 **Result**: Spheres now appear progressively with each chunk, providing a smooth visual experience with no pop-in effects.
 
+## Phase 9: Vector-Based Camera Animation with Focal Length Enhancement (January 2025)
+
+### Enhanced Animation System
+- **Vector-Based Positioning**: Replaced hardcoded start/end positions with mathematical approach using lookAt point + rotation offset
+- **Focal Length Animation**: Added cinematic zoom-in effect during orbital motion
+- **Unified Target System**: Both camera animation and auto-rotation share the same focal point for future layered effects
+
+### Technical Implementation
+
+**New Animation Configuration Format**:
+```json
+"loadingAnimation": {
+  "startPosition": { "x": 2.49, "y": 2.09, "z": -0.56 },     // Legacy (kept for compatibility)
+  "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },         // Camera destination
+  "target": { "x": -0.13, "y": 0.87, "z": -0.29 },           // Legacy target
+  "lookAtPoint": { "x": -0.13, "y": 0.87, "z": -0.29 },      // New: focal center
+  "rotationOffset": { "axis": "y", "degrees": 30 },           // Orbital approach angle
+  "initialFocalLengthMultiplier": 10,                          // Zoom effect intensity
+  "enableAutoRotationDuringAnimation": false,                 // Future: layered rotation
+  "animationAutoRotationSpeed": 0.2,                          // Future: spiral motion
+  "duration": 4000
+}
+```
+
+**Vector Calculation Methods**:
+- `calculateVectorBasedStartPosition()`: Calculates start position by rotating around lookAt point
+- `animateToPositionWithFocalLength()`: Handles simultaneous position and focal length animation
+- Graceful fallback to legacy hardcoded positions when new format not available
+
+### Focal Length Animation System
+
+**Problem Solved**: Static camera movements lacked cinematic depth and engagement.
+
+**Solution**: Added focal length interpolation during orbital motion to create professional "push-in" effects.
+
+**Technical Details**:
+- Start focal length: `targetFocalLength * initialFocalLengthMultiplier`
+- Animation: Smooth interpolation from wide → narrow field of view
+- Sine-based easing for natural zoom progression
+
+**Model-Specific Calibration**:
+```json
+Castleton Tower:    multiplier: 10    (special case due to current model handling)
+Corona Arch:        multiplier: 1.32  
+Delicate Arch:      multiplier: 0.1   (dramatic zoom effect)
+Fisher Towers:      multiplier: 0.1   (consistent with Delicate Arch)
+```
+
+### Scene State Integration
+
+**Enhanced Scene Sharing**: New animation variables integrate with scene configuration system with hierarchical fallbacks:
+1. Scene-specific overrides (highest priority)
+2. Model default values (fallback)
+3. System defaults (no animation if unspecified)
+
+**Backward Compatibility**: All existing hardcoded animations continue to work unchanged while new vector-based system is available for enhanced configurations.
+
+### Development Challenges Solved
+
+1. **Focal Length Direction Issue**: Initial implementations had reversed zoom direction - resolved through systematic testing
+2. **Model-Specific Behavior**: Castleton (current model) required different multiplier values due to initialization sequence differences
+3. **Timing Conflicts**: Multiple systems setting focal length values - resolved by setting initial focal length immediately before animation starts
+4. **Cross-Model Consistency**: Each model needed individual calibration due to different default focal length baselines
+
 ## Key Solved Issues
 
 ### Technical Challenges
@@ -196,11 +260,12 @@ gsplat-showcase/
 - **Preview**: `npm preview`
 
 ## Future Considerations
+- **Layered Auto-Rotation**: Enable auto-rotation during initial animation for spiral/helical motion effects (framework complete)
 - **Smart Chunk Prioritization**: Load closest/largest chunks first based on camera position
 - **WebAssembly Processing**: 2-3x faster point cloud processing for large datasets
 - **Service Worker Caching**: 70-90% faster repeat visits with intelligent chunk caching
 - **Additional Formats**: Support for LAS, XYZ point cloud formats
-- **Advanced Features**: More camera presets, lighting controls, point cloud editing
+- **Advanced Camera Features**: More animation presets, lighting controls, advanced easing functions
 - **Multi-model Support**: Loading and comparison of multiple models simultaneously
 - **Testing Framework**: Unit testing integration with modular architecture
 - **Performance Monitoring**: Real-time performance metrics and optimization for large datasets

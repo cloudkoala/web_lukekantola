@@ -371,7 +371,7 @@ export class ModelManager {
         
         // Start loading animation immediately before chunks appear
         if (this.isModelSwitching && !this.isQualitySwitching) {
-          this.orbitalCamera.startLoadingAnimation()
+          await this.orbitalCamera.startLoadingAnimation(true) // Skip random scene for manual switches
         }
         
         // Setup progressive loader callbacks
@@ -547,7 +547,7 @@ export class ModelManager {
       
       // Trigger loading animation if switching models (but not quality)
       if (this.isModelSwitching && !this.isQualitySwitching) {
-        this.orbitalCamera.startLoadingAnimation()
+        await this.orbitalCamera.startLoadingAnimation(true) // Skip random scene for manual switches
       }
       
       // Reset switching flags
@@ -681,7 +681,9 @@ export class ModelManager {
     
     // Trigger loading animation if switching models (but not quality)
     if (this.isModelSwitching && !this.isQualitySwitching) {
-      this.orbitalCamera.startLoadingAnimation()
+      this.orbitalCamera.startLoadingAnimation(true).catch((error: any) => { // Skip random scene for manual switches
+        console.warn('Loading animation failed:', error)
+      })
     }
     
     // Reset switching flags

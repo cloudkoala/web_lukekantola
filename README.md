@@ -105,16 +105,44 @@ const sliderCard = createSliderCard('Setting Name', currentValue, min, max, step
 sliderCard.id = 'mobile-setting-name-card'  // Always assign ID for external access
 ```
 
-### 4. Configuration Management
+### 4. Camera Animation System
+
+**Vector-Based Animation Configuration**:
+```json
+"loadingAnimation": {
+  "endPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },         // Camera destination
+  "lookAtPoint": { "x": -0.13, "y": 0.87, "z": -0.29 },      // Focal center point
+  "rotationOffset": { "axis": "y", "degrees": 30 },           // Orbital approach angle
+  "initialFocalLengthMultiplier": 10,                          // Zoom effect intensity
+  "enableAutoRotationDuringAnimation": false,                 // Future: layered rotation
+  "duration": 4000
+}
+```
+
+**Key Features**:
+- **Mathematical Positioning**: Start position calculated by rotating around lookAt point
+- **Focal Length Animation**: Smooth zoom-in effect during orbital motion
+- **Unified Target System**: Shared focal point for camera animation and auto-rotation
+- **Model-Specific Calibration**: Each model has optimized multiplier values
+
+**Animation Flow**:
+1. Calculate start position by rotating around `lookAtPoint`
+2. Set initial focal length using `initialFocalLengthMultiplier`
+3. Animate simultaneously: position (orbital) + focal length (zoom-in)
+4. Smooth quaternion interpolation with sine-based easing
+
+### 5. Configuration Management
 
 **Models Config** (`public/models-config.json`):
 - Single source of truth for model defaults
 - Use simple bidirectional values: `"autoRotationSpeed": 0.0`
+- Enhanced animation configuration with vector-based properties
 - Avoid redundant properties (speed + direction)
 
 **Scenes Config** (`public/scenes-config.json`):
 - Complete scene snapshots with all settings
 - Must include `focalLength`, `cameraPosition`, `cameraTarget`
+- Can override animation configuration per scene
 - Effects chains with full parameter sets
 
 ## Development Guidelines
@@ -181,6 +209,8 @@ public/
 This application has been extensively optimized for exceptional loading performance and user experience:
 
 ### **Latest Improvements (2025)**:
+- **Vector-Based Camera Animation**: Mathematical approach using lookAt points and rotation offsets for more flexible camera movements
+- **Focal Length Animation**: Cinematic zoom-in effects during orbital motion for professional camera movements
 - **Progressive Sphere Loading**: Spheres now appear chunk-by-chunk with no pop-in effects
 - **Optimized Chunk Size**: Reduced from 768KB to ~150KB for 5x more frequent visual updates
 - **Sequential Loading**: True progressive loading - chunks appear every 300-600ms instead of 2-3 seconds
