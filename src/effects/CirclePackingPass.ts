@@ -1589,6 +1589,10 @@ export class CirclePackingPass {
         .then(imageData => {
           this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
           this.needsRecompute = false
+          
+          // CRITICAL: Update resolution uniform to match ImageData dimensions for correct coordinate mapping
+          this.material.uniforms.resolution.value.set(imageData.width, imageData.height)
+          
           this.updateCircleDataInShader()
         })
         .catch(console.error)
@@ -1642,7 +1646,8 @@ export class CirclePackingPass {
   
   setSize(width: number, height: number) {
     this.renderTarget.setSize(width, height)
-    this.material.uniforms.resolution.value.set(width, height)
+    // NOTE: Don't update resolution uniform here - it should match ImageData dimensions, not render target size
+    // The resolution uniform is updated in the render method when ImageData is processed
   }
   
   dispose() {
