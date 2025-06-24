@@ -2,42 +2,59 @@
   "scenes": {
     "delicate_disco": {
       "name": "Delicate Disco",
-      "description": "Delicate Arch with colorful background and material effects creating a psychedelic atmosphere",
+      "description": "Exported scene configuration - 6/23/2025",
       "modelKey": "delicate_arch",
       "quality": "low",
-      "cameraPosition": { "x": -6.70, "y": 5.49, "z": 3.49 },
-      "cameraTarget": { "x": -0.04, "y": 4.15, "z": -0.08 },
+      "cameraPosition": {
+        "x": 6.33,
+        "y": 6.11,
+        "z": 3.72
+      },
+      "cameraTarget": {
+        "x": 0,
+        "y": 4.04,
+        "z": -0.09
+      },
       "focalLength": 135,
       "effectsChain": [
         {
-          "id": "background_001",
+          "id": "effect_1",
           "type": "background",
           "enabled": true,
-          "parameters": { "hue": 0.85, "saturation": 80, "lightness": 15 }
+          "parameters": {
+            "hue": 0.85,
+            "saturation": 80,
+            "lightness": 15
+          }
         },
         {
-          "id": "material_001",
+          "id": "effect_2",
           "type": "material",
           "enabled": true,
-          "parameters": { 
-            "colorCycling": 0,
+          "parameters": {
+            "transparency": 0,
+            "sizeMultiplier": 150,
+            "useVertexColors": 1,
+            "waveDeformation": 0.38,
+            "twistEffect": 1.67,
+            "animationSpeed": 0.61,
+            "waveFrequency": 2,
             "pulseEffect": 1,
-            "animationSpeed": 1.5,
-            "sizeMultiplier": 150
+            "colorCycling": 1,
+            "deformationEnable": 1
           }
         }
       ],
+      "effectsDropdownValue": "",
       "pointSize": 0.046,
       "sphereMode": false,
       "fogDensity": 0.008,
-      "autoRotation": true,
+      "autoRotation": false,
       "autoRotationSpeed": 0,
       "autoRotationDirection": 1,
-      "effectsDropdownValue": "custom",
-      "timestamp": 1735081200000,
+      "timestamp": 1750725957184,
       "version": "1.0",
-      "tags": ["colorful", "psychedelic", "arch"],
-      "creator": "System"
+      "creator": "User"
     },
     "delicate_noir": {
       "name": "Delicate Noir",

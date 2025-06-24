@@ -3183,6 +3183,12 @@ export class OrbitalCameraSystem {
       // Apply the scene
       await this.applySceneState(sceneDefinition)
       
+      // Update scene dropdown to show the selected scene
+      const sceneDropdown = document.getElementById('scene-dropdown') as HTMLSelectElement
+      if (sceneDropdown) {
+        sceneDropdown.value = randomSceneKey
+      }
+      
       return true
     } catch (error) {
       console.error('Failed to load random scene:', error)
