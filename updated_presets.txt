@@ -156,16 +156,6 @@ private getDefaultPresets(): Record<string, EffectInstance[]> {
           colorG: 0.34,
           colorB: 0.36
         }
-      },
-      {
-        id: "effect_10",
-        type: "bloom",
-        enabled: true,
-        parameters: {
-          threshold: 0.58,
-          intensity: 3,
-          radius: 1
-        }
       }
     ],
     "Delicate Disco": [

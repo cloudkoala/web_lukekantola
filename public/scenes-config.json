@@ -16,17 +16,12 @@
         "z": -0.08
       },
       "focalLength": 200,
+      "backgroundColor": {
+        "hue": 0.59,
+        "saturation": 100,
+        "lightness": 83
+      },
       "effectsChain": [
-        {
-          "id": "effect_1",
-          "type": "background",
-          "enabled": true,
-          "parameters": {
-            "hue": 0.59,
-            "saturation": 100,
-            "lightness": 83
-          }
-        },
         {
           "id": "effect_2",
           "type": "sepia",
@@ -175,17 +170,12 @@
         "z": -0.04
       },
       "focalLength": 135,
+      "backgroundColor": {
+        "hue": 0.62,
+        "saturation": 27,
+        "lightness": 30
+      },
       "effectsChain": [
-        {
-          "id": "effect_54",
-          "type": "background",
-          "enabled": true,
-          "parameters": {
-            "hue": 0.62,
-            "saturation": 27,
-            "lightness": 30
-          }
-        },
         {
           "id": "effect_55",
           "type": "crtgrain",
@@ -283,17 +273,12 @@
           "z": -0.11
         },
         "focalLength": 135,
+        "backgroundColor": {
+          "hue": 0.62,
+          "saturation": 27,
+          "lightness": 79
+        },
         "effectsChain": [
-          {
-            "id": "effect_72",
-            "type": "background",
-            "enabled": true,
-            "parameters": {
-              "hue": 0.62,
-              "saturation": 27,
-              "lightness": 79
-            }
-          },
           {
             "id": "effect_73",
             "type": "halftone",
@@ -411,17 +396,12 @@
           "z": 0.45
         },
         "focalLength": 152,
+        "backgroundColor": {
+          "hue": 0.62,
+          "saturation": 27,
+          "lightness": 14
+        },
         "effectsChain": [
-          {
-            "id": "effect_22",
-            "type": "background",
-            "enabled": true,
-            "parameters": {
-              "hue": 0.62,
-              "saturation": 27,
-              "lightness": 14
-            }
-          },
           {
             "id": "effect_26",
             "type": "blur",
@@ -541,17 +521,12 @@
           "z": 0.6
         },
         "focalLength": 152,
+        "backgroundColor": {
+          "hue": 0.59,
+          "saturation": 100,
+          "lightness": 83
+        },
         "effectsChain": [
-          {
-            "id": "effect_34",
-            "type": "background",
-            "enabled": true,
-            "parameters": {
-              "hue": 0.59,
-              "saturation": 100,
-              "lightness": 83
-            }
-          },
           {
             "id": "effect_35",
             "type": "sepia",
@@ -659,17 +634,12 @@
           "z": -0.05
         },
         "focalLength": 200,
+        "backgroundColor": {
+          "hue": 0.59,
+          "saturation": 100,
+          "lightness": 83
+        },
         "effectsChain": [
-          {
-            "id": "effect_34",
-            "type": "background",
-            "enabled": true,
-            "parameters": {
-              "hue": 0.59,
-              "saturation": 100,
-              "lightness": 83
-            }
-          },
           {
             "id": "effect_35",
             "type": "sepia",
@@ -777,18 +747,12 @@
             "z": -0.03
           },
           "focalLength": 105,
+          "backgroundColor": {
+            "hue": 0.62,
+            "saturation": 27,
+            "lightness": 30
+          },
           "effectsChain": [
-            {
-              "id": "effect_1",
-              "type": "background",
-              "enabled": true,
-              "parameters": {
-                "hue": 0.62,
-                "saturation": 27,
-                "lightness": 30
-              },
-              "blendMode": "normal"
-            },
             {
               "id": "effect_2",
               "type": "sepia",

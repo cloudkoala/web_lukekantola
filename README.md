@@ -189,7 +189,7 @@ The application includes a comprehensive effects system with 40+ visual effects 
 
 **3D Effects**: Concentric Circles, Point Network, Material Effects, Topographic, Distance Fog, Sky Sphere, Sin Radius
 
-**Circle Packing Effect** (New): Groups similar colors using posterization and circle packing algorithms. Features adjustable packing density, color levels, circle sizes, spacing, and color tolerance for creative stylized rendering.
+**Circle Packing Effect** (New): Advanced post-processing technique that transforms visualizations into stylized circular representations using multi-scale hierarchical placement, QuadTree spatial optimization, and WebWorker parallelization. Features comprehensive parameter control and intelligent content analysis.
 
 See `CreateEffect.md`, `Postprocess.md`, and `BlendingModes.md` for effects system documentation.
 
@@ -215,6 +215,7 @@ public/
 
 - **MobileSlider.md** - Comprehensive mobile slider implementation guide
 - **ColorPicker.md** - Mobile HSV color picker system and integration guide
+- **CirclePackingEffect.md** - Circle Packing effect: algorithms, parameters, performance, and usage guide
 - **CLAUDE.md** - Complete development history and technical decisions
 - **CreateEffect.md** - Effects system development guide
 - **Postprocess.md** - Post-processing pipeline documentation

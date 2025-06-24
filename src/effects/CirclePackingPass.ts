@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { QuadTree } from './QuadTree'
 
 interface CircleData {
   x: number
@@ -7,66 +8,6 @@ interface CircleData {
   color: [number, number, number]
 }
 
-// Spatial grid for fast collision detection
-class SpatialGrid {
-  private grid: Map<string, CircleData[]>
-  private cellSize: number
-
-  constructor(width: number, height: number, maxCircleSize: number) {
-    this.grid = new Map()
-    this.cellSize = maxCircleSize * 2 // Grid cells should be at least twice the max circle size
-    // width and height available for future boundary checking if needed
-    void width; void height; // Suppress unused warnings
-  }
-
-
-  private getNeighborKeys(x: number, y: number, radius: number): string[] {
-    const keys: string[] = []
-    const range = Math.ceil((radius * 2) / this.cellSize)
-    const centerGridX = Math.floor(x / this.cellSize)
-    const centerGridY = Math.floor(y / this.cellSize)
-
-    for (let dx = -range; dx <= range; dx++) {
-      for (let dy = -range; dy <= range; dy++) {
-        keys.push(`${centerGridX + dx},${centerGridY + dy}`)
-      }
-    }
-    return keys
-  }
-
-  addCircle(circle: CircleData): void {
-    const keys = this.getNeighborKeys(circle.x, circle.y, circle.radius)
-    for (const key of keys) {
-      if (!this.grid.has(key)) {
-        this.grid.set(key, [])
-      }
-      this.grid.get(key)!.push(circle)
-    }
-  }
-
-  getNearbyCircles(x: number, y: number, radius: number): CircleData[] {
-    const nearbyCircles: CircleData[] = []
-    const keys = this.getNeighborKeys(x, y, radius)
-    const seen = new Set<CircleData>()
-
-    for (const key of keys) {
-      const circles = this.grid.get(key)
-      if (circles) {
-        for (const circle of circles) {
-          if (!seen.has(circle)) {
-            seen.add(circle)
-            nearbyCircles.push(circle)
-          }
-        }
-      }
-    }
-    return nearbyCircles
-  }
-
-  clear(): void {
-    this.grid.clear()
-  }
-}
 
 // Poisson Disk Sampling for natural, non-clustered circle distribution
 class PoissonDiskSampler {
@@ -224,6 +165,12 @@ export class CirclePackingPass {
   private needsRecompute: boolean = true
   private circleDataTexture: THREE.DataTexture | null = null
   
+  // WebWorker support for parallel processing
+  private worker: Worker | null = null
+  private isGenerating: boolean = false
+  private generationProgress: number = 0
+  private useWebWorker: boolean = true // Can be disabled for debugging
+  
   // Track parameter changes to trigger recompute
   private lastParameters = {
     packingDensity: this.packingDensity,
@@ -283,12 +230,131 @@ export class CirclePackingPass {
     this.scene.add(this.mesh)
     
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    
+    // Initialize WebWorker for parallel circle generation
+    this.initializeWebWorker()
+  }
+  
+  private initializeWebWorker(): void {
+    if (!this.useWebWorker || typeof Worker === 'undefined') {
+      console.log('WebWorker not available or disabled, using main thread')
+      return
+    }
+    
+    try {
+      // Create WebWorker from the CirclePackingWorker file
+      this.worker = new Worker(new URL('./CirclePackingWorker.ts', import.meta.url), {
+        type: 'module'
+      })
+      
+      this.worker.onmessage = (event) => {
+        const { type, data } = event.data
+        
+        switch (type) {
+          case 'result':
+            this.onWorkerResult(data)
+            break
+          case 'progress':
+            this.onWorkerProgress(data)
+            break
+          case 'error':
+            this.onWorkerError(data)
+            break
+        }
+      }
+      
+      this.worker.onerror = (error) => {
+        console.error('WebWorker error:', error)
+        this.isGenerating = false
+        // Fallback to main thread
+        this.useWebWorker = false
+      }
+      
+      console.log('WebWorker initialized successfully')
+      
+    } catch (error) {
+      console.warn('Failed to initialize WebWorker, falling back to main thread:', error)
+      this.useWebWorker = false
+    }
+  }
+  
+  private onWorkerResult(circles: CircleData[]): void {
+    this.circles = circles
+    this.isGenerating = false
+    this.generationProgress = 100
+    this.needsRecompute = false
+    this.updateCircleDataInShader()
+    console.log(`WebWorker completed: ${circles.length} circles generated`)
+  }
+  
+  private onWorkerProgress(data: { message: string, progress: number }): void {
+    this.generationProgress = data.progress
+    // You could emit this progress to the UI if needed
+    console.log(`Progress: ${data.progress}% - ${data.message}`)
+  }
+  
+  private onWorkerError(data: { message: string }): void {
+    console.error('WebWorker generation error:', data.message)
+    this.isGenerating = false
+    this.generationProgress = 0
+    // Fallback to main thread generation
+    this.useWebWorker = false
+    this.needsRecompute = true
+  }
+  
+  private generateCirclesWithWorker(imageData: ImageData): void {
+    if (!this.worker) {
+      console.error('WebWorker not available')
+      return
+    }
+    
+    this.isGenerating = true
+    this.generationProgress = 0
+    
+    // Send parameters to worker
+    const params = {
+      imageData: imageData,
+      width: imageData.width,
+      height: imageData.height,
+      packingDensity: this.packingDensity,
+      minCircleSize: this.minCircleSize,
+      maxCircleSize: this.maxCircleSize,
+      circleSpacing: this.circleSpacing,
+      pixelateSize: this.pixelateSize,
+      posterizeLevels: this.posterizeLevels,
+      randomSeed: this.randomSeed
+    }
+    
+    this.worker.postMessage({
+      type: 'generateCircles',
+      data: params
+    })
+  }
+  
+  // Public methods for monitoring generation progress
+  getGenerationProgress(): number {
+    return this.generationProgress
+  }
+  
+  isCurrentlyGenerating(): boolean {
+    return this.isGenerating
+  }
+  
+  // Method to toggle WebWorker usage (useful for debugging)
+  setUseWebWorker(use: boolean): void {
+    this.useWebWorker = use
+    if (!use && this.worker) {
+      this.worker.terminate()
+      this.worker = null
+    } else if (use && !this.worker) {
+      this.initializeWebWorker()
+    }
   }
   
   // Smart circle packing with progressive rendering support
   private generateCirclePacking(originalImageData: ImageData, width: number, height: number): CircleData[] {
     const circles: CircleData[] = []
-    const spatialGrid = new SpatialGrid(width, height, this.maxCircleSize)
+    const quadTree = new QuadTree({ x: 0, y: 0, width, height }, 15)
     const spacing = this.circleSpacing * 2.0
     
     const startTime = performance.now()
@@ -297,45 +363,45 @@ export class CirclePackingPass {
     
     // Phase 1: Generate large circles from uniform color blocks (backgrounds)
     console.log('Phase 1: Generating large circles from color blocks...')
-    const largeCircles = this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, spatialGrid)
+    const largeCircles = this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, quadTree)
     console.log('Generated large circles:', largeCircles.length, `(${Math.round(performance.now() - startTime)}ms)`)
     
     for (const circle of largeCircles) {
       circles.push(circle)
-      spatialGrid.addCircle(circle)
+      quadTree.insert(circle)
     }
     
     // Phase 2: Generate medium circles for feature areas
     console.log('Phase 2: Generating medium circles for features...')
     const phase2StartTime = performance.now()
-    const mediumCircles = this.generateMediumCircles(originalImageData, width, height, spatialGrid, spacing)
+    const mediumCircles = this.generateMediumCircles(originalImageData, width, height, quadTree, spacing)
     console.log('Generated medium circles:', mediumCircles.length, `(${Math.round(performance.now() - phase2StartTime)}ms)`)
     
     for (const circle of mediumCircles) {
       circles.push(circle)
-      spatialGrid.addCircle(circle)
+      quadTree.insert(circle)
     }
     
     // Phase 3: Generate medium-small circles for intermediate gaps
     console.log('Phase 3: Generating medium-small circles for intermediate gaps...')
     const phase3StartTime = performance.now()
-    const mediumSmallCircles = this.generateMediumSmallCircles(originalImageData, width, height, spatialGrid, spacing)
+    const mediumSmallCircles = this.generateMediumSmallCircles(originalImageData, width, height, quadTree, spacing)
     console.log('Generated medium-small circles:', mediumSmallCircles.length, `(${Math.round(performance.now() - phase3StartTime)}ms)`)
     
     for (const circle of mediumSmallCircles) {
       circles.push(circle)
-      spatialGrid.addCircle(circle)
+      quadTree.insert(circle)
     }
     
     // Phase 4: Fill remaining space with small detail circles using Poisson sampling
     console.log('Phase 4: Filling final gaps with small detail circles...')
     const phase4StartTime = performance.now()
-    const smallCircles = this.generateSmallCircles(originalImageData, width, height, spatialGrid, spacing)
+    const smallCircles = this.generateSmallCircles(originalImageData, width, height, quadTree, spacing)
     console.log('Generated small circles:', smallCircles.length, `(${Math.round(performance.now() - phase4StartTime)}ms)`)
     
     for (const circle of smallCircles) {
       circles.push(circle)
-      spatialGrid.addCircle(circle)
+      quadTree.insert(circle)
     }
     
     // Phase 5: Apply force-based relaxation to eliminate micro-overlaps
@@ -352,7 +418,9 @@ export class CirclePackingPass {
   }
   
   // Your brilliant idea: pixelate → posterize → detect uniform blocks → place large circles
-  private generateLargeCirclesFromColorBlocks(imageData: ImageData, width: number, height: number, spatialGrid: SpatialGrid): CircleData[] {
+  private generateLargeCirclesFromColorBlocks(imageData: ImageData, width: number, height: number, quadTree: QuadTree): CircleData[] {
+    // Use quadTree parameter to avoid TypeScript warning
+    void quadTree;
     const circles: CircleData[] = []
     
     try {
@@ -387,7 +455,7 @@ export class CirclePackingPass {
         const edgeFactor = Math.max(0.3, 1.0 - block.edgeStrength * 2)
         const adaptiveMaxSize = Math.min(this.maxCircleSize, baseSize * edgeFactor)
         
-        const squares = this.findOptimalSquaresInBlockWithCollision(block, adaptiveMaxSize, spatialGrid)
+        const squares = this.findOptimalSquaresInBlockWithCollision(block, adaptiveMaxSize, quadTree)
         console.log(`Block at (${Math.floor(block.centerX)},${Math.floor(block.centerY)}) size ${Math.floor(block.width)}x${Math.floor(block.height)} edge:${block.edgeStrength.toFixed(2)} → ${squares.length} squares`)
         
         for (const square of squares) {
@@ -425,7 +493,7 @@ export class CirclePackingPass {
             }
             
             circles.push(newCircle)
-            spatialGrid.addCircle(newCircle) // Add to spatial grid for collision detection
+            quadTree.insert(newCircle) // Add to spatial grid for collision detection
           }
         }
       }
@@ -438,7 +506,7 @@ export class CirclePackingPass {
   }
 
   // Generate medium-sized circles for feature areas (intermediate scale)
-  private generateMediumCircles(originalImageData: ImageData, width: number, height: number, spatialGrid: SpatialGrid, spacing: number): CircleData[] {
+  private generateMediumCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
     void spacing; // Currently unused but reserved for future enhancement
     const circles: CircleData[] = []
     
@@ -483,7 +551,7 @@ export class CirclePackingPass {
         const adaptiveMaxSize = Math.min(this.maxCircleSize * 0.7, baseSize * edgeFactor)
         
         // Use simplified placement for medium circles
-        const squares = this.generateMediumSquaresInBlock(block, adaptiveMaxSize, spatialGrid)
+        const squares = this.generateMediumSquaresInBlock(block, adaptiveMaxSize, quadTree)
         
         for (const square of squares) {
           const radius = square.size / 2
@@ -499,7 +567,7 @@ export class CirclePackingPass {
           }
           
           circles.push(newCircle)
-          spatialGrid.addCircle(newCircle)
+          quadTree.insert(newCircle)
         }
       }
     } catch (error) {
@@ -510,14 +578,14 @@ export class CirclePackingPass {
   }
 
   // Generate squares for medium circles with simpler placement strategy
-  private generateMediumSquaresInBlock(block: {centerX: number, centerY: number, width: number, height: number, color: [number, number, number], edgeStrength: number}, maxCircleSize: number, spatialGrid: SpatialGrid): Array<{centerX: number, centerY: number, size: number}> {
+  private generateMediumSquaresInBlock(block: {centerX: number, centerY: number, width: number, height: number, color: [number, number, number], edgeStrength: number}, maxCircleSize: number, quadTree: QuadTree): Array<{centerX: number, centerY: number, size: number}> {
     const squares: Array<{centerX: number, centerY: number, size: number}> = []
     
     // Try center placement first
-    const maxRadiusFromCollision = this.getMaxRadiusWithSpatialGrid(
+    const maxRadiusFromCollision = this.getMaxRadiusWithQuadTree(
       block.centerX, 
       block.centerY, 
-      spatialGrid, 
+      quadTree, 
       block.width, 
       block.height, 
       this.circleSpacing
@@ -561,7 +629,9 @@ export class CirclePackingPass {
   }
 
   // Generate medium-small circles to fill intermediate gaps (Phase 3)
-  private generateMediumSmallCircles(originalImageData: ImageData, width: number, height: number, spatialGrid: SpatialGrid, spacing: number): CircleData[] {
+  private generateMediumSmallCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
+    // Use quadTree parameter to avoid TypeScript warning  
+    void quadTree;
     const circles: CircleData[] = []
     
     console.log('Starting medium-small circle generation with targeted gap filling')
@@ -570,6 +640,7 @@ export class CirclePackingPass {
     const targetDensity = Math.floor(this.packingDensity * 0.4) // 40% of total density for this phase
     const minDistance = spacing * 1.5 // Less strict than small circles
     const maxAttempts = targetDensity * 30
+    void maxAttempts; // Reserved for future enhancement
     
     // Phase 3A: Grid-based sampling for systematic coverage
     const gridSpacing = Math.max(20, this.minCircleSize * 3)
@@ -586,11 +657,10 @@ export class CirclePackingPass {
         if (candidateX < 0 || candidateX >= width || candidateY < 0 || candidateY >= height) continue
         
         // Check collision with existing circles
-        const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(candidateX, candidateY, spatialGrid, width, height, spacing)
+        const maxPossibleRadius = this.getMaxRadiusWithQuadTree(candidateX, candidateY, quadTree, width, height, spacing)
         
-        // Be more permissive for medium circles
-        const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.9)
-        if (maxPossibleRadius < effectiveMinRadius) continue
+        // Use strict collision detection to prevent overlaps
+        if (maxPossibleRadius < this.minCircleSize) continue
         
         // Size for medium-small circles: 50-80% of max circle size
         const localComplexity = this.calculateLocalComplexity(originalImageData, candidateX, candidateY, width, height)
@@ -612,7 +682,7 @@ export class CirclePackingPass {
           }
           
           circles.push(newCircle)
-          spatialGrid.addCircle(newCircle)
+          quadTree.insert(newCircle)
         }
       }
     }
@@ -630,10 +700,9 @@ export class CirclePackingPass {
         const x = point[0]
         const y = point[1]
         
-        const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, width, height, spacing)
-        // Be more permissive for medium-small circles
-        const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.85)
-        if (maxPossibleRadius < effectiveMinRadius) continue
+        const maxPossibleRadius = this.getMaxRadiusWithQuadTree(x, y, quadTree, width, height, spacing)
+        // Use strict collision detection to prevent overlaps
+        if (maxPossibleRadius < this.minCircleSize) continue
         
         const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
         const complexityFactor = Math.max(0.4, 1.0 - localComplexity * 0.8)
@@ -644,12 +713,25 @@ export class CirclePackingPass {
         )
         
         if (radius >= this.minCircleSize) {
-          const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
+          // Double-check for overlaps before adding
+          const nearbyCircles = quadTree.getNearbyCircles(x, y, radius)
+          let hasOverlap = false
+          for (const existing of nearbyCircles) {
+            const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
+            if (distance < radius + existing.radius + spacing * 0.1) { // Small buffer
+              hasOverlap = true
+              break
+            }
+          }
           
-          const newCircle = { x, y, radius, color }
-          circles.push(newCircle)
-          spatialGrid.addCircle(newCircle)
-          poissonCount++
+          if (!hasOverlap) {
+            const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
+            
+            const newCircle = { x, y, radius, color }
+            circles.push(newCircle)
+            quadTree.insert(newCircle)
+            poissonCount++
+          }
         }
       }
     }
@@ -659,7 +741,7 @@ export class CirclePackingPass {
   }
   
   // Fill remaining space with Poisson Disk Sampling for natural distribution
-  private generateSmallCircles(originalImageData: ImageData, width: number, height: number, spatialGrid: SpatialGrid, spacing: number): CircleData[] {
+  private generateSmallCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
     const circles: CircleData[] = []
     
     console.log('Starting small circle generation with Poisson Disk Sampling')
@@ -691,11 +773,10 @@ export class CirclePackingPass {
       // Check collision with existing circles using spatial grid
       // Use tighter spacing for small circles to allow better packing
       const smallCircleSpacing = spacing * 0.5
-      const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, width, height, smallCircleSpacing)
+      const maxPossibleRadius = this.getMaxRadiusWithQuadTree(x, y, quadTree, width, height, smallCircleSpacing)
       
-      // Be more permissive for very small circles
-      const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.8)
-      if (maxPossibleRadius < effectiveMinRadius) continue
+      // Use strict collision detection to prevent overlaps
+      if (maxPossibleRadius < this.minCircleSize) continue
       
       // Size circles based on local image complexity (smaller range for detail preservation)
       const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
@@ -707,13 +788,26 @@ export class CirclePackingPass {
       )
       
       if (radius >= this.minCircleSize) {
-        // Sample color from original image with area averaging for better color representation
-        const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
+        // Double-check for overlaps before adding
+        const nearbyCircles = quadTree.getNearbyCircles(x, y, radius)
+        let hasOverlap = false
+        for (const existing of nearbyCircles) {
+          const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
+          if (distance < radius + existing.radius + smallCircleSpacing * 0.1) { // Small buffer
+            hasOverlap = true
+            break
+          }
+        }
         
-        const newCircle = { x, y, radius, color }
-        circles.push(newCircle)
-        spatialGrid.addCircle(newCircle) // Update spatial grid for collision detection
-        smallCircleCount++
+        if (!hasOverlap) {
+          // Sample color from original image with area averaging for better color representation
+          const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
+          
+          const newCircle = { x, y, radius, color }
+          circles.push(newCircle)
+          quadTree.insert(newCircle) // Update spatial grid for collision detection
+          smallCircleCount++
+        }
       }
     }
     
@@ -950,7 +1044,7 @@ export class CirclePackingPass {
   }
   
   // Find optimal squares within color blocks with collision detection
-  private findOptimalSquaresInBlockWithCollision(block: {centerX: number, centerY: number, width: number, height: number, color: [number, number, number], edgeStrength: number}, maxCircleSize: number, spatialGrid: SpatialGrid): Array<{centerX: number, centerY: number, size: number}> {
+  private findOptimalSquaresInBlockWithCollision(block: {centerX: number, centerY: number, width: number, height: number, color: [number, number, number], edgeStrength: number}, maxCircleSize: number, quadTree: QuadTree): Array<{centerX: number, centerY: number, size: number}> {
     const squares: Array<{centerX: number, centerY: number, size: number}> = []
     
     // Calculate the bounds of the block
@@ -983,7 +1077,7 @@ export class CirclePackingPass {
         Math.abs(maxY - y)
       ) * 0.9 // Safety margin
       
-      const maxRadiusFromCollision = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, maxX - minX, maxY - minY, this.circleSpacing)
+      const maxRadiusFromCollision = this.getMaxRadiusWithQuadTree(x, y, quadTree, maxX - minX, maxY - minY, this.circleSpacing)
       
       const finalRadius = Math.min(maxRadiusFromBounds, maxRadiusFromCollision, maxCircleSize * 0.8)
       
@@ -1260,14 +1354,14 @@ export class CirclePackingPass {
     return Math.max(0, maxRadius)
   }
 
-  // Fast radius calculation using spatial grid (O(log n) instead of O(n))
-  private getMaxRadiusWithSpatialGrid(x: number, y: number, spatialGrid: SpatialGrid, width: number, height: number, spacing: number): number {
+  // Fast radius calculation using QuadTree (O(log n) instead of O(n))
+  private getMaxRadiusWithQuadTree(x: number, y: number, quadTree: QuadTree, width: number, height: number, spacing: number): number {
     // Distance to edges with safety margin
     const edgeDistance = Math.min(x, y, width - x, height - y) * 0.95
     
-    // Get only nearby circles using spatial grid
+    // Get only nearby circles using QuadTree - much more efficient
     const estimatedRadius = Math.min(edgeDistance, this.maxCircleSize)
-    const nearbyCircles = spatialGrid.getNearbyCircles(x, y, estimatedRadius)
+    const nearbyCircles = quadTree.getNearbyCircles(x, y, estimatedRadius)
     
     // Distance to nearby circles with proper spacing calculation
     let minDistanceToCircles = Infinity
@@ -1606,20 +1700,25 @@ export class CirclePackingPass {
     }
     
     // Recompute circles if needed (async but cache results)
-    if (this.needsRecompute) {
+    if (this.needsRecompute && !this.isGenerating) {
       // Use current render target size for ImageData to ensure full screen coverage
       const targetWidth = this.renderTarget.width
       const targetHeight = this.renderTarget.height
       
       this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
         .then(imageData => {
-          this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
-          this.needsRecompute = false
-          
           // CRITICAL: Update resolution uniform to match ImageData dimensions for correct coordinate mapping
           this.material.uniforms.resolution.value.set(imageData.width, imageData.height)
           
-          this.updateCircleDataInShader()
+          if (this.useWebWorker && this.worker) {
+            // Use WebWorker for parallel processing
+            this.generateCirclesWithWorker(imageData)
+          } else {
+            // Fallback to main thread
+            this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
+            this.needsRecompute = false
+            this.updateCircleDataInShader()
+          }
         })
         .catch(console.error)
     }
@@ -1682,6 +1781,12 @@ export class CirclePackingPass {
     this.mesh.geometry.dispose()
     if (this.circleDataTexture) {
       this.circleDataTexture.dispose()
+    }
+    
+    // Clean up WebWorker
+    if (this.worker) {
+      this.worker.terminate()
+      this.worker = null
     }
   }
   

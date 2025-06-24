@@ -137,6 +137,11 @@ export class PostProcessingPass {
   private previousViewProjectionMatrix: THREE.Matrix4 = new THREE.Matrix4()
   private currentViewProjectionMatrix: THREE.Matrix4 = new THREE.Matrix4()
   private currentCamera: THREE.Camera | null = null
+  
+  // Enhanced motion blur state for screen space pixel comparison
+  private depthRenderTarget: THREE.WebGLRenderTarget | null = null
+  private previousFrameRenderTarget: THREE.WebGLRenderTarget | null = null
+  private depthMaterial: THREE.MeshDepthMaterial | null = null
   public sobelThreshold: number = 0.1
   public bloomThreshold: number = 0.8
   public bloomIntensity: number = 1.0
@@ -190,6 +195,8 @@ export class PostProcessingPass {
         motionBlurSamples: { value: this.motionBlurSamples },
         previousViewProjectionMatrix: { value: this.previousViewProjectionMatrix },
         currentViewProjectionMatrix: { value: this.currentViewProjectionMatrix },
+        tDepth: { value: null },
+        tPreviousFrame: { value: null },
         sobelThreshold: { value: this.sobelThreshold },
         time: { value: 0.0 },
         gammaValue: { value: 2.2 },
@@ -312,15 +319,22 @@ export class PostProcessingPass {
     
     // Initialize DOF effect
     this.initializeDOF(width, height)
+    
+    // Initialize enhanced motion blur buffers
+    this.initializeMotionBlurBuffers(width, height)
   }
   
   render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
     // Update motion blur matrices every frame
     this.updateMotionBlurMatrices()
     
+    // Render depth and update previous frame for enhanced motion blur
+    this.updateMotionBlurFrameData(renderer, inputTexture)
+    
     if (!this.enabled) {
       // If disabled, just copy input to output
       this.copyTexture(renderer, inputTexture, outputTarget)
+      this.storePreviousFrame(renderer, inputTexture)
       return
     }
     
@@ -360,12 +374,15 @@ export class PostProcessingPass {
     // Use effect chain if available
     if (enabledEffects.length > 0) {
       this.renderEffectChain(renderer, inputTexture, enabledEffects, outputTarget)
+      this.storePreviousFrame(renderer, inputTexture)
     } else if (this.effectType !== 'none') {
       // Fall back to legacy single effect only if a legacy effect is actually set
       this.renderSingleEffect(renderer, inputTexture, outputTarget)
+      this.storePreviousFrame(renderer, inputTexture)
     } else {
       // No effects to apply - just copy input to output
       this.copyTexture(renderer, inputTexture, outputTarget)
+      this.storePreviousFrame(renderer, inputTexture)
     }
   }
   
@@ -796,8 +813,8 @@ export class PostProcessingPass {
               // Multiply blend mode - corrected
               // Effect outputs: black = no effect, white = full effect
               // For multiply: white blend = no change, black blend = darken
-              // So we need to invert the effect output for multiply
-              result = vec4(base.rgb * (1.0 - blend.rgb), base.a);
+              // White (1.0) * base = base (no change), Black (0.0) * base = black (darken)
+              result = vec4(base.rgb * blend.rgb, base.a);
             } else {
               // Normal blend mode (default)
               result = blend;
@@ -2629,6 +2646,8 @@ export class PostProcessingPass {
       uniform int motionBlurSamples;
       uniform mat4 previousViewProjectionMatrix;
       uniform mat4 currentViewProjectionMatrix;
+      uniform sampler2D tDepth;
+      uniform sampler2D tPreviousFrame;
       uniform float sobelThreshold;
       uniform float time;
       uniform float gammaValue;
@@ -3426,28 +3445,42 @@ export class PostProcessingPass {
         return currentColor;
       }
       
-      // Motion blur effect using velocity vectors
+      // Enhanced motion blur with screen space pixel comparison
       vec3 motionBlur(sampler2D tex, vec2 uv, vec2 resolution, float strength, int samples) {
         vec3 color = vec3(0.0);
         
-        // Reconstruct world position from depth (assume depth = 0.5 for post-process effects)
-        vec4 currentPos = vec4(uv * 2.0 - 1.0, 0.5, 1.0);
+        // Sample depth from depth buffer
+        float currentDepth = texture2D(tDepth, uv).r;
+        
+        // Reconstruct world position using actual depth
+        vec4 currentPos = vec4(uv * 2.0 - 1.0, currentDepth * 2.0 - 1.0, 1.0);
         
         // Transform to previous frame's screen space
         vec4 prevPos = previousViewProjectionMatrix * inverse(currentViewProjectionMatrix) * currentPos;
         prevPos /= prevPos.w;
         
-        // Calculate velocity vector in screen space
+        // Calculate screen space velocity vector
         vec2 velocity = (currentPos.xy - prevPos.xy) * strength;
         
-        // If no significant motion, return original color
-        if (length(velocity) < 0.001) {
-          return texture2D(tex, uv).rgb;
+        // Sample current and previous frame colors for comparison
+        vec3 currentColor = texture2D(tex, uv).rgb;
+        vec3 previousColor = texture2D(tPreviousFrame, uv).rgb;
+        
+        // Calculate pixel difference magnitude for adaptive blur strength
+        float pixelDifference = length(currentColor - previousColor);
+        float adaptiveStrength = pixelDifference * strength;
+        
+        // Adjust velocity based on pixel difference
+        velocity *= (1.0 + adaptiveStrength);
+        
+        // If no significant motion or difference, return current color
+        if (length(velocity) < 0.001 && pixelDifference < 0.05) {
+          return currentColor;
         }
         
         float totalWeight = 0.0;
         
-        // Sample along the velocity vector
+        // Sample along the velocity vector with adaptive sampling
         for (int i = 0; i < 16; i++) {
           if (i >= samples) break;
           
@@ -3456,13 +3489,27 @@ export class PostProcessingPass {
           
           // Check bounds
           if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
-            float weight = 1.0 - abs(offset);
-            color += texture2D(tex, sampleUV).rgb * weight;
+            // Sample depth at offset position for depth-aware weighting
+            float sampleDepth = texture2D(tDepth, sampleUV).r;
+            
+            // Weight based on distance from center and depth similarity
+            float distanceWeight = 1.0 - abs(offset);
+            float depthWeight = 1.0 - abs(currentDepth - sampleDepth) * 10.0;
+            depthWeight = max(depthWeight, 0.1); // Minimum weight
+            
+            float weight = distanceWeight * depthWeight;
+            
+            vec3 sampleColor = texture2D(tex, sampleUV).rgb;
+            color += sampleColor * weight;
             totalWeight += weight;
           }
         }
         
-        return totalWeight > 0.0 ? color / totalWeight : texture2D(tex, uv).rgb;
+        // Blend result with original based on motion strength
+        vec3 blurredColor = totalWeight > 0.0 ? color / totalWeight : currentColor;
+        float blendFactor = clamp(length(velocity) * 2.0, 0.0, 1.0);
+        
+        return mix(currentColor, blurredColor, blendFactor);
       }
       
       // Oil painting effect - creates painterly look with brush strokes
@@ -4257,5 +4304,94 @@ export class PostProcessingPass {
     
     // Clean up temporary material
     dofMaterial.dispose()
+  }
+
+  // Enhanced motion blur effect methods
+  private initializeMotionBlurBuffers(width: number, height: number): void {
+    // Create depth render target
+    this.depthRenderTarget = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.NearestFilter,
+      magFilter: THREE.NearestFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType,
+      depthBuffer: true,
+      stencilBuffer: false
+    })
+    
+    // Create previous frame render target
+    this.previousFrameRenderTarget = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType,
+      depthBuffer: true,
+      stencilBuffer: false
+    })
+    
+    // Create depth material for depth rendering
+    this.depthMaterial = new THREE.MeshDepthMaterial({
+      depthPacking: THREE.RGBADepthPacking
+    })
+  }
+
+  private updateMotionBlurFrameData(renderer: THREE.WebGLRenderer, _inputTexture: THREE.Texture): void {
+    if (!this.depthRenderTarget || !this.previousFrameRenderTarget || !this.mainScene || !this.currentCamera) {
+      return
+    }
+
+    // Render depth buffer
+    if (this.depthMaterial) {
+      // Store original materials
+      const originalMaterials = new Map<THREE.Object3D, THREE.Material | THREE.Material[]>()
+      
+      this.mainScene.traverse((object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
+          originalMaterials.set(object, object.material)
+          object.material = this.depthMaterial!
+        }
+      })
+
+      // Render depth to depth render target
+      renderer.setRenderTarget(this.depthRenderTarget)
+      renderer.clear()
+      renderer.render(this.mainScene, this.currentCamera)
+
+      // Restore original materials
+      originalMaterials.forEach((material, object) => {
+        if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
+          object.material = material
+        }
+      })
+    }
+
+    // Update depth and previous frame textures in shader uniforms
+    this.material.uniforms.tDepth.value = this.depthRenderTarget.texture
+    this.material.uniforms.tPreviousFrame.value = this.previousFrameRenderTarget.texture
+
+    // Copy current frame to previous frame buffer (after processing)
+    // This will be done after the main render pass
+  }
+
+  private storePreviousFrame(renderer: THREE.WebGLRenderer, currentFrameTexture: THREE.Texture): void {
+    if (!this.previousFrameRenderTarget) return
+
+    // Copy current frame to previous frame buffer
+    const originalRenderTarget = renderer.getRenderTarget()
+    renderer.setRenderTarget(this.previousFrameRenderTarget)
+    renderer.clear()
+    
+    // Use a simple copy shader to transfer the texture
+    const copyMaterial = new THREE.MeshBasicMaterial({ map: currentFrameTexture })
+    const tempMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copyMaterial)
+    const tempScene = new THREE.Scene()
+    const tempCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    
+    tempScene.add(tempMesh)
+    renderer.render(tempScene, tempCamera)
+    
+    // Cleanup
+    copyMaterial.dispose()
+    tempMesh.geometry.dispose()
+    renderer.setRenderTarget(originalRenderTarget)
   }
 }

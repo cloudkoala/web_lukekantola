@@ -8,6 +8,9 @@ export default defineConfig({
     // Use esbuild for minification (default, faster than terser)
     minify: 'esbuild',
     
+    // Enable WebWorker support
+    target: 'esnext',
+    
     // Optimize bundle with strategic code splitting
     rollupOptions: {
       output: {
@@ -28,7 +31,9 @@ export default defineConfig({
             './src/effects/EffectsChainManager.ts',
             './src/effects/PostProcessingPass.ts',
             './src/effects/ASCIIDitheringPass.ts',
-            './src/effects/HalftoneDitheringPass.ts'
+            './src/effects/HalftoneDitheringPass.ts',
+            './src/effects/CirclePackingPass.ts',
+            './src/effects/EngravingPass.ts'
           ],
           
           // Interface and UI components
@@ -87,8 +92,13 @@ export default defineConfig({
     }
   ],
   
-  // Optimize dependencies
+  // Optimize dependencies and worker support
   optimizeDeps: {
     include: ['three']
+  },
+  
+  // Worker configuration
+  worker: {
+    format: 'es'
   }
 })
