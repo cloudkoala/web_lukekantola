@@ -2952,6 +2952,108 @@ function setupFogControl() {
   }
 }
 
+// Background color functionality
+function setupBackgroundColorControl() {
+  console.log('Setting up background color control...')
+  const colorSwatch = document.getElementById('background-color-swatch') as HTMLElement
+  const colorPicker = document.getElementById('background-color-picker') as HTMLInputElement
+  
+  console.log('Color swatch element:', colorSwatch)
+  console.log('Color picker element:', colorPicker)
+  
+  if (!colorSwatch || !colorPicker) {
+    console.warn('Background color elements not found', { colorSwatch, colorPicker })
+    return
+  }
+  
+  // Helper function to convert hex to HSL
+  function hexToHsl(hex: string): { h: number, s: number, l: number } {
+    const r = parseInt(hex.slice(1, 3), 16) / 255
+    const g = parseInt(hex.slice(3, 5), 16) / 255
+    const b = parseInt(hex.slice(5, 7), 16) / 255
+    
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    let h = 0, s = 0, l = (max + min) / 2
+    
+    if (max === min) {
+      h = s = 0
+    } else {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+      
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break
+        case g: h = (b - r) / d + 2; break
+        case b: h = (r - g) / d + 4; break
+      }
+      h /= 6
+    }
+    
+    return { h, s: s * 100, l: l * 100 }
+  }
+  
+  
+  // Apply background color with gamma correction
+  function applyBackgroundColor(hex: string) {
+    const { h, s, l } = hexToHsl(hex)
+    
+    // Convert to normalized values
+    const hue = h / 360
+    const saturation = s / 100
+    let lightness = l / 100
+    
+    // Apply gamma correction to counteract tone mapping
+    lightness = Math.pow(lightness, 2.2)
+    
+    // Create and apply the color to the scene
+    const color = new THREE.Color()
+    color.setHSL(hue, saturation, lightness)
+    
+    if (scene) {
+      scene.background = color
+      
+      // Update fog color to match background
+      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.copy(color)
+      }
+    }
+  }
+  
+  // Set initial color
+  const initialColor = colorPicker.value
+  colorSwatch.style.backgroundColor = initialColor
+  applyBackgroundColor(initialColor)
+  
+  // Note: Color picker input is positioned over the swatch for direct clicking
+  
+  // Handle color picker change with real-time feedback
+  colorPicker.addEventListener('input', (e) => {
+    const target = e.target as HTMLInputElement
+    const newColor = target.value
+    
+    // Update swatch color
+    colorSwatch.style.backgroundColor = newColor
+    
+    // Apply to scene immediately (real-time feedback)
+    applyBackgroundColor(newColor)
+  })
+  
+  // Also handle the 'change' event for final confirmation
+  colorPicker.addEventListener('change', (e) => {
+    const target = e.target as HTMLInputElement
+    const newColor = target.value
+    
+    // Update swatch color
+    colorSwatch.style.backgroundColor = newColor
+    
+    // Apply to scene
+    applyBackgroundColor(newColor)
+    
+    console.log('Background color changed to:', newColor)
+  })
+}
+
 // Scene sharing functionality
 function setupSceneSharing() {
   console.log('Setting up scene sharing...')
@@ -3240,6 +3342,10 @@ async function initialize() {
     setupSettingsButton()
     setupEffectsButton()
     setupAutoRotationControl()
+    // Setup background color control with a small delay to ensure DOM is ready
+    setTimeout(() => {
+      setupBackgroundColorControl()
+    }, 100)
     await setupSceneDropdown()
     console.log('✅ Control buttons setup complete')
     

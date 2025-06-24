@@ -1,6 +1,7 @@
 export { ASCIIDitheringPass } from './ASCIIDitheringPass'
 export { HalftoneDitheringPass } from './HalftoneDitheringPass'
 export { EngravingPass } from './EngravingPass'
+export { CirclePackingPass } from './CirclePackingPass'
 export { PostProcessingPass } from './PostProcessingPass'
 export type { EffectType } from './PostProcessingPass'
 export { EffectsChainManager, EFFECT_DEFINITIONS } from './EffectsChainManager'

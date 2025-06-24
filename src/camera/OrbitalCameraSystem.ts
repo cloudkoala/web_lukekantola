@@ -2743,7 +2743,8 @@ export class OrbitalCameraSystem {
         id: effect.id,
         type: effect.type,
         enabled: effect.enabled,
-        parameters: { ...effect.parameters }
+        parameters: { ...effect.parameters },
+        blendMode: effect.blendMode
       })),
       effectsDropdownValue: this.getCurrentEffectsDropdownValue(),
       
@@ -2828,6 +2829,10 @@ export class OrbitalCameraSystem {
           Object.entries(effectState.parameters).forEach(([key, value]) => {
             this.effectsChainManager.updateEffectParameter(effect.id, key, value)
           })
+          // Apply blend mode if available
+          if (effectState.blendMode) {
+            this.effectsChainManager.updateEffectBlendMode(effect.id, effectState.blendMode)
+          }
         }
       }
       

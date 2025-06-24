@@ -143,7 +143,8 @@ sliderCard.id = 'mobile-setting-name-card'  // Always assign ID for external acc
 - Complete scene snapshots with all settings
 - Must include `focalLength`, `cameraPosition`, `cameraTarget`
 - Can override animation configuration per scene
-- Effects chains with full parameter sets
+- Effects chains with full parameter sets and blend modes
+- Supports three blend modes: `normal`, `add`, `multiply`
 
 ## Development Guidelines
 
@@ -176,7 +177,21 @@ sliderCard.id = 'mobile-setting-name-card'  // Always assign ID for external acc
 
 ### Effects Integration
 
-See `CreateEffect.md` and `Postprocess.md` for effects system documentation.
+The application includes a comprehensive effects system with 40+ visual effects organized into 6 categories:
+
+**Post-Process Effects**: Halftone Dithering, **Circle Packing**, ASCII Dithering, Engraving, Sobel Edge Detection, Oil Painting, Datamosh, Pixel Sorting, Vignette, Afterimage, Threshold
+
+**Color Effects**: Background Color, Gamma Correction, Sepia, Colorify, Split Tone, Gradient, Invert, Bleach Bypass, Posterize
+
+**Blur Effects**: Blur, Bloom, Motion Blur, Glow, Depth of Field
+
+**Grain Effects**: CRT Grain, Film 35mm, Pixelate, 2D Noise
+
+**3D Effects**: Concentric Circles, Point Network, Material Effects, Topographic, Distance Fog, Sky Sphere, Sin Radius
+
+**Circle Packing Effect** (New): Groups similar colors using posterization and circle packing algorithms. Features adjustable packing density, color levels, circle sizes, spacing, and color tolerance for creative stylized rendering.
+
+See `CreateEffect.md`, `Postprocess.md`, and `BlendingModes.md` for effects system documentation.
 
 ## File Structure
 
@@ -203,6 +218,7 @@ public/
 - **CLAUDE.md** - Complete development history and technical decisions
 - **CreateEffect.md** - Effects system development guide
 - **Postprocess.md** - Post-processing pipeline documentation
+- **BlendingModes.md** - Effect blending modes system and usage guide
 
 ## Performance Optimizations
 

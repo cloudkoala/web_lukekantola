@@ -3,8 +3,9 @@ import type { EffectInstance } from './EffectsChainManager'
 import { ASCIIDitheringPass } from './ASCIIDitheringPass'
 import { HalftoneDitheringPass } from './HalftoneDitheringPass'
 import { EngravingPass } from './EngravingPass'
+import { CirclePackingPass } from './CirclePackingPass'
 
-export type EffectType = 'none' | 'background' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -68,6 +69,7 @@ export class PostProcessingPass {
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
   private engravingPass: EngravingPass
+  private circlePackingPass: CirclePackingPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -277,7 +279,13 @@ export class PostProcessingPass {
         skyOpacity: { value: 1.0 },
         skyRenderBehind: { value: 1.0 },
         skyAngle: { value: 0.0 },
-        skyEvolution: { value: 1.0 }
+        skyEvolution: { value: 1.0 },
+        // Posterize uniforms
+        posterizeIntensity: { value: 1.0 },
+        posterizeLevels: { value: 8.0 },
+        posterizeBlackAndWhite: { value: 0.0 },
+        posterizeGamma: { value: 1.0 },
+        posterizeSmoothness: { value: 0.0 }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -297,6 +305,7 @@ export class PostProcessingPass {
     this.asciiDitheringPass = new ASCIIDitheringPass(width, height)
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
     this.engravingPass = new EngravingPass(width, height)
+    this.circlePackingPass = new CirclePackingPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -411,14 +420,6 @@ export class PostProcessingPass {
   }
   
   private renderSingleEffectFromInstance(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
-    // Handle background effect separately
-    if (effect.type === 'background') {
-      this.applyBackgroundEffect(effect)
-      // Background effects don't modify the rendered image, just copy input to output
-      this.copyTexture(renderer, inputTexture, outputTarget)
-      return
-    }
-    
     // Handle drawrange effect separately
     if (effect.type === 'drawrange') {
       this.applyDrawRangeEffect(effect)
@@ -473,7 +474,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -646,6 +647,14 @@ export class PostProcessingPass {
         
         break
       
+      case 'posterize':
+        this.material.uniforms.posterizeIntensity.value = effect.parameters.intensity ?? 1.0
+        this.material.uniforms.posterizeLevels.value = effect.parameters.levels ?? 8.0
+        this.material.uniforms.posterizeBlackAndWhite.value = effect.parameters.blackAndWhite ?? 0.0
+        this.material.uniforms.posterizeGamma.value = effect.parameters.gamma ?? 1.0
+        this.material.uniforms.posterizeSmoothness.value = effect.parameters.smoothness ?? 0.0
+        break
+      
       case 'noise2d':
         this.material.uniforms.noiseScale.value = effect.parameters.scale ?? 10.0
         this.material.uniforms.noiseTimeSpeed.value = effect.parameters.timeSpeed ?? 1.0
@@ -692,6 +701,22 @@ export class PostProcessingPass {
         ditheringPass.dotSize = effect.parameters.dotSize ?? 8
         ditheringPass.contrast = effect.parameters.contrast ?? 1.2
         ditheringPass.angle = 0 // Fixed at 0 degrees
+        break
+      case 'circlepacking':
+        this.circlePackingPass.enabled = effect.enabled
+        this.circlePackingPass.intensity = effect.parameters.intensity ?? 0.8
+        this.circlePackingPass.packingDensity = effect.parameters.packingDensity ?? 18
+        this.circlePackingPass.colorLevels = effect.parameters.colorLevels ?? 8
+        this.circlePackingPass.minCircleSize = effect.parameters.minCircleSize ?? 0.3
+        this.circlePackingPass.maxCircleSize = effect.parameters.maxCircleSize ?? 8.0
+        this.circlePackingPass.circleSpacing = effect.parameters.circleSpacing ?? 1.2
+        this.circlePackingPass.colorTolerance = effect.parameters.colorTolerance ?? 0.15
+        this.circlePackingPass.randomSeed = effect.parameters.randomSeed ?? 42
+        this.circlePackingPass.blackBackground = effect.parameters.blackBackground ?? 1
+        this.circlePackingPass.pixelateSize = effect.parameters.pixelateSize ?? 8
+        this.circlePackingPass.posterizeLevels = effect.parameters.posterizeLevels ?? 8
+        this.circlePackingPass.render(renderer, inputTexture, outputTarget || undefined)
+        return
         break
       case 'engraving':
         this.engravingPass.setIntensity(effect.parameters.intensity ?? 1.0)
@@ -812,6 +837,7 @@ export class PostProcessingPass {
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
     this.engravingPass.setSize(width, height)
+    this.circlePackingPass.setSize(width, height)
     
     
     // Update afterimage render target
@@ -837,6 +863,7 @@ export class PostProcessingPass {
     this.asciiDitheringPass.dispose()
     this.halftoneDitheringPass.dispose()
     this.engravingPass.dispose()
+    this.circlePackingPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
@@ -1127,8 +1154,7 @@ export class PostProcessingPass {
       case 'noise2d': return 23
       case 'skysphere': return 24
       case 'splittone': return 25
-      // Background effects are handled separately in applyBackgroundEffect
-      case 'background': return 0
+      case 'posterize': return 26
       // Topographic effects are handled separately in applyTopographicEffect
       case 'topographic': return 0
       // DrawRange effects are handled separately in applyDrawRangeEffect  
@@ -1140,6 +1166,7 @@ export class PostProcessingPass {
       // Dithering effects are handled separately in renderDitheringEffect
       case 'ascii': return 0
       case 'halftone': return 0
+      case 'circlepacking': return 0
       case 'engraving': return 0
       default: return 0
     }
@@ -1378,36 +1405,6 @@ export class PostProcessingPass {
     this.materialAnimationStartTime = 0
   }
   
-  private applyBackgroundEffect(effect: EffectInstance): void {
-    if (!this.mainScene) return
-    
-    const hue = effect.parameters.hue ?? 0.75
-    const saturation = (effect.parameters.saturation ?? 17) / 100 // Convert to 0-1
-    let lightness = (effect.parameters.lightness ?? 9) / 100 // Convert to 0-1
-    
-    // Apply gamma correction to counteract tone mapping (same as original implementation)
-    lightness = Math.pow(lightness, 2.2)
-    
-    // Use Three.js built-in HSL conversion
-    const color = new THREE.Color()
-    color.setHSL(hue, saturation, lightness)
-    
-    // Update the main scene background
-    this.mainScene.background = color
-    
-    // Update fog color to match background
-    if (this.mainScene.fog && this.mainScene.fog instanceof THREE.FogExp2) {
-      this.mainScene.fog.color.copy(color)
-      
-      // Also update sphere materials if they exist
-      const modelManager = (window as any).modelManager
-      if (modelManager && modelManager.sphereInstancer) {
-        modelManager.sphereInstancer.updateFogSettings(color, this.mainScene.fog.density)
-      }
-    }
-    
-    // Background color updated silently
-  }
   
   private applyDrawRangeEffect(effect: EffectInstance): void {
     // Update point clouds list in case scene changed
@@ -2688,6 +2685,11 @@ export class PostProcessingPass {
       uniform float splitToneSmoothness;
       uniform float splitToneContrast;
       uniform float splitToneMidpoint;
+      uniform float posterizeIntensity;
+      uniform float posterizeLevels;
+      uniform float posterizeBlackAndWhite;
+      uniform float posterizeGamma;
+      uniform float posterizeSmoothness;
       uniform float noiseScale;
       uniform float noiseTimeSpeed;
       uniform int noiseType;
@@ -3062,6 +3064,53 @@ export class PostProcessingPass {
         
         // Blend with original color based on intensity
         return mix(color, splitToneColor, intensity);
+      }
+      
+      // Posterize Effect - Quantizes color levels for poster-like appearance
+      vec3 posterize(vec3 color, vec2 uv) {
+        // Apply gamma correction before posterization if specified
+        vec3 processedColor = color;
+        if (posterizeGamma != 1.0) {
+          processedColor = pow(processedColor, vec3(1.0 / posterizeGamma));
+        }
+        
+        // Convert to black and white if specified
+        if (posterizeBlackAndWhite > 0.0) {
+          float luminance = dot(processedColor, vec3(0.299, 0.587, 0.114));
+          processedColor = mix(processedColor, vec3(luminance), posterizeBlackAndWhite);
+        }
+        
+        // Quantize color levels
+        vec3 quantizedColor;
+        if (posterizeSmoothness > 0.0) {
+          // Smooth posterization using smoothstep
+          float levels = posterizeLevels;
+          quantizedColor.r = smoothstep(0.0, 1.0, floor(processedColor.r * levels + 0.5) / levels);
+          quantizedColor.g = smoothstep(0.0, 1.0, floor(processedColor.g * levels + 0.5) / levels);
+          quantizedColor.b = smoothstep(0.0, 1.0, floor(processedColor.b * levels + 0.5) / levels);
+          
+          // Blend between hard and smooth quantization
+          vec3 hardQuantized;
+          hardQuantized.r = floor(processedColor.r * levels + 0.5) / levels;
+          hardQuantized.g = floor(processedColor.g * levels + 0.5) / levels;
+          hardQuantized.b = floor(processedColor.b * levels + 0.5) / levels;
+          
+          quantizedColor = mix(hardQuantized, quantizedColor, posterizeSmoothness);
+        } else {
+          // Hard posterization
+          float levels = posterizeLevels;
+          quantizedColor.r = floor(processedColor.r * levels + 0.5) / levels;
+          quantizedColor.g = floor(processedColor.g * levels + 0.5) / levels;
+          quantizedColor.b = floor(processedColor.b * levels + 0.5) / levels;
+        }
+        
+        // Apply gamma correction back if it was applied
+        if (posterizeGamma != 1.0) {
+          quantizedColor = pow(quantizedColor, vec3(posterizeGamma));
+        }
+        
+        // Blend with original color based on intensity
+        return mix(color, quantizedColor, posterizeIntensity);
       }
       
       // 3D gradient function for proper evolution
@@ -3961,6 +4010,9 @@ export class PostProcessingPass {
         } else if (effectType == 25) {
           // Split Tone Effect
           color = splitTone(color, vUv);
+        } else if (effectType == 26) {
+          // Posterize Effect
+          color = posterize(color, vUv);
         }
         
         gl_FragColor = vec4(color, originalColor.a);

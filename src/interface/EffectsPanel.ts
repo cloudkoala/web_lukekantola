@@ -288,16 +288,6 @@ export class EffectsPanel {
     return {
       "Cheeky Castleton": [
         {
-          id: "effect_1",
-          type: "background",
-          enabled: true,
-          parameters: {
-            hue: 0.62,
-            saturation: 27,
-            lightness: 30
-          }
-        },
-        {
           id: "effect_2",
           type: "sepia",
           enabled: true,
@@ -365,16 +355,6 @@ export class EffectsPanel {
         }
       ],
       "Fisher Two-Tone": [
-        {
-          id: "effect_1",
-          type: "background",
-          enabled: true,
-          parameters: {
-            hue: 0.3,
-            saturation: 46,
-            lightness: 20
-          }
-        },
         {
           id: "effect_2",
           type: "sepia",
@@ -456,16 +436,6 @@ export class EffectsPanel {
       ],
       "Delicate Disco": [
         {
-          id: "effect_29",
-          type: "background",
-          enabled: true,
-          parameters: {
-            hue: 0.62,
-            saturation: 27,
-            lightness: 30
-          }
-        },
-        {
           id: "effect_30",
           type: "sepia",
           enabled: true,
@@ -533,16 +503,6 @@ export class EffectsPanel {
         }
       ],
       "Delicate Noir": [
-        {
-          id: "effect_29",
-          type: "background",
-          enabled: true,
-          parameters: {
-            hue: 0.62,
-            saturation: 27,
-            lightness: 30
-          }
-        },
         {
           id: "effect_31",
           type: "crtgrain",
@@ -753,7 +713,7 @@ export class EffectsPanel {
     // Define categories (same as mobile)
     const categories = {
       'Color': {
-        effects: ['background', 'gamma', 'sepia', 'colorify', 'splittone', 'gradient', 'invert', 'bleachbypass', 'posterize']
+        effects: ['gamma', 'sepia', 'colorify', 'splittone', 'gradient', 'invert', 'bleachbypass', 'posterize']
       },
       'Blur': {
         effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
@@ -762,7 +722,7 @@ export class EffectsPanel {
         effects: ['crtgrain', 'film35mm', 'pixelate', 'noise2d']
       },
       'Post-Process': {
-        effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'engraving', 'datamosh', 'pixelsort']
+        effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'circlepacking', 'engraving', 'datamosh', 'pixelsort']
       },
       '3D Effects': {
         effects: ['drawrange', 'pointnetwork', 'material', 'topographic', 'fog', 'skysphere', 'sinradius']

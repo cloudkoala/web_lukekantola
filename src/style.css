@@ -1474,6 +1474,61 @@ body, html {
   min-width: 40px;
 }
 
+/* Settings Color Control */
+.settings-color-control {
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  width: fit-content;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-color-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.color-picker-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: #1a0e17;
+}
+
+.color-swatch:hover {
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+  transform: scale(1.1);
+}
+
+.hidden-color-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
 
 
 

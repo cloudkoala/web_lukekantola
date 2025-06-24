@@ -27,16 +27,6 @@ export interface EffectDefinition {
 
 export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
-    type: 'background',
-    name: 'Background Color',
-    defaultParameters: { hue: 0.75, saturation: 17, lightness: 9 },
-    parameterDefinitions: {
-      hue: { min: 0, max: 1, step: 0.01, label: 'Hue' },
-      saturation: { min: 0, max: 100, step: 1, label: 'Saturation (%)' },
-      lightness: { min: 0, max: 100, step: 1, label: 'Lightness (%)' }
-    }
-  },
-  {
     type: 'drawrange',
     name: 'Concentric Circles',
     defaultParameters: { progress: 100, animationSpeed: 1.0, ringWidth: 2.0, ringSeparation: 5.0 },
@@ -453,6 +443,44 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       dotSize: { min: 2, max: 32, step: 0.5, label: 'Dot Size' },
       contrast: { min: 0, max: 2.0, step: 0.05, label: 'Contrast' }
+    }
+  },
+  {
+    type: 'circlepacking',
+    name: 'Circle Packing',
+    supportsBlending: true,
+    defaultBlendMode: 'normal',
+    defaultParameters: { 
+      intensity: 0.8, 
+      packingDensity: 60, 
+      colorLevels: 6, 
+      minCircleSize: 15.0, 
+      maxCircleSize: 50.0, 
+      circleSpacing: 1.1, 
+      colorTolerance: 0.25, 
+      randomSeed: 42,
+      blackBackground: 1,
+      backgroundColorR: 0.0,
+      backgroundColorG: 0.0,
+      backgroundColorB: 0.0,
+      pixelateSize: 12,
+      posterizeLevels: 8
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      packingDensity: { min: 4, max: 200, step: 1, label: 'Packing Density' },
+      colorLevels: { min: 2, max: 16, step: 1, label: 'Color Levels' },
+      minCircleSize: { min: 1.5, max: 15.0, step: 0.01, label: 'Min Circle Size' },
+      maxCircleSize: { min: 9.0, max: 300.0, step: 0.1, label: 'Max Circle Size' },
+      circleSpacing: { min: 0.5, max: 2.0, step: 0.1, label: 'Circle Spacing' },
+      colorTolerance: { min: 0.05, max: 0.5, step: 0.01, label: 'Color Tolerance' },
+      randomSeed: { min: 0, max: 1000, step: 1, label: 'Random Seed' },
+      blackBackground: { min: 0, max: 1, step: 1, label: 'Black Background' },
+      backgroundColorR: { min: 0, max: 1, step: 0.01, label: 'Background Red', type: 'color' },
+      backgroundColorG: { min: 0, max: 1, step: 0.01, label: 'Background Green', type: 'color' },
+      backgroundColorB: { min: 0, max: 1, step: 0.01, label: 'Background Blue', type: 'color' },
+      pixelateSize: { min: 2, max: 50, step: 1, label: 'Pixelate Size' },
+      posterizeLevels: { min: 2, max: 32, step: 1, label: 'Posterize Levels' }
     }
   },
   {

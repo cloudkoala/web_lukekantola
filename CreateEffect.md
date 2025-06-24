@@ -11,7 +11,7 @@ The post-processing system uses a modular architecture with effects chaining, wh
 The system supports several types of effects:
 
 1. **Shader-Based Effects**: GPU fragment shader effects (sepia, blur, etc.)
-2. **Dithering Effects**: Specialized rendering passes (ASCII, halftone, etc.)
+2. **Dithering Effects**: Specialized rendering passes (ASCII, halftone, **circle packing**, etc.)
 3. **Geometry Effects**: 3D point cloud manipulations (material, network, etc.)
 4. **Scene Effects**: Background and rendering control effects
 
@@ -284,11 +284,12 @@ For complex effects requiring multiple rendering passes:
 3. Use ping-pong buffers for iterative processing
 
 ### Custom Dithering Effects
-For specialized dithering algorithms:
+For specialized dithering algorithms like the **Circle Packing Effect**:
 
-1. Create a new dithering pass class (see existing examples)
+1. Create a new dithering pass class (see `CirclePackingPass.ts`, `HalftoneDitheringPass.ts`, `ASCIIDitheringPass.ts`)
 2. Add it to the `PostProcessingPass` constructor
 3. Handle it in `renderDitheringEffect()` method
+4. Implement shader-based circle packing algorithms for color grouping and posterization
 
 ### Geometry Effects
 For effects that modify 3D geometry:
@@ -318,6 +319,91 @@ For effects that modify 3D geometry:
 - Check UV coordinate bounds (0-1 range)
 - Verify color channel clamping (0-1 range)
 - Test with extreme parameter values
+
+## Example: Circle Packing Dithering Effect
+
+Here's a real-world example of the **Circle Packing Effect** - a specialized dithering effect that combines posterization with circle packing algorithms:
+
+### Implementation Overview
+The Circle Packing effect creates a unique artistic style by:
+1. **Posterizing colors** into distinct levels (2-16 levels)
+2. **Grouping similar colors** using tolerance thresholds
+3. **Packing circles** within each color region using grid-based algorithms
+4. **Varying circle sizes** based on luminance intensity
+
+### 1. Pass Class Structure
+```typescript
+// CirclePackingPass.ts - Specialized dithering pass
+export class CirclePackingPass {
+  private renderTarget: THREE.WebGLRenderTarget
+  private material: THREE.ShaderMaterial
+  
+  // Circle packing parameters
+  public intensity: number = 0.8
+  public packingDensity: number = 12
+  public colorLevels: number = 8
+  public minCircleSize: number = 0.1
+  public maxCircleSize: number = 0.8
+  public circleSpacing: number = 1.2
+  public colorTolerance: number = 0.15
+  public randomSeed: number = 42
+  
+  render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
+    // Render circle packing effect
+  }
+}
+```
+
+### 2. Advanced Shader Implementation
+```glsl
+// Posterize color to specific levels for grouping
+vec3 posterize(vec3 color, float levels) {
+  return floor(color * levels) / levels;
+}
+
+// Grid-based circle placement with random offsets
+float generateCirclePacking(vec2 pixelCoord, vec3 targetColor, float regionSize) {
+  float maxCircles = packingDensity;
+  float gridSize = regionSize / sqrt(maxCircles);
+  vec2 gridCoord = floor(pixelCoord / gridSize);
+  
+  // Check surrounding grid cells for circles
+  for (float x = -1.0; x <= 1.0; x += 1.0) {
+    for (float y = -1.0; y <= 1.0; y += 1.0) {
+      vec2 neighborGrid = gridCoord + vec2(x, y);
+      vec2 randomOffset = hash2(neighborGrid) * 0.5;
+      vec2 circleCenter = (neighborGrid + 0.5 + randomOffset) * gridSize;
+      
+      // Sample color and check similarity
+      vec3 circleColor = sampleRegionColor(circleCenter, gridSize);
+      vec3 posterizedCircleColor = posterize(circleColor, colorLevels);
+      float colorSimilarity = 1.0 - colorDistance(posterizedCircleColor, targetColor);
+      
+      if (colorSimilarity > (1.0 - colorTolerance)) {
+        float luminance = dot(circleColor, vec3(0.299, 0.587, 0.114));
+        float circleRadius = mix(minCircleSize, maxCircleSize, luminance) * gridSize * 0.4;
+        float distToCenter = length(pixelCoord - circleCenter);
+        float circleMask = 1.0 - smoothstep(circleRadius - 2.0, circleRadius + 2.0, distToCenter);
+        
+        return circleMask * colorSimilarity;
+      }
+    }
+  }
+  return 0.0;
+}
+```
+
+### 3. Integration with Effects System
+```typescript
+// In PostProcessingPass.ts
+case 'circlepacking':
+  this.circlePackingPass.intensity = effect.parameters.intensity ?? 0.8
+  this.circlePackingPass.packingDensity = effect.parameters.packingDensity ?? 12
+  this.circlePackingPass.colorLevels = effect.parameters.colorLevels ?? 8
+  // ... other parameters
+  this.circlePackingPass.render(renderer, inputTexture, outputTarget)
+  return
+```
 
 ## Example: Complete Color Shift Effect
 

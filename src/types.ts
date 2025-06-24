@@ -81,6 +81,7 @@ export interface EffectInstanceState {
   type: string
   enabled: boolean
   parameters: { [key: string]: number }
+  blendMode?: 'normal' | 'add' | 'multiply'
 }
 
 export interface SceneState {
