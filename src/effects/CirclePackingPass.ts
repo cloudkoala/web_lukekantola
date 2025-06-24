@@ -103,9 +103,13 @@ class PoissonDiskSampler {
 
   // Generate Poisson-distributed points
   generatePoints(): number[][] {
-    // Start with a random point
-    const firstPoint = [Math.random() * this.width, Math.random() * this.height]
-    this.addPoint(firstPoint)
+    // Start with multiple random seed points to ensure better distribution
+    const numSeeds = Math.min(5, Math.max(1, Math.floor(this.width * this.height / 50000)))
+    
+    for (let i = 0; i < numSeeds; i++) {
+      const seedPoint = [Math.random() * this.width, Math.random() * this.height]
+      this.addPoint(seedPoint)
+    }
 
     while (this.activeList.length > 0) {
       // Pick a random active point
@@ -584,7 +588,9 @@ export class CirclePackingPass {
         // Check collision with existing circles
         const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(candidateX, candidateY, spatialGrid, width, height, spacing)
         
-        if (maxPossibleRadius < this.minCircleSize) continue
+        // Be more permissive for medium circles
+        const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.9)
+        if (maxPossibleRadius < effectiveMinRadius) continue
         
         // Size for medium-small circles: 50-80% of max circle size
         const localComplexity = this.calculateLocalComplexity(originalImageData, candidateX, candidateY, width, height)
@@ -625,7 +631,9 @@ export class CirclePackingPass {
         const y = point[1]
         
         const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, width, height, spacing)
-        if (maxPossibleRadius < this.minCircleSize) continue
+        // Be more permissive for medium-small circles
+        const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.85)
+        if (maxPossibleRadius < effectiveMinRadius) continue
         
         const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
         const complexityFactor = Math.max(0.4, 1.0 - localComplexity * 0.8)
@@ -661,7 +669,10 @@ export class CirclePackingPass {
     const minDistance = Math.max(this.minCircleSize * 1.5, spacing * densityFactor * 0.8)
     
     // Generate Poisson-distributed candidate points (more attempts for final details)
-    const sampler = new PoissonDiskSampler(width, height, minDistance, 40)
+    // Increase attempts for smaller circles to ensure better coverage
+    const attemptMultiplier = Math.max(1, Math.floor(10 / Math.max(this.minCircleSize, 1)))
+    const maxAttempts = Math.min(80, 40 * attemptMultiplier)
+    const sampler = new PoissonDiskSampler(width, height, minDistance, maxAttempts)
     const candidatePoints = sampler.generatePoints()
     
     // Limit to remaining density budget (30% of total for final small circles)
@@ -678,9 +689,13 @@ export class CirclePackingPass {
       const y = point[1]
       
       // Check collision with existing circles using spatial grid
-      const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, width, height, spacing)
+      // Use tighter spacing for small circles to allow better packing
+      const smallCircleSpacing = spacing * 0.5
+      const maxPossibleRadius = this.getMaxRadiusWithSpatialGrid(x, y, spatialGrid, width, height, smallCircleSpacing)
       
-      if (maxPossibleRadius < this.minCircleSize) continue
+      // Be more permissive for very small circles
+      const effectiveMinRadius = Math.min(this.minCircleSize, maxPossibleRadius * 0.8)
+      if (maxPossibleRadius < effectiveMinRadius) continue
       
       // Size circles based on local image complexity (smaller range for detail preservation)
       const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
@@ -889,6 +904,13 @@ export class CirclePackingPass {
         }
         if (circle1.y > height - boundaryPadding) {
           forces[i].fy -= (circle1.y - (height - boundaryPadding)) * 0.2
+        }
+        
+        // Add slight upward bias to counteract any downward clustering tendency
+        const centerY = height / 2
+        if (circle1.y > centerY) {
+          const distanceFromCenter = (circle1.y - centerY) / centerY
+          forces[i].fy -= distanceFromCenter * 0.05 // Very gentle upward force
         }
       }
       
@@ -1585,7 +1607,11 @@ export class CirclePackingPass {
     
     // Recompute circles if needed (async but cache results)
     if (this.needsRecompute) {
-      this.getImageDataFromTexture(renderer, inputTexture, this.material.uniforms.resolution.value.x, this.material.uniforms.resolution.value.y)
+      // Use current render target size for ImageData to ensure full screen coverage
+      const targetWidth = this.renderTarget.width
+      const targetHeight = this.renderTarget.height
+      
+      this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
         .then(imageData => {
           this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
           this.needsRecompute = false
@@ -1620,7 +1646,6 @@ export class CirclePackingPass {
     
     const maxCircles = 200
     const textureData = new Float32Array(maxCircles * 2 * 4) // 200 circles * 2 rows * 4 channels
-    
     for (let i = 0; i < Math.min(this.circles.length, maxCircles); i++) {
       const circle = this.circles[i]
       
@@ -1646,8 +1671,9 @@ export class CirclePackingPass {
   
   setSize(width: number, height: number) {
     this.renderTarget.setSize(width, height)
-    // NOTE: Don't update resolution uniform here - it should match ImageData dimensions, not render target size
-    // The resolution uniform is updated in the render method when ImageData is processed
+    // Trigger recompute to use new screen dimensions
+    this.needsRecompute = true
+    // NOTE: Resolution uniform is updated in render method when ImageData is processed
   }
   
   dispose() {

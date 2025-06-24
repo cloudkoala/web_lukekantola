@@ -468,7 +468,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
-      packingDensity: { min: 4, max: 200, step: 1, label: 'Packing Density' },
+      packingDensity: { min: 4, max: 1000, step: 1, label: 'Packing Density' },
       colorLevels: { min: 2, max: 16, step: 1, label: 'Color Levels' },
       minCircleSize: { min: 1.5, max: 15.0, step: 0.01, label: 'Min Circle Size' },
       maxCircleSize: { min: 9.0, max: 300.0, step: 0.1, label: 'Max Circle Size' },
