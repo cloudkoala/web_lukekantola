@@ -181,9 +181,14 @@ export class SphereInstancer {
         }
       }) :
       new THREE.MeshBasicMaterial({
-        color: 0x888888,
+        color: 0xffffff,
+        vertexColors: true,
         transparent: true,
-        opacity: 0.8,
+        opacity: 1.0,
+        blending: THREE.NormalBlending,
+        depthWrite: true,
+        alphaTest: 0.01,
+        side: THREE.DoubleSide,
         fog: true
       })
     

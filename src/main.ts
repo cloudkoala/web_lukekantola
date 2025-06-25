@@ -2999,7 +2999,7 @@ function setupBackgroundColorControl() {
     const { h, s, l } = hexToHsl(hex)
     
     // Convert to normalized values
-    const hue = h / 360
+    const hue = h
     const saturation = s / 100
     let lightness = l / 100
     

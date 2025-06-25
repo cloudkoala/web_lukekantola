@@ -95,19 +95,47 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   },
   {
     type: 'gamma',
-    name: 'Gamma Correction',
-    supportsBlending: true,
+    name: 'Color Correction',
+    supportsBlending: false,
     defaultParameters: { 
-      gamma: 2.2,
+      intensity: 1.0,
+      gamma: 1.0,
       brightness: 1.0,
       contrast: 1.0,
-      saturation: 1.0
+      saturation: 1.0,
+      exposure: 0.0,
+      hue: 0.0,
+      lightness: 0.0,
+      shadows: 0.0,
+      highlights: 0.0,
+      blackLevel: 0.0,
+      whiteLevel: 1.0,
+      temperature: 0.0,
+      tint: 0.0,
+      colorTintR: 1.0,
+      colorTintG: 1.0,
+      colorTintB: 1.0,
+      colorTintIntensity: 0.0
     },
     parameterDefinitions: {
+      intensity: { min: 0.0, max: 1.0, step: 0.01, label: 'Effect Intensity' },
       gamma: { min: 0.1, max: 5.0, step: 0.1, label: 'Gamma' },
       brightness: { min: 0.0, max: 3.0, step: 0.1, label: 'Brightness' },
       contrast: { min: 0.0, max: 3.0, step: 0.1, label: 'Contrast' },
-      saturation: { min: 0.0, max: 3.0, step: 0.1, label: 'Saturation' }
+      saturation: { min: 0.0, max: 3.0, step: 0.1, label: 'Saturation' },
+      exposure: { min: -3.0, max: 3.0, step: 0.1, label: 'Exposure' },
+      hue: { min: -180, max: 180, step: 1, label: 'Hue (degrees)' },
+      lightness: { min: -100, max: 100, step: 1, label: 'Lightness (%)' },
+      shadows: { min: -100, max: 100, step: 1, label: 'Shadows (%)' },
+      highlights: { min: -100, max: 100, step: 1, label: 'Highlights (%)' },
+      blackLevel: { min: 0.0, max: 1.0, step: 0.01, label: 'Black Level' },
+      whiteLevel: { min: 0.0, max: 1.0, step: 0.01, label: 'White Level' },
+      temperature: { min: -100, max: 100, step: 1, label: 'Temperature' },
+      tint: { min: -100, max: 100, step: 1, label: 'Tint' },
+      colorTintR: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Red' },
+      colorTintG: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Green' },
+      colorTintB: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Blue' },
+      colorTintIntensity: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Intensity' }
     }
   },
   {
@@ -476,9 +504,9 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       colorTolerance: { min: 0.05, max: 0.5, step: 0.01, label: 'Color Tolerance' },
       randomSeed: { min: 0, max: 1000, step: 1, label: 'Random Seed' },
       blackBackground: { min: 0, max: 1, step: 1, label: 'Black Background' },
-      backgroundColorR: { min: 0, max: 1, step: 0.01, label: 'Background Red', type: 'color' },
-      backgroundColorG: { min: 0, max: 1, step: 0.01, label: 'Background Green', type: 'color' },
-      backgroundColorB: { min: 0, max: 1, step: 0.01, label: 'Background Blue', type: 'color' },
+      backgroundColorR: { min: 0, max: 1, step: 0.01, label: 'Background Red' },
+      backgroundColorG: { min: 0, max: 1, step: 0.01, label: 'Background Green' },
+      backgroundColorB: { min: 0, max: 1, step: 0.01, label: 'Background Blue' },
       pixelateSize: { min: 2, max: 50, step: 1, label: 'Pixelate Size' },
       posterizeLevels: { min: 2, max: 32, step: 1, label: 'Posterize Levels' }
     }

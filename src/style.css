@@ -1380,7 +1380,7 @@ body, html {
   gap: 12px;
   position: relative;
   width: fit-content;
-  max-width: 260px;
+  max-width: 360px;
 }
 
 
@@ -3917,7 +3917,7 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 260px;
+  max-width: 360px;
   position: relative;
 }
 

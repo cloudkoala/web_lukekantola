@@ -157,6 +157,9 @@ export class CirclePackingPass {
   public colorTolerance: number = 0.15 // How similar colors need to be to group (0-1)
   public randomSeed: number = 42 // For consistent random circle placement
   public blackBackground: number = 1 // Whether to use black background
+  public backgroundColorR: number = 0.0 // Custom background red component (0-1)
+  public backgroundColorG: number = 0.0 // Custom background green component (0-1)
+  public backgroundColorB: number = 0.0 // Custom background blue component (0-1)
   public pixelateSize: number = 8 // Size of pixelation blocks (2-50)
   public posterizeLevels: number = 8 // Number of posterization levels (2-32)
   

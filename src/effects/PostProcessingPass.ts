@@ -203,6 +203,19 @@ export class PostProcessingPass {
         brightness: { value: 1.0 },
         contrast: { value: 1.0 },
         saturation: { value: 1.0 },
+        exposure: { value: 0.0 },
+        hue: { value: 0.0 },
+        lightness: { value: 0.0 },
+        shadows: { value: 0.0 },
+        highlights: { value: 0.0 },
+        blackLevel: { value: 0.0 },
+        whiteLevel: { value: 1.0 },
+        temperature: { value: 0.0 },
+        tint: { value: 0.0 },
+        colorTintR: { value: 1.0 },
+        colorTintG: { value: 1.0 },
+        colorTintB: { value: 1.0 },
+        colorTintIntensity: { value: 0.0 },
         bloomThreshold: { value: 0.8 },
         bloomIntensity: { value: 1.0 },
         bloomRadius: { value: 0.5 },
@@ -509,6 +522,19 @@ export class PostProcessingPass {
         this.material.uniforms.brightness.value = effect.parameters.brightness ?? 1.0
         this.material.uniforms.contrast.value = effect.parameters.contrast ?? 1.0
         this.material.uniforms.saturation.value = effect.parameters.saturation ?? 1.0
+        this.material.uniforms.exposure.value = effect.parameters.exposure ?? 0.0
+        this.material.uniforms.hue.value = effect.parameters.hue ?? 0.0
+        this.material.uniforms.lightness.value = effect.parameters.lightness ?? 0.0
+        this.material.uniforms.shadows.value = effect.parameters.shadows ?? 0.0
+        this.material.uniforms.highlights.value = effect.parameters.highlights ?? 0.0
+        this.material.uniforms.blackLevel.value = effect.parameters.blackLevel ?? 0.0
+        this.material.uniforms.whiteLevel.value = effect.parameters.whiteLevel ?? 1.0
+        this.material.uniforms.temperature.value = effect.parameters.temperature ?? 0.0
+        this.material.uniforms.tint.value = effect.parameters.tint ?? 0.0
+        this.material.uniforms.colorTintR.value = effect.parameters.colorTintR ?? 1.0
+        this.material.uniforms.colorTintG.value = effect.parameters.colorTintG ?? 1.0
+        this.material.uniforms.colorTintB.value = effect.parameters.colorTintB ?? 1.0
+        this.material.uniforms.colorTintIntensity.value = effect.parameters.colorTintIntensity ?? 0.0
         break
       case 'vignette':
         this.material.uniforms.vignetteOffset.value = effect.parameters.offset ?? 1.2
@@ -730,6 +756,9 @@ export class PostProcessingPass {
         this.circlePackingPass.colorTolerance = effect.parameters.colorTolerance ?? 0.15
         this.circlePackingPass.randomSeed = effect.parameters.randomSeed ?? 42
         this.circlePackingPass.blackBackground = effect.parameters.blackBackground ?? 1
+        this.circlePackingPass.backgroundColorR = effect.parameters.backgroundColorR ?? 0.0
+        this.circlePackingPass.backgroundColorG = effect.parameters.backgroundColorG ?? 0.0
+        this.circlePackingPass.backgroundColorB = effect.parameters.backgroundColorB ?? 0.0
         this.circlePackingPass.pixelateSize = effect.parameters.pixelateSize ?? 8
         this.circlePackingPass.posterizeLevels = effect.parameters.posterizeLevels ?? 8
         this.circlePackingPass.render(renderer, inputTexture, outputTarget || undefined)
@@ -2654,6 +2683,19 @@ export class PostProcessingPass {
       uniform float brightness;
       uniform float contrast;
       uniform float saturation;
+      uniform float exposure;
+      uniform float hue;
+      uniform float lightness;
+      uniform float shadows;
+      uniform float highlights;
+      uniform float blackLevel;
+      uniform float whiteLevel;
+      uniform float temperature;
+      uniform float tint;
+      uniform float colorTintR;
+      uniform float colorTintG;
+      uniform float colorTintB;
+      uniform float colorTintIntensity;
       uniform float bloomThreshold;
       uniform float bloomIntensity;
       uniform float bloomRadius;
@@ -2771,22 +2813,149 @@ export class PostProcessingPass {
         return color;
       }
       
-      // Gamma correction effect
-      vec3 gamma(vec3 color, float gammaValue, float brightness, float contrast, float saturation) {
-        // Apply gamma correction
-        vec3 result = pow(color, vec3(1.0 / gammaValue));
+      // HSL conversion functions
+      vec3 rgb2hsl(vec3 color) {
+        float maxCol = max(color.r, max(color.g, color.b));
+        float minCol = min(color.r, min(color.g, color.b));
+        float l = (maxCol + minCol) * 0.5;
+        float s = 0.0;
+        float h = 0.0;
         
-        // Apply brightness
+        if (maxCol != minCol) {
+          float d = maxCol - minCol;
+          s = l > 0.5 ? d / (2.0 - maxCol - minCol) : d / (maxCol + minCol);
+          
+          if (maxCol == color.r) {
+            h = (color.g - color.b) / d + (color.g < color.b ? 6.0 : 0.0);
+          } else if (maxCol == color.g) {
+            h = (color.b - color.r) / d + 2.0;
+          } else {
+            h = (color.r - color.g) / d + 4.0;
+          }
+          h /= 6.0;
+        }
+        
+        return vec3(h, s, l);
+      }
+      
+      float hue2rgb(float p, float q, float t) {
+        if (t < 0.0) t += 1.0;
+        if (t > 1.0) t -= 1.0;
+        if (t < 1.0/6.0) return p + (q - p) * 6.0 * t;
+        if (t < 1.0/2.0) return q;
+        if (t < 2.0/3.0) return p + (q - p) * (2.0/3.0 - t) * 6.0;
+        return p;
+      }
+      
+      vec3 hsl2rgb(vec3 hsl) {
+        float h = hsl.x;
+        float s = hsl.y;
+        float l = hsl.z;
+        
+        if (s == 0.0) {
+          return vec3(l);
+        }
+        
+        float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+        float p = 2.0 * l - q;
+        
+        return vec3(
+          hue2rgb(p, q, h + 1.0/3.0),
+          hue2rgb(p, q, h),
+          hue2rgb(p, q, h - 1.0/3.0)
+        );
+      }
+      
+      // Temperature and tint adjustment
+      vec3 adjustTemperatureTint(vec3 color, float temp, float tintVal) {
+        // Temperature: -100 = cooler (blue), +100 = warmer (orange)
+        // Tint: -100 = magenta, +100 = green
+        float tempNorm = temp / 100.0;
+        float tintNorm = tintVal / 100.0;
+        
+        // Temperature adjustment
+        vec3 tempColor = color;
+        if (tempNorm > 0.0) {
+          // Warmer - add orange/red
+          tempColor.r = mix(color.r, min(color.r * (1.0 + tempNorm * 0.3), 1.0), tempNorm);
+          tempColor.g = mix(color.g, min(color.g * (1.0 + tempNorm * 0.15), 1.0), tempNorm);
+        } else if (tempNorm < 0.0) {
+          // Cooler - add blue
+          tempColor.b = mix(color.b, min(color.b * (1.0 - tempNorm * 0.3), 1.0), -tempNorm);
+        }
+        
+        // Tint adjustment
+        if (tintNorm > 0.0) {
+          // More green
+          tempColor.g = mix(tempColor.g, min(tempColor.g * (1.0 + tintNorm * 0.2), 1.0), tintNorm);
+        } else if (tintNorm < 0.0) {
+          // More magenta
+          tempColor.r = mix(tempColor.r, min(tempColor.r * (1.0 - tintNorm * 0.15), 1.0), -tintNorm);
+          tempColor.b = mix(tempColor.b, min(tempColor.b * (1.0 - tintNorm * 0.15), 1.0), -tintNorm);
+        }
+        
+        return tempColor;
+      }
+      
+      // Comprehensive color correction effect
+      vec3 colorCorrection(vec3 color) {
+        vec3 result = color;
+        
+        // 1. Apply exposure (multiplicative brightness in linear space)
+        result *= pow(2.0, exposure);
+        
+        // 2. Apply black and white levels (input range mapping)
+        result = (result - blackLevel) / (whiteLevel - blackLevel);
+        result = clamp(result, 0.0, 1.0);
+        
+        // 3. Apply gamma correction
+        result = pow(result, vec3(1.0 / gammaValue));
+        
+        // 4. Apply brightness (additive)
         result *= brightness;
         
-        // Apply contrast (around midpoint 0.5)
+        // 5. Apply contrast (around midpoint 0.5)
         result = ((result - 0.5) * contrast) + 0.5;
         
-        // Apply saturation
-        float luminance = dot(result, vec3(0.299, 0.587, 0.114));
-        result = mix(vec3(luminance), result, saturation);
+        // 6. Apply shadows and highlights
+        float lum = dot(result, vec3(0.299, 0.587, 0.114));
         
-        // Clamp to valid range
+        // Shadows adjustment (affects darker areas more)
+        float shadowMask = 1.0 - smoothstep(0.0, 0.5, lum);
+        result += shadowMask * (shadows / 100.0) * 0.5;
+        
+        // Highlights adjustment (affects brighter areas more)
+        float highlightMask = smoothstep(0.5, 1.0, lum);
+        result += highlightMask * (highlights / 100.0) * 0.5;
+        
+        // 7. Convert to HSL for hue/saturation/lightness adjustments
+        vec3 hsl = rgb2hsl(result);
+        
+        // Apply hue shift
+        hsl.x += hue / 360.0;
+        if (hsl.x > 1.0) hsl.x -= 1.0;
+        if (hsl.x < 0.0) hsl.x += 1.0;
+        
+        // Apply saturation
+        hsl.y *= saturation;
+        hsl.y = clamp(hsl.y, 0.0, 1.0);
+        
+        // Apply lightness
+        hsl.z += lightness / 100.0;
+        hsl.z = clamp(hsl.z, 0.0, 1.0);
+        
+        // Convert back to RGB
+        result = hsl2rgb(hsl);
+        
+        // 8. Apply temperature and tint
+        result = adjustTemperatureTint(result, temperature, tint);
+        
+        // 9. Apply color tint
+        vec3 colorTintVec = vec3(colorTintR, colorTintG, colorTintB);
+        float colorLuminance = dot(result, vec3(0.299, 0.587, 0.114));
+        result = mix(result, colorTintVec * colorLuminance, colorTintIntensity);
+        
+        // Final clamp to valid range
         return clamp(result, 0.0, 1.0);
       }
       
@@ -3985,8 +4154,8 @@ export class PostProcessingPass {
         
         // Apply selected effect
         if (effectType == 1) {
-          // Gamma correction
-          color = gamma(color, gammaValue, brightness, contrast, saturation);
+          // Color correction
+          color = mix(color, colorCorrection(color), intensity);
         } else if (effectType == 2) {
           // Sepia
           color = mix(color, sepia(color), intensity);
