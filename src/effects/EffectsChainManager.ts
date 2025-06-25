@@ -610,20 +610,18 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     supportsBlending: true,
     defaultBlendMode: 'add',
     defaultParameters: { 
-      intensity: 1, 
-      threshold: 0, 
+      intensity: 1.0, 
+      threshold: 0.8, 
       radius: 1.0, 
       strength: 2.0,
-      samples: 8,
       softness: 0.5
     },
     parameterDefinitions: {
-      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      intensity: { min: 0, max: 2, step: 0.01, label: 'Intensity' },
       threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
-      radius: { min: 0.1, max: 3.0, step: 0.1, label: 'Glow Radius' },
-      strength: { min: 0.5, max: 5.0, step: 0.1, label: 'Glow Strength' },
-      samples: { min: 4, max: 16, step: 1, label: 'Quality (Samples)' },
-      softness: { min: 0.1, max: 2.0, step: 0.1, label: 'Edge Softness' }
+      radius: { min: 0.1, max: 5.0, step: 0.1, label: 'Glow Radius' },
+      strength: { min: 0.1, max: 10.0, step: 0.1, label: 'Glow Strength' },
+      softness: { min: 0.1, max: 3.0, step: 0.1, label: 'Edge Softness' }
     }
   },
   {

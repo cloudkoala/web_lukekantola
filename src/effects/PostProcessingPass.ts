@@ -5,6 +5,7 @@ import { HalftoneDitheringPass } from './HalftoneDitheringPass'
 import { EngravingPass } from './EngravingPass'
 import { CirclePackingPass } from './CirclePackingPass'
 import { GaussianBlurPass } from './GaussianBlurPass'
+import { GlowPass } from './GlowPass'
 
 export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur'
 
@@ -75,6 +76,7 @@ export class PostProcessingPass {
   private engravingPass: EngravingPass
   private circlePackingPass: CirclePackingPass
   private gaussianBlurPass: GaussianBlurPass
+  private glowPass: GlowPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -332,6 +334,7 @@ export class PostProcessingPass {
     this.engravingPass = new EngravingPass(width, height)
     this.circlePackingPass = new CirclePackingPass(width, height)
     this.gaussianBlurPass = new GaussianBlurPass(width, height)
+    this.glowPass = new GlowPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -518,7 +521,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -619,14 +622,6 @@ export class PostProcessingPass {
         this.material.uniforms.pixelsortMode.value = effect.parameters.sortMode ?? 0
         break
       
-      case 'glow':
-        this.material.uniforms.glowIntensity.value = effect.parameters.intensity ?? 0.5
-        this.material.uniforms.glowThreshold.value = effect.parameters.threshold ?? 0.8
-        this.material.uniforms.glowRadius.value = effect.parameters.radius ?? 1.0
-        this.material.uniforms.glowStrength.value = effect.parameters.strength ?? 2.0
-        this.material.uniforms.glowSamples.value = effect.parameters.samples ?? 8
-        this.material.uniforms.glowSoftness.value = effect.parameters.softness ?? 0.5
-        break
       
       case 'pixelate':
         this.material.uniforms.pixelateIntensity.value = effect.parameters.intensity ?? 1.0
@@ -796,6 +791,15 @@ export class PostProcessingPass {
         this.gaussianBlurPass.render(renderer, inputTexture, outputTarget || undefined)
         return
         break
+      case 'glow':
+        this.glowPass.setIntensity(typeof effect.parameters.intensity === 'number' ? effect.parameters.intensity : 1.0)
+        this.glowPass.setThreshold(typeof effect.parameters.threshold === 'number' ? effect.parameters.threshold : 0.8)
+        this.glowPass.setRadius(typeof effect.parameters.radius === 'number' ? effect.parameters.radius : 1.0)
+        this.glowPass.setStrength(typeof effect.parameters.strength === 'number' ? effect.parameters.strength : 2.0)
+        this.glowPass.setSoftness(typeof effect.parameters.softness === 'number' ? effect.parameters.softness : 0.5)
+        this.glowPass.render(renderer, inputTexture, outputTarget || undefined)
+        return
+        break
       default:
         return
     }
@@ -906,6 +910,7 @@ export class PostProcessingPass {
     this.engravingPass.setSize(width, height)
     this.circlePackingPass.setSize(width, height)
     this.gaussianBlurPass.setSize(width, height)
+    this.glowPass.setSize(width, height)
     
     
     // Update afterimage render target
@@ -933,6 +938,7 @@ export class PostProcessingPass {
     this.engravingPass.dispose()
     this.circlePackingPass.dispose()
     this.gaussianBlurPass.dispose()
+    this.glowPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
@@ -1215,7 +1221,7 @@ export class PostProcessingPass {
       case 'oilpainting': return 15
       case 'datamosh': return 16
       case 'pixelsort': return 17
-      case 'glow': return 18
+      case 'glow': return 0 // Handled as dithering effect
       case 'pixelate': return 19
       case 'fog': return 20
       case 'threshold': return 21
