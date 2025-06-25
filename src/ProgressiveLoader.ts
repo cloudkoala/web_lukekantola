@@ -92,10 +92,16 @@ export class ProgressiveLoader {
     
     // Update all loaded point clouds
     this.loadedPointClouds.forEach(pointCloud => {
-      if (pointCloud.material) {
-        const material = pointCloud.material as THREE.PointsMaterial
-        material.size = size
-        material.needsUpdate = true
+      if (pointCloud.material && pointCloud.geometry) {
+        // Update size attribute for shader material
+        const sizeAttribute = pointCloud.geometry.getAttribute('size') as THREE.BufferAttribute
+        if (sizeAttribute) {
+          const adjustedSize = this.calculateDensityAwarePointSize(pointCloud.geometry, size)
+          for (let i = 0; i < sizeAttribute.count; i++) {
+            sizeAttribute.setX(i, adjustedSize)
+          }
+          sizeAttribute.needsUpdate = true
+        }
       }
     })
   }
@@ -479,17 +485,82 @@ export class ProgressiveLoader {
     // Calculate density-aware point size for this chunk
     const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
     
-    // Create material for this chunk using shared texture
-    const material = new THREE.PointsMaterial({
-      size: adjustedSize,
-      vertexColors: true,
-      transparent: true,
-      // map: this.createSquareTexture(), // Disabled to avoid GL_INVALID_OPERATION errors
-      blending: THREE.NormalBlending,
-      depthWrite: true,
-      alphaTest: 0.01, // Reduced alpha test threshold
-      side: THREE.DoubleSide // Prevent backface culling
-    })
+    // Create custom shader material to match sphere darkness
+    const hasColors = !!geometry.attributes.color
+    console.log(`Creating custom shader material for chunk. hasColors: ${hasColors}`)
+    
+    const material = hasColors ? 
+      new THREE.ShaderMaterial({
+        fog: true,
+        vertexShader: `
+          attribute float size;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            vColor = color;
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            vFogDepth = -mvPosition.z;
+            gl_PointSize = size * (300.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 fogColor;
+          uniform float fogDensity;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+            fogFactor = clamp(fogFactor, 0.0, 1.0);
+            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+          }
+        `,
+        uniforms: {
+          fogColor: { value: new THREE.Color(0x151515) },
+          fogDensity: { value: 0.003 }
+        }
+      }) :
+      new THREE.ShaderMaterial({
+        fog: true,
+        vertexShader: `
+          attribute float size;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            vColor = vec3(1.0); // White color fallback
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+            vFogDepth = -mvPosition.z;
+            gl_PointSize = size * (300.0 / -mvPosition.z);
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 fogColor;
+          uniform float fogDensity;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+            fogFactor = clamp(fogFactor, 0.0, 1.0);
+            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+          }
+        `,
+        uniforms: {
+          fogColor: { value: new THREE.Color(0x151515) },
+          fogDensity: { value: 0.003 }
+        }
+      })
+    
+    // Add size attribute for the shader
+    const sizeAttribute = new Float32Array(geometry.attributes.position.count)
+    for (let i = 0; i < sizeAttribute.length; i++) {
+      sizeAttribute[i] = adjustedSize
+    }
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizeAttribute, 1))
     
     // Create individual point cloud for this chunk
     const pointCloud = new THREE.Points(geometry, material)
