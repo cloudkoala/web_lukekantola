@@ -29,6 +29,7 @@ let currentProjectId: string | null = null
 // Framerate monitoring for automatic sphere detail adjustment
 let frameCount = 0
 let lastFramerateCheck = performance.now()
+let lastFrameTime = performance.now()
 let currentFramerate = 60
 let sphereDetailLevel = 1 // Start with medium detail
 let lastSphereDetailAdjustment = 0
@@ -83,8 +84,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 renderer.sortObjects = true
 
 // Enable HDR tone mapping and environment lighting
-renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1 // Reset to normal exposure
+// Disable built-in tone mapping to use consistent custom shaders
+renderer.toneMapping = THREE.NoToneMapping
+renderer.toneMappingExposure = 1
 
 // Basic lighting setup without HDR environment
 
@@ -166,7 +168,14 @@ function animate() {
   const now = performance.now()
   const deltaTime = now - lastFramerateCheck
   
-  // Check framerate every second
+  // Update FPS counter display every frame
+  const fpsElement = document.getElementById('fps-value')
+  if (fpsElement && deltaTime > 0) {
+    const instantFPS = 1000 / (now - (lastFrameTime || now))
+    fpsElement.textContent = Math.round(instantFPS).toString()
+  }
+  
+  // Check framerate every second for sphere detail adjustment
   if (deltaTime >= 1000) {
     currentFramerate = (frameCount * 1000) / deltaTime
     frameCount = 0
@@ -256,6 +265,9 @@ function animate() {
     renderer.setRenderTarget(null)
     renderer.render(scene, camera)
   }
+  
+  // Update frame time for next FPS calculation
+  lastFrameTime = now
 }
 
 // Handle window resize

@@ -38,6 +38,9 @@ export class ModelManager {
     // Configure progressive loader for optimized performance
     this.progressiveLoader.setSequentialMode(false) // Enable concurrent loading
     
+    // Connect progressive loader with sphere instancer for random scale propagation
+    this.progressiveLoader.setSphereInstancer(this.sphereInstancer)
+    
     console.log('ModelManager initialized')
     
     // Initialize Gaussian Splatting Loader - try different possible names
@@ -604,18 +607,35 @@ export class ModelManager {
       console.log('Processing as comparison point cloud alongside Gaussian splat')
     }
     
-    // Create material for the point cloud using shared texture
-    const material = new THREE.PointsMaterial({
-      size: this.orbitalCamera.pointSize,
-      vertexColors: !isComparisonLoad, // Use vertex colors only if not comparison
-      color: isComparisonLoad ? 0x00ff00 : 0xffffff, // Green for comparison, white for normal
+    // Create material for the point cloud using custom shader to match sphere brightness
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        pointSize: { value: this.orbitalCamera.pointSize },
+        opacity: { value: isComparisonLoad ? 0.6 : 1.0 }
+      },
+      vertexShader: `
+        uniform float pointSize;
+        varying vec3 vColor;
+        ${!isComparisonLoad ? 'attribute vec3 color;' : ''}
+        void main() {
+          vColor = ${!isComparisonLoad ? 'color' : 'vec3(0.0, 1.0, 0.0)'};
+          gl_PointSize = pointSize;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float opacity;
+        varying vec3 vColor;
+        void main() {
+          vec3 brightColor = vColor * 1.8; // Increase brightness
+          gl_FragColor = vec4(brightColor, opacity);
+        }
+      `,
+      vertexColors: !isComparisonLoad,
       transparent: true,
-      opacity: isComparisonLoad ? 0.6 : 1.0, // More transparent for comparison
-      // map: this.createSquareTexture(), // Disabled to avoid GL_INVALID_OPERATION errors
-      blending: THREE.NormalBlending,
       depthWrite: true,
-      alphaTest: 0.01, // Reduced alpha test threshold
-      side: THREE.DoubleSide // Prevent backface culling
+      alphaTest: 0.01,
+      side: THREE.DoubleSide
     })
     
     const pointCloud = new THREE.Points(geometry, material)
@@ -784,5 +804,12 @@ export class ModelManager {
   public setProgressiveLoadingMode(sequential: boolean = true) {
     this.progressiveLoader.setSequentialMode(sequential)
     console.log(`ModelManager: Progressive loading mode set to ${sequential ? 'sequential' : 'concurrent'}`)
+  }
+
+  /**
+   * Get the progressive loader instance for external access
+   */
+  public getProgressiveLoader() {
+    return this.progressiveLoader
   }
 }

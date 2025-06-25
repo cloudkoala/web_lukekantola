@@ -4,23 +4,23 @@ export interface EffectInstance {
   id: string
   type: EffectType
   enabled: boolean
-  parameters: { [key: string]: number }
+  parameters: { [key: string]: number | boolean }
   blendMode?: 'normal' | 'add' | 'multiply'
 }
 
 export interface EffectDefinition {
   type: EffectType
   name: string
-  defaultParameters: { [key: string]: number }
+  defaultParameters: { [key: string]: number | boolean }
   defaultBlendMode?: 'normal' | 'add' | 'multiply'
   supportsBlending?: boolean
   parameterDefinitions: {
     [key: string]: {
-      min: number
-      max: number
-      step: number
+      min?: number
+      max?: number
+      step?: number
       label: string
-      type?: 'color' | 'range'
+      type?: 'color' | 'range' | 'boolean'
     }
   }
 }
@@ -91,6 +91,24 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       pulseEffect: { min: 0, max: 1, step: 1, label: 'Pulse Effect' },
       colorCycling: { min: 0, max: 1, step: 1, label: 'Color Cycling' },
       deformationEnable: { min: 0, max: 1, step: 1, label: 'Enable Deformation' }
+    }
+  },
+  {
+    type: 'randomscale',
+    name: 'Random Scale',
+    defaultParameters: { 
+      intensity: 0,
+      randomSeed: 42,
+      luminanceInfluence: 0,
+      thresholdLow: 0,
+      thresholdHigh: 1
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 10, step: 0.1, label: 'Scale Variation (0-10x)' },
+      randomSeed: { min: 0, max: 1000, step: 1, label: 'Random Seed' },
+      luminanceInfluence: { min: -1, max: 1, step: 0.1, label: 'Luminance Influence (+bright, -dark)' },
+      thresholdLow: { min: 0, max: 1, step: 0.01, label: 'Dark Threshold (0 scale)' },
+      thresholdHigh: { min: 0, max: 1, step: 0.01, label: 'Bright Threshold (1 scale)' }
     }
   },
   {
@@ -818,6 +836,20 @@ export class EffectsChainManager {
     this.effectsChain = []
     this.lastAddedEffectId = null
     this.notifyChainUpdated()
+  }
+
+  resetEffect(effectId: string): void {
+    const effect = this.effectsChain.find(e => e.id === effectId)
+    if (!effect) return
+
+    const definition = this.getEffectDefinition(effect.type)
+    if (!definition) return
+
+    // Reset parameters to default values
+    effect.parameters = { ...definition.defaultParameters }
+    
+    this.notifyChainUpdated()
+    this.notifyParameterUpdated(effectId, 'reset', 0) // Notify parameter update
   }
 
   getEnabledEffects(): EffectInstance[] {

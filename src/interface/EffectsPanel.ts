@@ -725,7 +725,7 @@ export class EffectsPanel {
         effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'circlepacking', 'engraving', 'datamosh', 'pixelsort']
       },
       '3D Effects': {
-        effects: ['drawrange', 'pointnetwork', 'material', 'topographic', 'fog', 'skysphere', 'sinradius']
+        effects: ['drawrange', 'pointnetwork', 'material', 'randomscale', 'topographic', 'fog', 'skysphere', 'sinradius']
       },
       'In Development': {
         effects: ['tsl', 'dotscreen']
@@ -1044,6 +1044,7 @@ export class EffectsPanel {
                   title="${effect.enabled ? 'Disable' : 'Enable'} effect">
             ${effect.enabled ? '●' : '○'}
           </button>
+          <button class="effect-reset" title="Reset effect to defaults">↻</button>
           <button class="effect-remove" title="Remove effect">×</button>
         </div>
       </div>
@@ -1080,6 +1081,14 @@ export class EffectsPanel {
       e.stopPropagation()
       this.chainManager.toggleEffect(effect.id)
       this.refreshChain() // Manually refresh to update visual state
+    })
+
+    // Reset effect
+    const resetButton = card.querySelector('.effect-reset') as HTMLElement
+    resetButton?.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this.chainManager.resetEffect(effect.id)
+      this.refreshChain() // Manually refresh to update visual state and parameters
     })
 
     // Remove effect

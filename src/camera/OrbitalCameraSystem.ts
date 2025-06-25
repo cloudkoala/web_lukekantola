@@ -662,6 +662,7 @@ export class OrbitalCameraSystem {
           "autoRotation": sceneState.autoRotation,
           "autoRotationSpeed": sceneState.autoRotationSpeed,
           "autoRotationDirection": sceneState.autoRotationDirection,
+          "backgroundColor": sceneState.backgroundColor,
           "timestamp": sceneState.timestamp,
           "version": sceneState.version,
           "creator": "User"
@@ -1033,13 +1034,29 @@ export class OrbitalCameraSystem {
     // Update point size for ALL point clouds in the scene
     this.scene.children.forEach(child => {
       if (child instanceof THREE.Points && child.material) {
-        const material = child.material as THREE.PointsMaterial
         const geometry = child.geometry as THREE.BufferGeometry
         
         // Calculate density-aware point size
         const adjustedSize = this.calculateDensityAwarePointSize(geometry, this.pointSize)
-        material.size = adjustedSize
-        material.needsUpdate = true
+        
+        // Handle both PointsMaterial and ShaderMaterial
+        if (child.material instanceof THREE.PointsMaterial) {
+          child.material.size = adjustedSize
+          child.material.needsUpdate = true
+        } else if (child.material instanceof THREE.ShaderMaterial) {
+          // Handle different shader material types
+          if (child.material.uniforms.pointSize) {
+            child.material.uniforms.pointSize.value = adjustedSize
+          } else if (child.material.uniforms.baseSize) {
+            // Handle Random Scale effect shader materials (old version)
+            child.material.uniforms.baseSize.value = adjustedSize
+          } else if (child.material.uniforms.size) {
+            // Handle ProgressiveLoader shader materials
+            child.material.uniforms.size.value = adjustedSize
+          }
+          // Note: Random Scale effect uses base size directly in shader, no uniform needed
+          child.material.needsUpdate = true
+        }
       } else if (child instanceof THREE.InstancedMesh && child.geometry instanceof THREE.SphereGeometry) {
         // Handle new sphere-based instanced mesh point clouds
         const currentRadius = child.geometry.parameters.radius
@@ -2725,6 +2742,15 @@ export class OrbitalCameraSystem {
     // Get current quality from model manager
     const currentQuality = this.modelManager ? this.modelManager.getCurrentQuality() : 'low'
     
+    // Get current background color
+    let backgroundColor = '#151515' // default
+    const backgroundColorPicker = document.getElementById('background-color-picker') as HTMLInputElement
+    if (backgroundColorPicker) {
+      backgroundColor = backgroundColorPicker.value
+    } else if (this.scene.background instanceof THREE.Color) {
+      backgroundColor = `#${this.scene.background.getHexString()}`
+    }
+    
     const sceneState: SceneState = {
       // Core model and quality
       modelKey: modelsConfig.currentModel,
@@ -2756,6 +2782,7 @@ export class OrbitalCameraSystem {
       autoRotation: autoRotation,
       autoRotationSpeed: this.autoRotationSpeed,
       autoRotationDirection: this.autoRotationDirection,
+      backgroundColor: backgroundColor,
       
       // Metadata
       timestamp: Date.now(),
@@ -2911,6 +2938,15 @@ export class OrbitalCameraSystem {
         // Fallback: if no rotation speed/direction in scene state, default to 0 (disabled)
         console.log('Scene state missing rotation speed/direction, defaulting to 0')
         this.setBidirectionalRotationSpeed(0)
+      }
+      
+      // Apply background color if present
+      if (sceneState.backgroundColor) {
+        const backgroundColorPicker = document.getElementById('background-color-picker') as HTMLInputElement
+        if (backgroundColorPicker) {
+          backgroundColorPicker.value = sceneState.backgroundColor
+          backgroundColorPicker.dispatchEvent(new Event('input'))
+        }
       }
       
       // Always update UI controls with current bidirectional value

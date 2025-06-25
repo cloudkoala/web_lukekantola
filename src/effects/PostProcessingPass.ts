@@ -5,7 +5,7 @@ import { HalftoneDitheringPass } from './HalftoneDitheringPass'
 import { EngravingPass } from './EngravingPass'
 import { CirclePackingPass } from './CirclePackingPass'
 
-export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -60,6 +60,9 @@ export class PostProcessingPass {
   // Sphere motion tracking for motion blur
   private spherePreviousPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
   private sphereCurrentPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
+  
+  // Random scale effect caching
+  private randomScaleCache: Map<string, { intensity: number, seed: number, applied: boolean }> = new Map()
   
   // Chain support
   public enabled: boolean = false
@@ -470,6 +473,14 @@ export class PostProcessingPass {
     if (effect.type === 'material') {
       this.applyMaterialEffect(effect)
       // Material effects don't modify the rendered image, just copy input to output
+      this.copyTexture(renderer, inputTexture, outputTarget)
+      return
+    }
+    
+    // Handle random scale effect separately
+    if (effect.type === 'randomscale') {
+      this.applyRandomScaleEffect(effect)
+      // Random scale effects don't modify the rendered image, just copy input to output
       this.copyTexture(renderer, inputTexture, outputTarget)
       return
     }
@@ -1209,6 +1220,8 @@ export class PostProcessingPass {
       case 'pointnetwork': return 0
       // Material effects are handled separately in applyMaterialEffect
       case 'material': return 0
+      // Random scale effects are handled separately in applyRandomScaleEffect
+      case 'randomscale': return 0
       // Dithering effects are handled separately in renderDitheringEffect
       case 'ascii': return 0
       case 'halftone': return 0
@@ -2349,6 +2362,135 @@ export class PostProcessingPass {
         
       }
     })
+  }
+  
+  private applyRandomScaleEffect(effect: EffectInstance): void {
+    if (!effect.enabled) {
+      return
+    }
+    
+    const intensity = effect.parameters.intensity ?? 0
+    const randomSeed = effect.parameters.randomSeed ?? 42
+    const luminanceInfluence = effect.parameters.luminanceInfluence ?? 0
+    const thresholdLow = effect.parameters.thresholdLow ?? 0
+    const thresholdHigh = effect.parameters.thresholdHigh ?? 1
+    
+    console.log(`🎲 Random Scale: intensity=${intensity}, seed=${randomSeed}, luminanceInfluence=${luminanceInfluence}, thresholds=[${thresholdLow}, ${thresholdHigh}]`)
+    
+    // Use ProgressiveLoader to apply random scaling at the model level
+    const modelManager = (window as any).modelManager
+    if (modelManager && modelManager.progressiveLoader) {
+      console.log(`✨ Applying random scale via ProgressiveLoader`)
+      modelManager.progressiveLoader.setRandomScale(intensity, randomSeed, luminanceInfluence, thresholdLow, thresholdHigh)
+    } else {
+      console.warn(`⚠️ ModelManager or ProgressiveLoader not available for random scale`)
+    }
+    
+    // Apply to spheres through ModelManager
+    if (modelManager && modelManager.getSphereInstancer && modelManager.getSphereInstancer()) {
+      console.log(`✨ Applying random scale to spheres via SphereInstancer`)
+      modelManager.getSphereInstancer().setRandomScale(intensity, randomSeed, luminanceInfluence, thresholdLow, thresholdHigh)
+    }
+  }
+  
+  private applyRandomScaleToPointCloud(pointCloud: THREE.Points, intensity: number, seed: number): void {
+    console.log(`🎯 applyRandomScaleToPointCloud: intensity=${intensity}, seed=${seed}`)
+    const geometry = pointCloud.geometry
+    const vertexCount = geometry.attributes.position.count
+    console.log(`   Vertex count: ${vertexCount}`)
+    
+    // Check if we already have a random scale shader material
+    const currentMaterial = pointCloud.material as THREE.ShaderMaterial
+    console.log(`   Current material: ${currentMaterial?.constructor.name}`)
+    console.log(`   Has randomIntensity: ${!!(currentMaterial?.uniforms?.randomIntensity)}`)
+    
+    if (currentMaterial instanceof THREE.ShaderMaterial && 
+        currentMaterial.uniforms.randomIntensity && 
+        currentMaterial.uniforms.randomSeed) {
+      // Update existing shader uniforms instead of recreating
+      console.log(`   🔄 Updating existing uniforms`)
+      currentMaterial.uniforms.randomIntensity.value = intensity
+      currentMaterial.uniforms.randomSeed.value = seed
+      return
+    }
+    
+    // Create vertex index attribute for random generation (only once)
+    console.log(`   🔧 Creating vertex index attribute`)
+    if (!geometry.attributes.vertexIndex) {
+      const indexArray = new Float32Array(vertexCount)
+      for (let i = 0; i < vertexCount; i++) {
+        indexArray[i] = i
+      }
+      geometry.setAttribute('vertexIndex', new THREE.BufferAttribute(indexArray, 1))
+      console.log(`   ✅ Created vertexIndex attribute with ${vertexCount} indices`)
+    } else {
+      console.log(`   ⏭️ vertexIndex attribute already exists`)
+    }
+    
+    // Create random scale shader material
+    const hasColors = !!geometry.attributes.color
+    console.log(`   🆕 Creating new shader material (hasColors: ${hasColors})`)
+    const customMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        randomIntensity: { value: intensity },
+        randomSeed: { value: seed },
+        fogColor: { value: new THREE.Color(0x151515) },
+        fogDensity: { value: 0.003 }
+      },
+      vertexShader: `
+        attribute float vertexIndex;
+        ${hasColors ? 'attribute vec3 color;' : ''}
+        uniform float randomIntensity;
+        uniform float randomSeed;
+        varying vec3 vColor;
+        varying float vFogDepth;
+        
+        // Simple hash function for deterministic random
+        float random(float n) {
+          return fract(sin(n + randomSeed) * 43758.5453123);
+        }
+        
+        void main() {
+          // Generate random value 0-1 based on vertex index
+          float randomValue = random(vertexIndex);
+          
+          // Base size with random scaling
+          float baseSize = 0.001;
+          float scaledSize = baseSize * (1.0 + randomValue * randomIntensity);
+          
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vFogDepth = -mvPosition.z;
+          gl_PointSize = scaledSize * (300.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+          
+          // Pass color to fragment shader
+          ${hasColors ? 'vColor = color * 1.8;' : 'vColor = vec3(1.8);'} // Brighten like ProgressiveLoader
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 fogColor;
+        uniform float fogDensity;
+        varying vec3 vColor;
+        varying float vFogDepth;
+        
+        void main() {
+          float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+          fogFactor = clamp(fogFactor, 0.0, 1.0);
+          gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+        }
+      `,
+      fog: true,
+      transparent: false,
+      vertexColors: hasColors
+    })
+    
+    pointCloud.material = customMaterial
+  }
+  
+  private applyRandomScaleToSpheres(_sphereMesh: THREE.InstancedMesh, _intensity: number, _seed: number): void {
+    // Skip sphere processing for now to avoid crashes
+    // TODO: Implement sphere random scaling properly
+    return
   }
   
   private shouldUpdateMaterial(_effect: EffectInstance): boolean {

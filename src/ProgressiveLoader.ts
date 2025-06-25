@@ -49,6 +49,11 @@ export class ProgressiveLoader {
   private onChunkAddedToScene?: (pointCloud: THREE.Points) => Promise<void> | void
   private loadedPointClouds: THREE.Points[] = []
   private modelRotation: { x: number, y: number, z: number } | null = null
+  
+  // Random scale parameters
+  private randomScaleIntensity: number = 0
+  private randomScaleSeed: number = 42
+  private sphereInstancer: any = null
   private abortController: AbortController | null = null
   
   // Concurrent loading properties
@@ -111,6 +116,49 @@ export class ProgressiveLoader {
    */
   public setModelRotation(rotation: { x: number, y: number, z: number } | null) {
     this.modelRotation = rotation
+  }
+
+  /**
+   * Set random scale parameters for point clouds
+   */
+  public setRandomScale(intensity: number, seed: number = 42, luminanceInfluence: number = 0, thresholdLow: number = 0, thresholdHigh: number = 1) {
+    this.randomScaleIntensity = intensity
+    this.randomScaleSeed = seed
+    console.log(`🎲 ProgressiveLoader: Random scale updated - intensity: ${intensity}, seed: ${seed}, luminanceInfluence: ${luminanceInfluence}, thresholds=[${thresholdLow}, ${thresholdHigh}]`)
+    
+    // Update existing point clouds if any are loaded
+    this.loadedPointClouds.forEach(pointCloud => {
+      const material = pointCloud.material as THREE.ShaderMaterial
+      if (material && material.uniforms) {
+        if (material.uniforms.randomIntensity) {
+          material.uniforms.randomIntensity.value = intensity
+        }
+        if (material.uniforms.randomSeed) {
+          material.uniforms.randomSeed.value = seed
+        }
+        if (material.uniforms.luminanceInfluence) {
+          material.uniforms.luminanceInfluence.value = luminanceInfluence
+        }
+        if (material.uniforms.thresholdLow) {
+          material.uniforms.thresholdLow.value = thresholdLow
+        }
+        if (material.uniforms.thresholdHigh) {
+          material.uniforms.thresholdHigh.value = thresholdHigh
+        }
+      }
+    })
+
+    // Update sphere instancer if available
+    if (this.sphereInstancer && this.sphereInstancer.setRandomScale) {
+      this.sphereInstancer.setRandomScale(intensity, seed, luminanceInfluence, thresholdLow, thresholdHigh)
+    }
+  }
+
+  /**
+   * Set sphere instancer for random scale propagation
+   */
+  public setSphereInstancer(sphereInstancer: any) {
+    this.sphereInstancer = sphereInstancer
   }
   
   /**
@@ -494,6 +542,13 @@ export class ProgressiveLoader {
         fog: true,
         vertexShader: `
           attribute float size;
+          attribute float randomScale;
+          attribute vec3 color;
+          uniform float randomIntensity;
+          uniform float randomSeed;
+          uniform float luminanceInfluence;
+          uniform float thresholdLow;
+          uniform float thresholdHigh;
           varying vec3 vColor;
           varying float vFogDepth;
           
@@ -501,7 +556,32 @@ export class ProgressiveLoader {
             vColor = color;
             vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
             vFogDepth = -mvPosition.z;
-            gl_PointSize = size * (300.0 / -mvPosition.z);
+            
+            // Calculate scaling factor
+            float scaleFactor = randomScale;
+            
+            // Apply luminance influence
+            if (abs(luminanceInfluence) > 0.001) {
+              float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+              
+              // Remap luminance using thresholds
+              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
+              
+              // Direct luminance scaling approach
+              if (luminanceInfluence > 0.0) {
+                // Positive: interpolate from random toward remapped luminance (bright = bigger)
+                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
+              } else {
+                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
+                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
+              }
+            }
+            
+            // Apply scaling
+            float finalScale = randomIntensity > 0.0 ? 
+              (1.0 + scaleFactor * randomIntensity) : 1.0;
+            
+            gl_PointSize = size * finalScale * (300.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
           }
         `,
@@ -514,18 +594,30 @@ export class ProgressiveLoader {
           void main() {
             float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
             fogFactor = clamp(fogFactor, 0.0, 1.0);
-            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+            vec3 brightColor = vColor * 1.8; // Increase brightness
+            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
           }
         `,
         uniforms: {
           fogColor: { value: new THREE.Color(0x151515) },
-          fogDensity: { value: 0.003 }
+          fogDensity: { value: 0.003 },
+          randomIntensity: { value: this.randomScaleIntensity },
+          randomSeed: { value: this.randomScaleSeed },
+          luminanceInfluence: { value: 0.0 },
+          thresholdLow: { value: 0.0 },
+          thresholdHigh: { value: 1.0 }
         }
       }) :
       new THREE.ShaderMaterial({
         fog: true,
         vertexShader: `
           attribute float size;
+          attribute float randomScale;
+          uniform float randomIntensity;
+          uniform float randomSeed;
+          uniform float luminanceInfluence;
+          uniform float thresholdLow;
+          uniform float thresholdHigh;
           varying vec3 vColor;
           varying float vFogDepth;
           
@@ -533,7 +625,32 @@ export class ProgressiveLoader {
             vColor = vec3(1.0); // White color fallback
             vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
             vFogDepth = -mvPosition.z;
-            gl_PointSize = size * (300.0 / -mvPosition.z);
+            
+            // Calculate scaling factor
+            float scaleFactor = randomScale;
+            
+            // Apply luminance influence
+            if (abs(luminanceInfluence) > 0.001) {
+              float luminance = 1.0; // White has full luminance
+              
+              // Remap luminance using thresholds
+              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
+              
+              // Direct luminance scaling approach
+              if (luminanceInfluence > 0.0) {
+                // Positive: interpolate from random toward remapped luminance (bright = bigger)
+                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
+              } else {
+                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
+                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
+              }
+            }
+            
+            // Apply scaling
+            float finalScale = randomIntensity > 0.0 ? 
+              (1.0 + scaleFactor * randomIntensity) : 1.0;
+            
+            gl_PointSize = size * finalScale * (300.0 / -mvPosition.z);
             gl_Position = projectionMatrix * mvPosition;
           }
         `,
@@ -546,12 +663,18 @@ export class ProgressiveLoader {
           void main() {
             float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
             fogFactor = clamp(fogFactor, 0.0, 1.0);
-            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+            vec3 brightColor = vColor * 1.8; // Increase brightness
+            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
           }
         `,
         uniforms: {
           fogColor: { value: new THREE.Color(0x151515) },
-          fogDensity: { value: 0.003 }
+          fogDensity: { value: 0.003 },
+          randomIntensity: { value: this.randomScaleIntensity },
+          randomSeed: { value: this.randomScaleSeed },
+          luminanceInfluence: { value: 0.0 },
+          thresholdLow: { value: 0.0 },
+          thresholdHigh: { value: 1.0 }
         }
       })
     
@@ -561,6 +684,15 @@ export class ProgressiveLoader {
       sizeAttribute[i] = adjustedSize
     }
     geometry.setAttribute('size', new THREE.BufferAttribute(sizeAttribute, 1))
+    
+    // Add random scale attribute based on vertex index
+    const randomScaleAttribute = new Float32Array(geometry.attributes.position.count)
+    for (let i = 0; i < randomScaleAttribute.length; i++) {
+      // Create deterministic random value from vertex index
+      const randomValue = ((Math.sin(i * 12.9898 + this.randomScaleSeed) * 43758.5453) % 1 + 1) % 1
+      randomScaleAttribute[i] = randomValue
+    }
+    geometry.setAttribute('randomScale', new THREE.BufferAttribute(randomScaleAttribute, 1))
     
     // Create individual point cloud for this chunk
     const pointCloud = new THREE.Points(geometry, material)

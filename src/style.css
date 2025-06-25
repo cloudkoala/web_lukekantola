@@ -1624,7 +1624,7 @@ body, html {
 /* Camera Info Display */
 .camera-info {
   position: fixed;
-  bottom: 80px;
+  bottom: 70px;
   right: 20px;
   z-index: 500;
   background: transparent;
@@ -1717,7 +1717,7 @@ body, html {
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid #00ff00;
   border-radius: 6px;
-  color: #00ff00;
+  color: #ffffff;
   font-family: 'Space Mono', monospace;
   font-size: 0.6rem;
   cursor: pointer;
@@ -3871,6 +3871,51 @@ body, html {
   font-family: 'Space Mono', monospace;
 }
 
+/* FPS Counter */
+.fps-counter {
+  position: fixed;
+  bottom: 80px; /* Same height as camera info */
+  left: 20px;
+  z-index: 500;
+  background: transparent;
+  padding: 0;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  pointer-events: none;
+  opacity: 0.6;
+  align-items: baseline;
+}
+
+.fps-counter label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.6rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+}
+
+#fps-value {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.6rem;
+  font-weight: 400;
+  min-width: 24px;
+  text-align: left;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  border-radius: 3px;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+
 
 /* Navigation Help Text */
 .navigation-help {
@@ -4264,11 +4309,31 @@ body, html {
   color: rgba(150, 150, 150, 0.6);
 }
 
+.effect-reset {
+  background: none;
+  border: none;
+  color: rgba(255, 200, 0, 0.7);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.effect-reset:hover {
+  color: rgba(255, 200, 0, 1);
+  background: rgba(255, 200, 0, 0.1);
+}
+
 .effect-remove {
   background: none;
   border: none;
   color: rgba(255, 100, 100, 0.7);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 2px;
@@ -4284,7 +4349,7 @@ body, html {
 .effect-blend-mode {
   background: none;
   border: none;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 2px;

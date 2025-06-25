@@ -106,6 +106,7 @@ export interface SceneState {
   autoRotation: boolean
   autoRotationSpeed: number
   autoRotationDirection: number
+  backgroundColor: string
   
   // Metadata
   timestamp: number

@@ -10,8 +10,43 @@ export class SphereInstancer {
   public sphereRadius: number = 0.01 // Increased default size to be more visible
   public sphereDetail: number = 1 // 0=low, 1=medium, 2=high detail
   
+  // Random scale parameters
+  private randomScaleIntensity: number = 0
+  private randomScaleSeed: number = 42
+  
   constructor(scene: THREE.Scene) {
     this.scene = scene
+  }
+
+  /**
+   * Set random scale parameters for sphere instances
+   */
+  public setRandomScale(intensity: number, seed: number = 42, luminanceInfluence: number = 0, thresholdLow: number = 0, thresholdHigh: number = 1) {
+    this.randomScaleIntensity = intensity
+    this.randomScaleSeed = seed
+    console.log(`🎲 SphereInstancer: Random scale updated - intensity: ${intensity}, seed: ${seed}, luminanceInfluence: ${luminanceInfluence}, thresholds=[${thresholdLow}, ${thresholdHigh}]`)
+    
+    // Update existing sphere materials if any exist
+    this.instancedMeshes.forEach(mesh => {
+      const material = mesh.material as THREE.ShaderMaterial
+      if (material && material.uniforms) {
+        if (material.uniforms.randomIntensity) {
+          material.uniforms.randomIntensity.value = intensity
+        }
+        if (material.uniforms.randomSeed) {
+          material.uniforms.randomSeed.value = seed
+        }
+        if (material.uniforms.luminanceInfluence) {
+          material.uniforms.luminanceInfluence.value = luminanceInfluence
+        }
+        if (material.uniforms.thresholdLow) {
+          material.uniforms.thresholdLow.value = thresholdLow
+        }
+        if (material.uniforms.thresholdHigh) {
+          material.uniforms.thresholdHigh.value = thresholdHigh
+        }
+      }
+    })
   }
   
   /**
@@ -153,12 +188,46 @@ export class SphereInstancer {
       new THREE.ShaderMaterial({
         fog: true,
         vertexShader: `
+          attribute float randomScale;
+          uniform float randomIntensity;
+          uniform float randomSeed;
+          uniform float luminanceInfluence;
+          uniform float thresholdLow;
+          uniform float thresholdHigh;
           varying vec3 vColor;
           varying float vFogDepth;
           
           void main() {
             vColor = instanceColor;
-            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+            
+            // Calculate scaling factor
+            float scaleFactor = randomScale;
+            
+            // Apply luminance influence
+            if (abs(luminanceInfluence) > 0.001) {
+              float luminance = dot(instanceColor, vec3(0.299, 0.587, 0.114));
+              
+              // Remap luminance using thresholds
+              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
+              
+              // Direct luminance scaling approach
+              if (luminanceInfluence > 0.0) {
+                // Positive: interpolate from random toward remapped luminance (bright = bigger)
+                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
+              } else {
+                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
+                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
+              }
+            }
+            
+            // Apply random scaling to the sphere
+            vec3 scaledPosition = position;
+            if (randomIntensity > 0.0) {
+              float finalScale = 1.0 + scaleFactor * randomIntensity;
+              scaledPosition = position * finalScale;
+            }
+            
+            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(scaledPosition, 1.0);
             vFogDepth = -mvPosition.z;
             gl_Position = projectionMatrix * mvPosition;
           }
@@ -172,24 +241,89 @@ export class SphereInstancer {
           void main() {
             float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
             fogFactor = clamp(fogFactor, 0.0, 1.0);
-            gl_FragColor = vec4(mix(vColor, fogColor, fogFactor), 1.0);
+            vec3 brightColor = vColor * 1.8; // Increase brightness
+            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
           }
         `,
         uniforms: {
           fogColor: { value: new THREE.Color(0x151515) },
-          fogDensity: { value: 0.003 }
+          fogDensity: { value: 0.003 },
+          randomIntensity: { value: this.randomScaleIntensity },
+          randomSeed: { value: this.randomScaleSeed },
+          luminanceInfluence: { value: 0.0 },
+          thresholdLow: { value: 0.0 },
+          thresholdHigh: { value: 1.0 }
         }
       }) :
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        vertexColors: true,
-        transparent: true,
-        opacity: 1.0,
-        blending: THREE.NormalBlending,
-        depthWrite: true,
-        alphaTest: 0.01,
-        side: THREE.DoubleSide,
-        fog: true
+      new THREE.ShaderMaterial({
+        fog: true,
+        vertexShader: `
+          attribute float randomScale;
+          uniform float randomIntensity;
+          uniform float randomSeed;
+          uniform float luminanceInfluence;
+          uniform float thresholdLow;
+          uniform float thresholdHigh;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            vColor = vec3(1.0); // White color fallback
+            
+            // Calculate scaling factor
+            float scaleFactor = randomScale;
+            
+            // Apply luminance influence
+            if (abs(luminanceInfluence) > 0.001) {
+              float luminance = 1.0; // White has full luminance
+              
+              // Remap luminance using thresholds
+              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
+              
+              // Direct luminance scaling approach
+              if (luminanceInfluence > 0.0) {
+                // Positive: interpolate from random toward remapped luminance (bright = bigger)
+                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
+              } else {
+                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
+                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
+              }
+            }
+            
+            // Apply random scaling to the sphere
+            vec3 scaledPosition = position;
+            if (randomIntensity > 0.0) {
+              float finalScale = 1.0 + scaleFactor * randomIntensity;
+              scaledPosition = position * finalScale;
+            }
+            
+            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(scaledPosition, 1.0);
+            vFogDepth = -mvPosition.z;
+            gl_Position = projectionMatrix * mvPosition;
+          }
+        `,
+        fragmentShader: `
+          uniform vec3 fogColor;
+          uniform float fogDensity;
+          varying vec3 vColor;
+          varying float vFogDepth;
+          
+          void main() {
+            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+            fogFactor = clamp(fogFactor, 0.0, 1.0);
+            vec3 brightColor = vColor * 1.8; // Increase brightness
+            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
+          }
+        `,
+        uniforms: {
+          fogColor: { value: new THREE.Color(0x151515) },
+          fogDensity: { value: 0.003 },
+          randomIntensity: { value: this.randomScaleIntensity },
+          randomSeed: { value: this.randomScaleSeed },
+          luminanceInfluence: { value: 0.0 },
+          thresholdLow: { value: 0.0 },
+          thresholdHigh: { value: 1.0 }
+        }
       })
     
     // Create instanced mesh
@@ -205,6 +339,14 @@ export class SphereInstancer {
     if (hasColors) {
       instanceColors = new Float32Array(pointCount * 3)
       console.log(`Creating instance colors array for ${pointCount} points`)
+    }
+    
+    // Create random scale array for instances
+    const instanceRandomScales = new Float32Array(pointCount)
+    for (let i = 0; i < pointCount; i++) {
+      // Create deterministic random value from vertex index
+      const randomValue = ((Math.sin(i * 12.9898 + this.randomScaleSeed) * 43758.5453) % 1 + 1) % 1
+      instanceRandomScales[i] = randomValue
     }
     
     // Process each point
@@ -248,6 +390,11 @@ export class SphereInstancer {
     } else {
       console.log('No instance colors applied - using material color')
     }
+    
+    // Apply random scale attribute
+    const randomScaleAttribute = new THREE.InstancedBufferAttribute(instanceRandomScales, 1)
+    instancedMesh.geometry.setAttribute('randomScale', randomScaleAttribute)
+    console.log(`Applied random scale attributes to ${pointCount} sphere instances`)
     
     // Copy transform from original point cloud
     instancedMesh.position.copy(pointCloud.position)
