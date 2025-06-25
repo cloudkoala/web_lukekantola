@@ -6,8 +6,9 @@ import { EngravingPass } from './EngravingPass'
 import { CirclePackingPass } from './CirclePackingPass'
 import { GaussianBlurPass } from './GaussianBlurPass'
 import { GlowPass } from './GlowPass'
+import { MotionBlurPass } from './MotionBlurPass'
 
-export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -59,6 +60,9 @@ export class PostProcessingPass {
   private topographicAnimationStartTime: number = 0
   private topographicWires: THREE.LineSegments[] = []
   
+  // Voronoi diagram state
+  private voronoiLines: THREE.LineSegments | null = null
+  
   // Sphere motion tracking for motion blur
   private spherePreviousPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
   private sphereCurrentPositions: Map<THREE.InstancedMesh, Float32Array> = new Map()
@@ -77,6 +81,7 @@ export class PostProcessingPass {
   private circlePackingPass: CirclePackingPass
   private gaussianBlurPass: GaussianBlurPass
   private glowPass: GlowPass
+  private motionBlurPass: MotionBlurPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -335,6 +340,7 @@ export class PostProcessingPass {
     this.circlePackingPass = new CirclePackingPass(width, height)
     this.gaussianBlurPass = new GaussianBlurPass(width, height)
     this.glowPass = new GlowPass(width, height)
+    this.motionBlurPass = new MotionBlurPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -348,7 +354,9 @@ export class PostProcessingPass {
   
   render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
     // Update motion blur matrices every frame
-    this.updateMotionBlurMatrices()
+    if (this.currentCamera) {
+      this.motionBlurPass.updateCameraMatrices(this.currentCamera)
+    }
     
     // Render depth and update previous frame for enhanced motion blur
     this.updateMotionBlurFrameData(renderer, inputTexture)
@@ -475,6 +483,14 @@ export class PostProcessingPass {
       return
     }
     
+    // Handle voronoi noise effect separately
+    if (effect.type === 'voronoi') {
+      this.applyVoronoiNoiseEffect(effect)
+      // Voronoi noise effects don't modify the rendered image, just copy input to output
+      this.copyTexture(renderer, inputTexture, outputTarget)
+      return
+    }
+    
     // Handle material effect separately
     if (effect.type === 'material') {
       this.applyMaterialEffect(effect)
@@ -521,7 +537,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -794,10 +810,28 @@ export class PostProcessingPass {
       case 'glow':
         this.glowPass.setIntensity(typeof effect.parameters.intensity === 'number' ? effect.parameters.intensity : 1.0)
         this.glowPass.setThreshold(typeof effect.parameters.threshold === 'number' ? effect.parameters.threshold : 0.8)
+        this.glowPass.setThresholdSoftness(typeof effect.parameters.thresholdSoftness === 'number' ? effect.parameters.thresholdSoftness : 0.05)
         this.glowPass.setRadius(typeof effect.parameters.radius === 'number' ? effect.parameters.radius : 1.0)
         this.glowPass.setStrength(typeof effect.parameters.strength === 'number' ? effect.parameters.strength : 2.0)
         this.glowPass.setSoftness(typeof effect.parameters.softness === 'number' ? effect.parameters.softness : 0.5)
+        this.glowPass.setIterations(typeof effect.parameters.iterations === 'number' ? effect.parameters.iterations : 1)
         this.glowPass.render(renderer, inputTexture, outputTarget || undefined)
+        return
+        break
+      case 'motionblur':
+        this.motionBlurPass.setIntensity(typeof effect.parameters.intensity === 'number' ? effect.parameters.intensity : 0.8)
+        this.motionBlurPass.setStrength(typeof effect.parameters.strength === 'number' ? effect.parameters.strength : 0.1)
+        this.motionBlurPass.setSamples(typeof effect.parameters.samples === 'number' ? effect.parameters.samples : 12)
+        this.motionBlurPass.setMaxVelocity(typeof effect.parameters.maxVelocity === 'number' ? effect.parameters.maxVelocity : 32.0)
+        this.motionBlurPass.setVelocityScale(typeof effect.parameters.velocityScale === 'number' ? effect.parameters.velocityScale : 2.0)
+        this.motionBlurPass.setEnableSphereMotion(typeof effect.parameters.enableSphereMotion === 'number' ? effect.parameters.enableSphereMotion > 0.5 : false)
+        this.motionBlurPass.setDebugVelocityBuffer(typeof effect.parameters.debugVelocity === 'number' ? effect.parameters.debugVelocity > 0.5 : false)
+        if (this.depthTexture) {
+          this.motionBlurPass.render(renderer, inputTexture, this.depthTexture, outputTarget || undefined)
+        } else {
+          // Fallback: copy input to output if no depth texture available
+          this.copyTexture(renderer, inputTexture, outputTarget)
+        }
         return
         break
       default:
@@ -858,17 +892,15 @@ export class PostProcessingPass {
             
             vec4 result;
             if (blendMode == 1) {
-              // Add blend mode - corrected
-              // Effect outputs: black = no effect, white = full effect
-              // For add: black blend = no change, white blend = brighten
-              // So black (0.0) + base = base, white (1.0) + base = base + 1.0
+              // Add blend mode - fixed
+              // Effect outputs: black = no change, white = brighten
+              // blend.rgb represents the intensity to add (0.0 = no change, 1.0 = full brighten)
               result = vec4(clamp(base.rgb + blend.rgb, 0.0, 1.0), base.a);
             } else if (blendMode == 2) {
-              // Multiply blend mode - corrected
-              // Effect outputs: black = no effect, white = full effect
-              // For multiply: white blend = no change, black blend = darken
-              // White (1.0) * base = base (no change), Black (0.0) * base = black (darken)
-              result = vec4(base.rgb * blend.rgb, base.a);
+              // Multiply blend mode - fixed  
+              // Effect outputs: white = no change, black = darken
+              // Invert blend so: white (1.0) → 0.0 = no darkening, black (0.0) → 1.0 = full darkening
+              result = vec4(base.rgb * (1.0 - blend.rgb), base.a);
             } else {
               // Normal blend mode (default)
               result = blend;
@@ -911,6 +943,7 @@ export class PostProcessingPass {
     this.circlePackingPass.setSize(width, height)
     this.gaussianBlurPass.setSize(width, height)
     this.glowPass.setSize(width, height)
+    this.motionBlurPass.setSize(width, height)
     
     
     // Update afterimage render target
@@ -939,9 +972,11 @@ export class PostProcessingPass {
     this.circlePackingPass.dispose()
     this.gaussianBlurPass.dispose()
     this.glowPass.dispose()
+    this.motionBlurPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
+    this.clearVoronoiLines()
     this.pointVelocities.clear()
     this.originalPositions.clear()
     this.originalDrawRanges.clear()
@@ -1217,7 +1252,7 @@ export class PostProcessingPass {
       case 'colorify': return 11
       case 'sobel': return 12
       case 'sobelthreshold': return 13
-      case 'motionblur': return 14
+      case 'motionblur': return 0 // Handled as dithering effect
       case 'oilpainting': return 15
       case 'datamosh': return 16
       case 'pixelsort': return 17
@@ -1261,12 +1296,25 @@ export class PostProcessingPass {
   setMainScene(scene: THREE.Scene, camera?: THREE.Camera): void {
     this.mainScene = scene
     this.updatePointClouds()
+    this.updateSphereMeshes() // Add sphere tracking for motion blur
     
     // Initialize camera for motion blur
     if (camera) {
       this.currentCamera = camera
-      this.updateMotionBlurMatrices()
+      this.motionBlurPass.updateCameraMatrices(camera)
     }
+  }
+
+  // Update sphere meshes for motion blur tracking
+  private updateSphereMeshes(): void {
+    if (!this.mainScene) return
+    
+    // Find all InstancedMesh objects in the scene (spheres)
+    this.mainScene.traverse((object) => {
+      if (object instanceof THREE.InstancedMesh) {
+        this.motionBlurPass.addSphereMesh(object)
+      }
+    })
   }
   
   updateMotionBlurMatrices(): void {
@@ -2380,6 +2428,136 @@ export class PostProcessingPass {
         
       }
     })
+  }
+  
+  private applyVoronoiNoiseEffect(effect: EffectInstance): void {
+    if (!effect.enabled) {
+      // Remove existing Voronoi lines when disabled
+      this.clearVoronoiLines()
+      return
+    }
+    
+    // Update point clouds list in case scene changed
+    this.updatePointClouds()
+    
+    if (this.pointClouds.length === 0 || !this.mainScene) return
+    
+    // Extract effect parameters with defaults
+    const intensity = typeof effect.parameters.intensity === 'number' ? effect.parameters.intensity : 1.0
+    const cellDensity = typeof effect.parameters.cellDensity === 'number' ? effect.parameters.cellDensity : 100
+    const lineOpacity = typeof effect.parameters.lineOpacity === 'number' ? effect.parameters.lineOpacity : 0.5
+    const colorR = typeof effect.parameters.colorR === 'number' ? effect.parameters.colorR : 1.0
+    const colorG = typeof effect.parameters.colorG === 'number' ? effect.parameters.colorG : 1.0
+    const colorB = typeof effect.parameters.colorB === 'number' ? effect.parameters.colorB : 1.0
+    
+    // Generate Voronoi diagram using point cloud geometry
+    this.generateVoronoiDiagram(intensity, cellDensity, lineOpacity, colorR, colorG, colorB)
+  }
+  
+  private generateVoronoiDiagram(intensity: number, cellDensity: number, lineOpacity: number, colorR: number, colorG: number, colorB: number): void {
+    // Clear existing Voronoi lines
+    this.clearVoronoiLines()
+    
+    if (this.pointClouds.length === 0 || !this.mainScene) return
+    
+    // Collect sample points from point cloud geometry
+    const samplePoints: THREE.Vector3[] = []
+    
+    this.pointClouds.forEach(pointCloud => {
+      const geometry = pointCloud.geometry
+      const positionAttribute = geometry.attributes.position
+      
+      if (!positionAttribute) return
+      
+      const positions = positionAttribute.array as Float32Array
+      const count = positions.length / 3
+      
+      // Sample points based on density parameter
+      const sampleStep = Math.max(1, Math.floor(count / cellDensity))
+      
+      for (let i = 0; i < count; i += sampleStep) {
+        const i3 = i * 3
+        samplePoints.push(new THREE.Vector3(
+          positions[i3],
+          positions[i3 + 1], 
+          positions[i3 + 2]
+        ))
+      }
+    })
+    
+    if (samplePoints.length < 4) return // Need at least 4 points for 3D Voronoi
+    
+    // Generate Voronoi cell edges
+    const edges = this.generateVoronoiEdges(samplePoints)
+    
+    if (edges.length === 0) return
+    
+    // Create line geometry from edges
+    const lineGeometry = new THREE.BufferGeometry()
+    const vertices: number[] = []
+    
+    edges.forEach(edge => {
+      vertices.push(edge.start.x, edge.start.y, edge.start.z)
+      vertices.push(edge.end.x, edge.end.y, edge.end.z)
+    })
+    
+    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+    
+    // Create line material
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: new THREE.Color(colorR, colorG, colorB),
+      opacity: lineOpacity * intensity,
+      transparent: true,
+      linewidth: 1
+    })
+    
+    // Create line segments object
+    this.voronoiLines = new THREE.LineSegments(lineGeometry, lineMaterial)
+    this.mainScene.add(this.voronoiLines)
+  }
+  
+  private generateVoronoiEdges(points: THREE.Vector3[]): { start: THREE.Vector3, end: THREE.Vector3 }[] {
+    const edges: { start: THREE.Vector3, end: THREE.Vector3 }[] = []
+    
+    // For 3D Voronoi, we'll use a simplified approach:
+    // Connect each point to its nearest neighbors to approximate Voronoi edges
+    points.forEach((point, i) => {
+      // Find nearby points and create connections
+      const nearbyPoints = points
+        .map((otherPoint, j) => ({ point: otherPoint, index: j, distance: point.distanceTo(otherPoint) }))
+        .filter(item => item.index !== i)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 6) // Connect to 6 nearest neighbors
+      
+      nearbyPoints.forEach(nearby => {
+        // Create edge between midpoints to approximate Voronoi cell boundary
+        const midpoint = new THREE.Vector3().addVectors(point, nearby.point).multiplyScalar(0.5)
+        
+        // Calculate perpendicular bisector direction
+        const direction = new THREE.Vector3().subVectors(nearby.point, point).normalize()
+        const perpendicular = new THREE.Vector3(-direction.y, direction.x, direction.z).normalize()
+        
+        // Create short line segment representing part of the Voronoi edge
+        const length = nearby.distance * 0.2
+        const start = new THREE.Vector3().addVectors(midpoint, perpendicular.clone().multiplyScalar(-length))
+        const end = new THREE.Vector3().addVectors(midpoint, perpendicular.clone().multiplyScalar(length))
+        
+        edges.push({ start, end })
+      })
+    })
+    
+    return edges
+  }
+  
+  private clearVoronoiLines(): void {
+    if (this.voronoiLines && this.mainScene) {
+      this.mainScene.remove(this.voronoiLines)
+      this.voronoiLines.geometry.dispose()
+      if (this.voronoiLines.material instanceof THREE.Material) {
+        this.voronoiLines.material.dispose()
+      }
+      this.voronoiLines = null
+    }
   }
   
   private applyRandomScaleEffect(effect: EffectInstance): void {

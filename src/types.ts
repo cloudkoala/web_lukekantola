@@ -80,7 +80,7 @@ export interface EffectInstanceState {
   id: string
   type: string
   enabled: boolean
-  parameters: { [key: string]: number }
+  parameters: { [key: string]: number | boolean }
   blendMode?: 'normal' | 'add' | 'multiply'
 }
 
@@ -109,6 +109,7 @@ export interface SceneState {
   backgroundColor: string
   
   // Metadata
+  name?: string // Optional name for gallery items
   timestamp: number
   version: string
 }

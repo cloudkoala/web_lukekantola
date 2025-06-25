@@ -532,11 +532,24 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'motionblur',
     name: 'Motion Blur',
-    defaultParameters: { intensity: 0.5, strength: 0.02, samples: 8 },
+    supportsBlending: true,
+    defaultParameters: { 
+      intensity: 0.8, 
+      strength: 0.1, 
+      samples: 12,
+      maxVelocity: 32.0,
+      velocityScale: 2.0,
+      enableSphereMotion: 0,
+      debugVelocity: 0
+    },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       strength: { min: 0.001, max: 1.0, step: 0.001, label: 'Blur Strength' },
-      samples: { min: 4, max: 16, step: 1, label: 'Sample Count' }
+      samples: { min: 4, max: 16, step: 1, label: 'Sample Count' },
+      maxVelocity: { min: 8, max: 128, step: 1, label: 'Max Velocity (pixels)' },
+      velocityScale: { min: 0.1, max: 5.0, step: 0.1, label: 'Velocity Scale' },
+      enableSphereMotion: { min: 0, max: 1, step: 1, label: 'Enable Sphere Motion', type: 'boolean' },
+      debugVelocity: { min: 0, max: 1, step: 1, label: 'Show Velocity Buffer', type: 'boolean' }
     }
   },
   {
@@ -612,16 +625,41 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     defaultParameters: { 
       intensity: 1.0, 
       threshold: 0.8, 
+      thresholdSoftness: 0.05,
       radius: 1.0, 
       strength: 2.0,
-      softness: 0.5
+      softness: 0.5,
+      iterations: 1
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 2, step: 0.01, label: 'Intensity' },
       threshold: { min: 0, max: 1, step: 0.01, label: 'Brightness Threshold' },
+      thresholdSoftness: { min: 0.001, max: 0.2, step: 0.001, label: 'Threshold Softness' },
       radius: { min: 0.1, max: 5.0, step: 0.1, label: 'Glow Radius' },
       strength: { min: 0.1, max: 10.0, step: 0.1, label: 'Glow Strength' },
-      softness: { min: 0.1, max: 3.0, step: 0.1, label: 'Edge Softness' }
+      softness: { min: 0.1, max: 3.0, step: 0.1, label: 'Edge Softness' },
+      iterations: { min: 1, max: 5, step: 1, label: 'Iterations' }
+    }
+  },
+  {
+    type: 'voronoi',
+    name: 'Voronoi Noise',
+    supportsBlending: true,
+    defaultParameters: { 
+      intensity: 1.0,
+      cellDensity: 100,
+      lineOpacity: 0.5,
+      colorR: 1.0,
+      colorG: 1.0,
+      colorB: 1.0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      cellDensity: { min: 10, max: 500, step: 10, label: 'Cell Density' },
+      lineOpacity: { min: 0, max: 1, step: 0.01, label: 'Line Opacity' },
+      colorR: { min: 0, max: 1, step: 0.01, label: 'Color Red', type: 'color' },
+      colorG: { min: 0, max: 1, step: 0.01, label: 'Color Green', type: 'color' },
+      colorB: { min: 0, max: 1, step: 0.01, label: 'Color Blue', type: 'color' }
     }
   },
   {

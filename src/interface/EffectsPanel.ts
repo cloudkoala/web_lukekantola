@@ -725,7 +725,7 @@ export class EffectsPanel {
         effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'circlepacking', 'engraving', 'datamosh', 'pixelsort']
       },
       '3D Effects': {
-        effects: ['drawrange', 'pointnetwork', 'material', 'randomscale', 'topographic', 'fog', 'skysphere', 'sinradius']
+        effects: ['drawrange', 'pointnetwork', 'material', 'voronoi', 'randomscale', 'topographic', 'fog', 'skysphere', 'sinradius']
       },
       'In Development': {
         effects: ['tsl', 'dotscreen']

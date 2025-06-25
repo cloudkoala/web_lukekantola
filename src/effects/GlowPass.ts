@@ -13,9 +13,11 @@ export class GlowPass {
   // Effect parameters
   public intensity: number = 1.0
   public threshold: number = 0.8
+  public thresholdSoftness: number = 0.01
   public radius: number = 1.0
   public strength: number = 2.0
   public softness: number = 0.5
+  public iterations: number = 1
 
   constructor(width: number, height: number) {
     // Create render targets for multi-pass rendering
@@ -52,7 +54,7 @@ export class GlowPass {
       uniforms: {
         tDiffuse: { value: null },
         threshold: { value: this.threshold },
-        smoothWidth: { value: 0.01 }
+        smoothWidth: { value: this.thresholdSoftness }
       },
       vertexShader: `
         varying vec2 vUv;
@@ -239,6 +241,7 @@ export class GlowPass {
   render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
     // Update uniforms
     this.brightPassMaterial.uniforms.threshold.value = this.threshold
+    this.brightPassMaterial.uniforms.smoothWidth.value = this.thresholdSoftness
     this.horizontalBlurMaterial.uniforms.radius.value = this.radius
     this.verticalBlurMaterial.uniforms.radius.value = this.radius
     this.combineMaterial.uniforms.intensity.value = this.intensity
@@ -253,21 +256,29 @@ export class GlowPass {
     renderer.clear()
     renderer.render(this.scene, this.camera)
 
-    // Pass 2: Horizontal blur
-    this.horizontalBlurMaterial.uniforms.tDiffuse.value = this.renderTargets[0].texture
-    this.mesh.material = this.horizontalBlurMaterial
+    // Multiple iterations of blur passes for stronger glow
+    let currentTexture = this.renderTargets[0].texture
     
-    renderer.setRenderTarget(this.renderTargets[1])
-    renderer.clear()
-    renderer.render(this.scene, this.camera)
+    for (let i = 0; i < this.iterations; i++) {
+      // Pass 2: Horizontal blur
+      this.horizontalBlurMaterial.uniforms.tDiffuse.value = currentTexture
+      this.mesh.material = this.horizontalBlurMaterial
+      
+      renderer.setRenderTarget(this.renderTargets[1])
+      renderer.clear()
+      renderer.render(this.scene, this.camera)
 
-    // Pass 3: Vertical blur
-    this.verticalBlurMaterial.uniforms.tDiffuse.value = this.renderTargets[1].texture
-    this.mesh.material = this.verticalBlurMaterial
-    
-    renderer.setRenderTarget(this.renderTargets[2])
-    renderer.clear()
-    renderer.render(this.scene, this.camera)
+      // Pass 3: Vertical blur
+      this.verticalBlurMaterial.uniforms.tDiffuse.value = this.renderTargets[1].texture
+      this.mesh.material = this.verticalBlurMaterial
+      
+      renderer.setRenderTarget(this.renderTargets[2])
+      renderer.clear()
+      renderer.render(this.scene, this.camera)
+      
+      // Use the result as input for next iteration
+      currentTexture = this.renderTargets[2].texture
+    }
 
     // Pass 4: Combine original with glow
     this.combineMaterial.uniforms.tDiffuse.value = inputTexture
@@ -294,6 +305,10 @@ export class GlowPass {
     this.threshold = Math.max(0.0, Math.min(1.0, threshold))
   }
 
+  setThresholdSoftness(softness: number) {
+    this.thresholdSoftness = Math.max(0.001, Math.min(0.2, softness))
+  }
+
   setRadius(radius: number) {
     this.radius = Math.max(0.1, Math.min(5.0, radius))
   }
@@ -304,6 +319,10 @@ export class GlowPass {
 
   setSoftness(softness: number) {
     this.softness = Math.max(0.1, Math.min(3.0, softness))
+  }
+
+  setIterations(iterations: number) {
+    this.iterations = Math.max(1, Math.min(5, Math.round(iterations)))
   }
 
   dispose() {

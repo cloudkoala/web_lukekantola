@@ -235,6 +235,13 @@
         <div id="camera-target-display">X: 0.00, Y: 0.00, Z: 0.00</div>
       </div>
       <div class="scene-share-info">
+        <button id="capture-scene-button" class="capture-scene-button" title="Capture scene as PNG with metadata">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Capture Scene
+        </button>
         <button id="share-scene-button" class="share-scene-button" title="Copy shareable link to current scene">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -242,6 +249,17 @@
           </svg>
           Share Scene
         </button>
+        <button id="gallery-button" class="gallery-button" title="Open scene gallery">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21,15 16,10 5,21"/>
+          </svg>
+          Gallery
+        </button>
+        <div id="capture-feedback" class="capture-feedback" style="display: none;">
+          <span class="feedback-text">Scene captured successfully!</span>
+        </div>
         <div id="share-feedback" class="share-feedback" style="display: none;">
           <span class="feedback-text">Link copied to clipboard!</span>
         </div>
@@ -301,6 +319,16 @@
       </button>
     </div>
 
+    <!-- Mobile Capture Button -->
+    <div class="mobile-capture-button mobile-only" id="mobile-capture-button">
+      <button id="mobile-capture-button-element" class="capture-button" title="Capture scene as PNG with metadata">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </button>
+    </div>
+
     <!-- Mobile Share Button -->
     <div class="mobile-share-button mobile-only" id="mobile-share-button">
       <button id="mobile-share-button-element" class="share-button" title="Copy shareable link to current scene">
@@ -309,6 +337,17 @@
           <polyline points="14,2 14,8 20,8"/>
           <line x1="12" y1="18" x2="12" y2="12"/>
           <polyline points="9,15 12,12 15,15"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Gallery Button -->
+    <div class="mobile-gallery-button mobile-only" id="mobile-gallery-button">
+      <button id="mobile-gallery-button-element" class="gallery-button" title="Open scene gallery">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21,15 16,10 5,21"/>
         </svg>
       </button>
     </div>
@@ -422,6 +461,68 @@
     <!-- Content Area for Projects/About/Contact -->
     <div id="content-area" style="display: none;">
       <!-- Content will be dynamically loaded here -->
+    </div>
+
+    <!-- Gallery Modal -->
+    <div id="gallery-modal" class="gallery-modal" style="display: none;">
+      <div class="gallery-modal-content">
+        <div class="gallery-header">
+          <h2>Scene Gallery</h2>
+          <div class="gallery-controls">
+            <div class="gallery-search">
+              <input type="text" id="gallery-search" placeholder="Search scenes..." class="gallery-search-input">
+            </div>
+            <div class="gallery-filters">
+              <select id="gallery-model-filter" class="gallery-filter-select">
+                <option value="">All Models</option>
+              </select>
+              <select id="gallery-effects-filter" class="gallery-filter-select">
+                <option value="">All Effects</option>
+                <option value="none">No Effects</option>
+                <option value="has">Has Effects</option>
+              </select>
+            </div>
+            <button id="gallery-close" class="gallery-close-button">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <div class="gallery-stats" id="gallery-stats">
+          <span id="gallery-count">0 scenes</span>
+          <span id="gallery-loading" style="display: none;">Loading gallery...</span>
+        </div>
+        
+        <div class="gallery-grid-container">
+          <div id="gallery-grid" class="gallery-grid">
+            <!-- Gallery items will be dynamically added here -->
+          </div>
+          
+          <div id="gallery-empty" class="gallery-empty" style="display: none;">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21,15 16,10 5,21"/>
+            </svg>
+            <h3>No Scenes Found</h3>
+            <p>Start capturing scenes to build your gallery</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capture Progress Modal -->
+    <div id="capture-progress-modal" class="capture-progress-modal" style="display: none;">
+      <div class="capture-progress-content">
+        <h3>Capturing Scene</h3>
+        <div class="capture-progress-bar">
+          <div id="capture-progress-fill" class="capture-progress-fill"></div>
+        </div>
+        <div id="capture-progress-text" class="capture-progress-text">Preparing...</div>
+      </div>
     </div>
     
     <canvas id="canvas"></canvas>

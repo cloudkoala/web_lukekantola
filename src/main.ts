@@ -6,8 +6,10 @@ import { OrbitalCameraSystem } from './camera'
 import { ModelManager } from './models'
 import { ContentLoader } from './interface'
 import { PostProcessingPass } from './effects'
+import { GalleryManager, CameraCapture } from './gallery'
 import type { InterfaceMode } from './types'
 import type { EffectsChainManager, EffectInstance } from './effects/EffectsChainManager'
+import type { GalleryItem, CaptureProgress } from './gallery'
 
 // Extend Window interface for effects chain manager
 declare global {
@@ -75,7 +77,8 @@ const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
   antialias: true,
   alpha: true,
-  logarithmicDepthBuffer: true  // Better depth precision
+  logarithmicDepthBuffer: true,  // Better depth precision
+  preserveDrawingBuffer: true    // Enable canvas reading for capture
 })
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -118,10 +121,17 @@ const renderTarget = new THREE.WebGLRenderTarget(
 // Initialize module instances
 const contentLoader = new ContentLoader()
 
-// Expose contentLoader and effects globally for OrbitalCameraSystem to access
+// Gallery system
+const galleryManager = new GalleryManager()
+const cameraCapture = new CameraCapture(renderer, scene, camera)
+galleryManager.setCameraCapture(cameraCapture)
+
+// Expose contentLoader, effects, and gallery globally for OrbitalCameraSystem to access
 ;(window as any).contentLoader = contentLoader
 ;(window as any).postProcessingPass = postProcessingPass
 ;(window as any).updatePostProcessingPointClouds = () => postProcessingPass.updatePointClouds()
+;(window as any).galleryManager = galleryManager
+;(window as any).cameraCapture = cameraCapture
 
 const modelManager = new ModelManager(
   scene,
@@ -1524,7 +1534,7 @@ function setupMobileEffectsButton() {
         },
         'Grain': {
           color: '#45B7D1',
-          effects: ['crtgrain', 'film35mm', 'pixelate']
+          effects: ['crtgrain', 'film35mm', 'pixelate', 'noise2d']
         },
         'Post-Process': {
           color: '#96CEB4',
@@ -1532,7 +1542,7 @@ function setupMobileEffectsButton() {
         },
         '3D Effects': {
           color: '#FECA57',
-          effects: ['drawrange', 'pointnetwork', 'material', 'topographic', 'fog']
+          effects: ['drawrange', 'pointnetwork', 'material', 'voronoi', 'topographic', 'fog']
         },
         'In Development': {
           color: '#888888',
@@ -3307,6 +3317,461 @@ function setupSceneSharing() {
   console.log('Scene sharing setup complete')
 }
 
+// Gallery system setup functions
+function setupGalleryButtons() {
+  console.log('Setting up gallery buttons...')
+  
+  // Desktop capture button
+  const captureButton = document.getElementById('capture-scene-button') as HTMLButtonElement
+  if (captureButton) {
+    captureButton.addEventListener('click', async () => {
+      try {
+        await handleCaptureScene(false) // false = desktop
+      } catch (error) {
+        console.error('Error capturing scene:', error)
+        showCaptureFeedback('Failed to capture scene', false)
+      }
+    })
+    console.log('Desktop capture button setup complete')
+  }
+  
+  // Desktop gallery button
+  const galleryButton = document.getElementById('gallery-button') as HTMLButtonElement
+  if (galleryButton) {
+    galleryButton.addEventListener('click', () => {
+      showGalleryModal()
+    })
+    console.log('Desktop gallery button setup complete')
+  }
+  
+  // Mobile capture button
+  const mobileCaptureButton = document.getElementById('mobile-capture-button-element') as HTMLButtonElement
+  if (mobileCaptureButton) {
+    mobileCaptureButton.addEventListener('click', async () => {
+      try {
+        await handleCaptureScene(true) // true = mobile
+      } catch (error) {
+        console.error('Error capturing scene:', error)
+      }
+    })
+    console.log('Mobile capture button setup complete')
+  }
+  
+  // Mobile gallery button
+  const mobileGalleryButton = document.getElementById('mobile-gallery-button-element') as HTMLButtonElement
+  if (mobileGalleryButton) {
+    mobileGalleryButton.addEventListener('click', () => {
+      showGalleryModal()
+    })
+    console.log('Mobile gallery button setup complete')
+  }
+}
+
+function setupGalleryModal() {
+  console.log('Setting up gallery modal...')
+  
+  const modal = document.getElementById('gallery-modal') as HTMLElement
+  const closeButton = document.getElementById('gallery-close') as HTMLButtonElement
+  const searchInput = document.getElementById('gallery-search') as HTMLInputElement
+  const modelFilter = document.getElementById('gallery-model-filter') as HTMLSelectElement
+  const effectsFilter = document.getElementById('gallery-effects-filter') as HTMLSelectElement
+  
+  // Close button
+  if (closeButton) {
+    closeButton.addEventListener('click', hideGalleryModal)
+  }
+  
+  // Click outside to close
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        hideGalleryModal()
+      }
+    })
+  }
+  
+  // Search functionality
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      updateGalleryDisplay()
+    })
+  }
+  
+  // Filter functionality
+  if (modelFilter) {
+    modelFilter.addEventListener('change', () => {
+      updateGalleryDisplay()
+    })
+  }
+  
+  if (effectsFilter) {
+    effectsFilter.addEventListener('change', () => {
+      updateGalleryDisplay()
+    })
+  }
+  
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (modal && modal.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        hideGalleryModal()
+      }
+    }
+  })
+  
+  console.log('Gallery modal setup complete')
+}
+
+async function handleCaptureScene(isMobile: boolean) {
+  console.log('Capturing scene...', { isMobile })
+  
+  // Validate that capture system is ready
+  const validation = cameraCapture.canCapture()
+  if (!validation.canCapture) {
+    console.error('Cannot capture scene:', validation.reason)
+    showCaptureFeedback(`Cannot capture: ${validation.reason}`, isMobile)
+    return
+  }
+  
+  // Show progress modal
+  showCaptureProgressModal()
+  
+  try {
+    // Get current scene state
+    const sceneState = orbitalCamera.captureCurrentSceneState()
+    
+    // Validate scene state
+    if (!sceneState.modelKey) {
+      throw new Error('No model loaded')
+    }
+    
+    if (!sceneState.cameraPosition || !sceneState.cameraTarget) {
+      throw new Error('Invalid camera state')
+    }
+    
+    // Add a name for gallery display
+    if (!sceneState.name) {
+      const timestamp = new Date().toLocaleString()
+      sceneState.name = `Scene ${timestamp}`
+    }
+    
+    // Get recommended settings
+    const settings = cameraCapture.getRecommendedSettings()
+    
+    console.log('Capturing with settings:', settings)
+    
+    // Capture scene with progress callback
+    const galleryItem = await galleryManager.captureCurrentScene(
+      sceneState,
+      settings,
+      (progress: CaptureProgress) => {
+        updateCaptureProgress(progress)
+      }
+    )
+    
+    console.log('Scene captured successfully:', galleryItem.id)
+    
+    // Hide progress modal
+    hideCaptureProgressModal()
+    
+    // Show success feedback
+    showCaptureFeedback('Scene captured successfully!', isMobile)
+    
+    // Refresh gallery display if modal is open
+    const galleryModal = document.getElementById('gallery-modal') as HTMLElement
+    if (galleryModal && galleryModal.style.display !== 'none') {
+      updateGalleryDisplay()
+      populateGalleryFilters()
+    }
+    
+  } catch (error) {
+    console.error('Error capturing scene:', error)
+    hideCaptureProgressModal()
+    
+    let errorMessage = 'Failed to capture scene'
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`
+    }
+    
+    showCaptureFeedback(errorMessage, isMobile)
+    throw error
+  }
+}
+
+function showGalleryModal() {
+  console.log('Showing gallery modal...')
+  
+  const modal = document.getElementById('gallery-modal') as HTMLElement
+  if (modal) {
+    modal.style.display = 'flex'
+    updateGalleryDisplay()
+    populateGalleryFilters()
+  }
+}
+
+function hideGalleryModal() {
+  console.log('Hiding gallery modal...')
+  
+  const modal = document.getElementById('gallery-modal') as HTMLElement
+  if (modal) {
+    modal.style.display = 'none'
+  }
+}
+
+function updateGalleryDisplay() {
+  try {
+    const searchInput = document.getElementById('gallery-search') as HTMLInputElement
+    const modelFilter = document.getElementById('gallery-model-filter') as HTMLSelectElement
+    const effectsFilter = document.getElementById('gallery-effects-filter') as HTMLSelectElement
+    const galleryGrid = document.getElementById('gallery-grid') as HTMLElement
+    const galleryEmpty = document.getElementById('gallery-empty') as HTMLElement
+    const galleryCount = document.getElementById('gallery-count') as HTMLElement
+    const galleryLoading = document.getElementById('gallery-loading') as HTMLElement
+    
+    // Show loading state
+    if (galleryLoading) {
+      galleryLoading.style.display = 'inline'
+    }
+    
+    // Build filter
+    const filter: any = {}
+    
+    if (searchInput?.value) {
+      filter.searchTerm = searchInput.value.trim()
+    }
+    
+    if (modelFilter?.value) {
+      filter.model = modelFilter.value
+    }
+    
+    if (effectsFilter?.value) {
+      if (effectsFilter.value === 'none') {
+        filter.hasEffects = false
+      } else if (effectsFilter.value === 'has') {
+        filter.hasEffects = true
+      }
+    }
+    
+    // Get filtered items
+    const items = galleryManager.getItems(filter)
+    
+    // Update count
+    if (galleryCount) {
+      galleryCount.textContent = `${items.length} scene${items.length !== 1 ? 's' : ''}`
+    }
+    
+    // Show/hide empty state
+    if (galleryEmpty && galleryGrid) {
+      if (items.length === 0) {
+        galleryGrid.style.display = 'none'
+        galleryEmpty.style.display = 'flex'
+      } else {
+        galleryGrid.style.display = 'grid'
+        galleryEmpty.style.display = 'none'
+        
+        // Populate grid
+        galleryGrid.innerHTML = ''
+        items.forEach(item => {
+          try {
+            const element = createGalleryItemElement(item)
+            galleryGrid.appendChild(element)
+          } catch (error) {
+            console.warn('Error creating gallery item element:', error, item)
+          }
+        })
+      }
+    }
+    
+    // Hide loading state
+    if (galleryLoading) {
+      galleryLoading.style.display = 'none'
+    }
+    
+  } catch (error) {
+    console.error('Error updating gallery display:', error)
+    
+    // Hide loading state
+    const galleryLoading = document.getElementById('gallery-loading') as HTMLElement
+    if (galleryLoading) {
+      galleryLoading.style.display = 'none'
+    }
+    
+    // Show error in count area
+    const galleryCount = document.getElementById('gallery-count') as HTMLElement
+    if (galleryCount) {
+      galleryCount.textContent = 'Error loading gallery'
+    }
+  }
+}
+
+function createGalleryItemElement(item: GalleryItem): HTMLElement {
+  const element = document.createElement('div')
+  element.className = 'gallery-item'
+  element.onclick = () => loadGalleryItem(item)
+  
+  // Escape HTML to prevent XSS
+  const escapeHtml = (text: string) => {
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
+  }
+  
+  const safeName = escapeHtml(item.info.name || 'Untitled Scene')
+  const safeModel = escapeHtml(item.info.model || 'Unknown')
+  const effectsCount = typeof item.info.effects === 'number' ? item.info.effects : 0
+  
+  element.innerHTML = `
+    <img src="${item.url}" alt="${safeName}" class="gallery-item-image" 
+         onerror="this.style.backgroundColor='rgba(255,0,0,0.1)'; this.alt='Failed to load image'">
+    <div class="gallery-item-info">
+      <div class="gallery-item-name">${safeName}</div>
+      <div class="gallery-item-details">
+        <span class="gallery-item-model">${safeModel}</span>
+        <span class="gallery-item-effects">${effectsCount} effect${effectsCount !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+  `
+  
+  return element
+}
+
+function loadGalleryItem(item: GalleryItem) {
+  console.log('Loading gallery item:', item.id)
+  
+  try {
+    // Validate scene metadata
+    if (!item.metadata || !item.metadata.sceneState) {
+      throw new Error('Invalid scene metadata')
+    }
+    
+    const sceneState = item.metadata.sceneState
+    
+    // Validate required scene properties
+    if (!sceneState.modelKey) {
+      throw new Error('Missing model information')
+    }
+    
+    if (!sceneState.cameraPosition || !sceneState.cameraTarget) {
+      throw new Error('Missing camera information')
+    }
+    
+    if (!Array.isArray(sceneState.effectsChain)) {
+      sceneState.effectsChain = []
+    }
+    
+    console.log('Loading scene:', {
+      name: item.info.name,
+      model: sceneState.modelKey,
+      effects: sceneState.effectsChain.length,
+      version: item.metadata.version
+    })
+    
+    // Apply the scene state
+    orbitalCamera.applySceneState(sceneState)
+    
+    // Hide gallery modal
+    hideGalleryModal()
+    
+    console.log('Gallery item loaded successfully')
+    
+    // Show brief success feedback
+    const feedback = document.getElementById('share-feedback') as HTMLElement
+    if (feedback) {
+      const textElement = feedback.querySelector('.feedback-text') as HTMLElement
+      if (textElement) {
+        textElement.textContent = `Loaded: ${item.info.name}`
+      }
+      
+      feedback.style.display = 'block'
+      setTimeout(() => {
+        feedback.style.display = 'none'
+      }, 1500)
+    }
+    
+  } catch (error) {
+    console.error('Error loading gallery item:', error)
+    
+    let errorMessage = 'Failed to load scene from gallery'
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`
+    }
+    
+    alert(errorMessage)
+  }
+}
+
+function populateGalleryFilters() {
+  const modelFilter = document.getElementById('gallery-model-filter') as HTMLSelectElement
+  
+  if (modelFilter) {
+    // Clear existing options (except "All Models")
+    const allOption = modelFilter.querySelector('option[value=""]')
+    modelFilter.innerHTML = ''
+    if (allOption) {
+      modelFilter.appendChild(allOption)
+    }
+    
+    // Get available models from gallery stats
+    const stats = galleryManager.getStats()
+    stats.models.forEach(model => {
+      const option = document.createElement('option')
+      option.value = model
+      option.textContent = model.charAt(0).toUpperCase() + model.slice(1).replace('_', ' ')
+      modelFilter.appendChild(option)
+    })
+  }
+}
+
+function showCaptureProgressModal() {
+  const modal = document.getElementById('capture-progress-modal') as HTMLElement
+  if (modal) {
+    modal.style.display = 'flex'
+  }
+}
+
+function hideCaptureProgressModal() {
+  const modal = document.getElementById('capture-progress-modal') as HTMLElement
+  if (modal) {
+    modal.style.display = 'none'
+  }
+}
+
+function updateCaptureProgress(progress: CaptureProgress) {
+  const progressFill = document.getElementById('capture-progress-fill') as HTMLElement
+  const progressText = document.getElementById('capture-progress-text') as HTMLElement
+  
+  if (progressFill) {
+    progressFill.style.width = `${progress.progress}%`
+  }
+  
+  if (progressText) {
+    progressText.textContent = progress.message
+  }
+}
+
+function showCaptureFeedback(message: string, isMobile: boolean) {
+  if (isMobile) {
+    // For mobile, show a simple alert
+    alert(message)
+  } else {
+    // For desktop, show the feedback element
+    const feedback = document.getElementById('capture-feedback') as HTMLElement
+    if (feedback) {
+      const textElement = feedback.querySelector('.feedback-text') as HTMLElement
+      if (textElement) {
+        textElement.textContent = message
+      }
+      
+      feedback.style.display = 'block'
+      
+      // Hide after animation
+      setTimeout(() => {
+        feedback.style.display = 'none'
+      }, 2000)
+    }
+  }
+}
+
 // Initialize application
 async function initialize() {
   console.log('🚀 Initialize() called')
@@ -3384,6 +3849,11 @@ async function initialize() {
     console.log('🔗 Setting up scene sharing...')
     setupSceneSharing()
     console.log('✅ Scene sharing setup complete')
+    
+    console.log('📸 Setting up gallery system...')
+    setupGalleryButtons()
+    setupGalleryModal()
+    console.log('✅ Gallery system setup complete')
     
     // Show home navigation indicators on initial load
     console.log('🏠 Setting up navigation...')

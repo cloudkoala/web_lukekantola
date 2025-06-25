@@ -956,10 +956,119 @@
         "timestamp": 1750729003824,
         "version": "1.0",
         "creator": "User"
+      },
+      "ascii_glow": {
+        "name": "Ascii Glow",
+        "description": "Exported scene configuration - 6/25/2025",
+        "modelKey": "delicate_arch",
+        "quality": "low",
+        "cameraPosition": {
+          "x": -2.25,
+          "y": 4.11,
+          "z": -1.75
+        },
+        "cameraTarget": {
+          "x": 0.05,
+          "y": 3.85,
+          "z": -0.04
+        },
+        "focalLength": 89,
+        "effectsChain": [
+          {
+            "id": "effect_3",
+            "type": "gaussianblur",
+            "enabled": true,
+            "parameters": {
+              "blurAmount": 5.2,
+              "radius": 2,
+              "iterations": 2
+            },
+            "blendMode": "normal"
+          },
+          {
+            "id": "effect_5",
+            "type": "vignette",
+            "enabled": true,
+            "parameters": {
+              "intensity": 0.88,
+              "offset": 0.6,
+              "feather": 0.34
+            },
+            "blendMode": "normal"
+          },
+          {
+            "id": "effect_1",
+            "type": "ascii",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1,
+              "characterSize": 7,
+              "contrast": 1.2
+            },
+            "blendMode": "normal"
+          },
+          {
+            "id": "effect_10",
+            "type": "halftone",
+            "enabled": false,
+            "parameters": {
+              "intensity": 0.76,
+              "dotSize": 12.5,
+              "contrast": 2
+            },
+            "blendMode": "normal"
+          },
+          {
+            "id": "effect_9",
+            "type": "bloom",
+            "enabled": true,
+            "parameters": {
+              "threshold": 0.46,
+              "intensity": 0.1,
+              "radius": 0.1,
+              "quality": 4
+            },
+            "blendMode": "normal"
+          },
+          {
+            "id": "effect_2",
+            "type": "glow",
+            "enabled": true,
+            "parameters": {
+              "intensity": 1.18,
+              "threshold": 0.48,
+              "radius": 2.2,
+              "strength": 1.6,
+              "softness": 1.1,
+              "iterations": 4
+            },
+            "blendMode": "add"
+          },
+          {
+            "id": "effect_4",
+            "type": "sepia",
+            "enabled": false,
+            "parameters": {
+              "intensity": 0.01
+            },
+            "blendMode": "normal"
+          }
+        ],
+        "effectsDropdownValue": "custom",
+        "pointSize": 0.046,
+        "sphereMode": true,
+        "fogDensity": 0,
+        "autoRotation": true,
+        "autoRotationSpeed": 0.01,
+        "autoRotationDirection": -1,
+        "backgroundColor": "#3e682c",
+        "timestamp": 1750831644671,
+        "version": "1.0",
+        "creator": "User"
       }
   },
   "randomScenes": [
-    "galactic",
+    "ascii_glow",
     "delicate_noir",
     "elegant_delicate",
     "delicate_arscii",

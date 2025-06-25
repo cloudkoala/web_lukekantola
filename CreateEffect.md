@@ -11,22 +11,58 @@ The post-processing system uses a modular architecture with effects chaining, wh
 The system supports several types of effects:
 
 1. **Shader-Based Effects**: GPU fragment shader effects (sepia, blur, etc.)
-2. **Dithering Effects**: Specialized rendering passes (ASCII, halftone, **circle packing**, etc.)
+2. **Dithering Effects**: Specialized rendering passes (ASCII, halftone, **circle packing**, **Voronoi noise**, etc.)
 3. **Geometry Effects**: 3D point cloud manipulations (material, network, etc.)
 4. **Scene Effects**: Background and rendering control effects
 
-This guide focuses on **Shader-Based Effects** as they are the most common and straightforward to implement.
+## When to Use Each Type
+
+### **Shader-Based Effects** (Most Common)
+Use for simple color/image processing that can be done in a single fragment shader:
+- **Color adjustments**: Sepia, gamma, invert, brightness
+- **Simple filters**: Vignette, threshold, posterize  
+- **Basic image effects**: Simple blur, noise overlay
+
+**Advantages**: Fast, efficient, easy to implement
+**Limitations**: Single-pass processing only, limited complexity
+
+### **Dithering Effects** (Complex Processing)
+Use when you need:
+- **Multi-pass rendering**: Multiple rendering stages
+- **Complex algorithms**: Procedural generation, advanced math
+- **Custom materials**: Specialized shaders or computation
+- **Heavy computation**: WebWorker parallelization
+- **Advanced features**: Custom render targets, complex state management
+
+**Examples**: ASCII dithering, Voronoi noise, circle packing, motion blur, glow effects
+
+**When to choose dithering over shader-based**:
+- Need more than basic fragment shader operations
+- Require multiple rendering passes
+- Need complex procedural generation algorithms
+- Want to leverage WebWorkers for heavy computation
+- Need custom render pipeline control
+
+This guide covers both **Shader-Based Effects** and **Dithering Effects** with complete examples.
 
 ## Required Files to Modify
 
-When adding a new shader-based effect, you need to modify these files:
-
+### For Shader-Based Effects:
 1. **`src/effects/EffectsChainManager.ts`** - Effect definition and parameters
 2. **`src/effects/PostProcessingPass.ts`** - Effect implementation and rendering
 3. **`src/main.ts`** - Mobile categorization (for mobile selector overlay)
 4. **`PostProcess.md`** - Documentation (optional but recommended)
 
+### For Dithering Effects:
+1. **`src/effects/YourEffectPass.ts`** - New dedicated pass class (create new file)
+2. **`src/effects/EffectsChainManager.ts`** - Effect definition and parameters
+3. **`src/effects/PostProcessingPass.ts`** - Integration and parameter handling
+4. **`src/main.ts`** - Mobile categorization (for mobile selector overlay)
+5. **`PostProcess.md`** - Documentation (optional but recommended)
+
 ## Step-by-Step Implementation
+
+## Implementing Shader-Based Effects
 
 ### Step 1: Add Effect Type Definition
 
@@ -283,6 +319,223 @@ For complex effects requiring multiple rendering passes:
 2. Implement multi-pass rendering in `renderSingleEffectFromInstance()`
 3. Use ping-pong buffers for iterative processing
 
+## Implementing Dithering Effects
+
+Dithering effects require more complex implementation but offer much greater flexibility and power. Here's the complete process:
+
+### Step 1: Create Effect Pass Class
+
+**File:** `src/effects/YourEffectPass.ts`
+
+Create a new dedicated pass class with the following structure:
+
+```typescript
+import * as THREE from 'three'
+
+export class YourEffectPass {
+  private renderTarget: THREE.WebGLRenderTarget
+  private material: THREE.ShaderMaterial
+  private mesh: THREE.Mesh
+  private scene: THREE.Scene
+  private camera: THREE.OrthographicCamera
+
+  // Effect parameters (public for external access)
+  public intensity: number = 1.0
+  public customParam1: number = 5.0
+  public customParam2: number = 1.0
+
+  constructor(width: number, height: number) {
+    // Create render target
+    this.renderTarget = new THREE.WebGLRenderTarget(width, height, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      type: THREE.UnsignedByteType
+    })
+
+    // Create orthographic camera and scene
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    this.scene = new THREE.Scene()
+
+    // Create material with custom shader
+    this.material = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: null },
+        time: { value: 0.0 },
+        resolution: { value: new THREE.Vector2(width, height) },
+        intensity: { value: this.intensity },
+        customParam1: { value: this.customParam1 },
+        customParam2: { value: this.customParam2 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float time;
+        uniform vec2 resolution;
+        uniform float intensity;
+        uniform float customParam1;
+        uniform float customParam2;
+        varying vec2 vUv;
+
+        // Your complex effect implementation here
+        void main() {
+          vec4 originalColor = texture2D(tDiffuse, vUv);
+          
+          // Implement your complex algorithm
+          vec3 processedColor = yourComplexAlgorithm(originalColor.rgb, vUv);
+          
+          vec3 result = mix(originalColor.rgb, processedColor, intensity);
+          gl_FragColor = vec4(result, originalColor.a);
+        }
+      `
+    })
+
+    // Create full-screen quad
+    const geometry = new THREE.PlaneGeometry(2, 2)
+    this.mesh = new THREE.Mesh(geometry, this.material)
+    this.scene.add(this.mesh)
+  }
+
+  render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
+    // Update uniforms
+    this.material.uniforms.time.value = performance.now() * 0.001
+    this.material.uniforms.tDiffuse.value = inputTexture
+    this.material.uniforms.intensity.value = this.intensity
+    this.material.uniforms.customParam1.value = this.customParam1
+    this.material.uniforms.customParam2.value = this.customParam2
+
+    // Render to output
+    renderer.setRenderTarget(outputTarget || null)
+    renderer.clear()
+    renderer.render(this.scene, this.camera)
+  }
+
+  setSize(width: number, height: number) {
+    this.renderTarget.setSize(width, height)
+    this.material.uniforms.resolution.value.set(width, height)
+  }
+
+  // Parameter setters with validation
+  setIntensity(intensity: number) {
+    this.intensity = Math.max(0.0, Math.min(1.0, intensity))
+  }
+
+  setCustomParam1(value: number) {
+    this.customParam1 = Math.max(1.0, Math.min(50.0, value))
+  }
+
+  setCustomParam2(value: number) {
+    this.customParam2 = Math.max(0.0, Math.min(5.0, value))
+  }
+
+  dispose() {
+    this.renderTarget.dispose()
+    this.material.dispose()
+    this.mesh.geometry.dispose()
+  }
+}
+```
+
+### Step 2: Add Type Definition
+
+**File:** `src/effects/PostProcessingPass.ts`
+
+Add to the `EffectType` union and import your pass:
+```typescript
+import { YourEffectPass } from './YourEffectPass'
+
+export type EffectType = '...' | 'youreffect'
+
+export class PostProcessingPass {
+  // Add to class properties
+  private yourEffectPass: YourEffectPass
+```
+
+### Step 3: Initialize Pass Instance
+
+**File:** `src/effects/PostProcessingPass.ts`
+
+In the constructor, add:
+```typescript
+this.yourEffectPass = new YourEffectPass(width, height)
+```
+
+### Step 4: Add to Dithering Effects Condition
+
+**File:** `src/effects/PostProcessingPass.ts`
+
+In `renderSingleEffectFromInstance`, add to the dithering effects condition:
+```typescript
+if (effect.type === 'ascii' || effect.type === 'halftone' || /* ... */ || effect.type === 'youreffect') {
+  this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
+  return
+}
+```
+
+### Step 5: Add Effect Case to renderDitheringEffect
+
+**File:** `src/effects/PostProcessingPass.ts`
+
+In the `renderDitheringEffect` method, add your case:
+```typescript
+case 'youreffect':
+  this.yourEffectPass.setIntensity(typeof effect.parameters.intensity === 'number' ? effect.parameters.intensity : 1.0)
+  this.yourEffectPass.setCustomParam1(typeof effect.parameters.customParam1 === 'number' ? effect.parameters.customParam1 : 5.0)
+  this.yourEffectPass.setCustomParam2(typeof effect.parameters.customParam2 === 'number' ? effect.parameters.customParam2 : 1.0)
+  this.yourEffectPass.render(renderer, inputTexture, outputTarget || undefined)
+  return
+  break
+```
+
+### Step 6: Update setSize and dispose Methods
+
+**File:** `src/effects/PostProcessingPass.ts`
+
+Add to `setSize` method:
+```typescript
+this.yourEffectPass.setSize(width, height)
+```
+
+Add to `dispose` method:
+```typescript
+this.yourEffectPass.dispose()
+```
+
+### Step 7: Add Effect Definition
+
+**File:** `src/effects/EffectsChainManager.ts`
+
+Add your effect definition (same as shader-based effects):
+```typescript
+{
+  type: 'youreffect',
+  name: 'Your Effect',
+  supportsBlending: true,
+  defaultParameters: { 
+    intensity: 1.0,
+    customParam1: 5.0,
+    customParam2: 1.0
+  },
+  parameterDefinitions: {
+    intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+    customParam1: { min: 1, max: 50, step: 0.5, label: 'Custom Parameter 1' },
+    customParam2: { min: 0, max: 5, step: 0.1, label: 'Custom Parameter 2' }
+  }
+}
+```
+
+### Step 8: Add Effect Categorization
+
+**Files:** `src/main.ts` and `src/interface/EffectsPanel.ts`
+
+Add to appropriate category in both mobile and desktop effect selectors.
+
 ### Custom Dithering Effects
 For specialized dithering algorithms like the **Circle Packing Effect**:
 
@@ -525,6 +778,191 @@ const finalCircles = this.applyForceBasedRelaxation(allCircles)
 - **Adaptive quality scaling** based on density and device capabilities
 
 For complete implementation details, see `CirclePackingEffect.md`.
+
+## Example: Voronoi Noise Dithering Effect
+
+The **Voronoi Noise Effect** demonstrates how to implement procedural texture generation using mathematical algorithms based on Voronoi diagrams. This effect showcases advanced shader techniques for creating complex patterns.
+
+### Implementation Overview
+The Voronoi effect creates cellular patterns by:
+1. **Dividing space** into a grid of cells
+2. **Placing random points** within each cell
+3. **Calculating distances** using different metrics (Euclidean, Manhattan, Chebyshev)
+4. **Rendering cells** in various visualization modes (solid, outlined, distance field)
+5. **Animating points** for dynamic motion effects
+
+### 1. Pass Class Structure
+```typescript
+// VoronoiPass.ts - Specialized dithering pass
+export class VoronoiPass {
+  private renderTarget: THREE.WebGLRenderTarget
+  private material: THREE.ShaderMaterial
+  
+  // Voronoi parameters
+  public intensity: number = 1.0
+  public scale: number = 10.0
+  public speed: number = 1.0
+  public colorR: number = 1.0
+  public colorG: number = 0.5
+  public colorB: number = 0.0
+  public distanceMode: number = 0 // 0=Euclidean, 1=Manhattan, 2=Chebyshev
+  public cellType: number = 0 // 0=Solid, 1=Outlined, 2=Distance
+  public animate: number = 1
+  
+  render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
+    // Render Voronoi noise effect
+  }
+}
+```
+
+### 2. Advanced Shader Implementation
+```glsl
+// 2D Random function for point placement
+vec2 random2(vec2 st) {
+  st = vec2(dot(st, vec2(127.1, 311.7)),
+            dot(st, vec2(269.5, 183.3)));
+  return -1.0 + 2.0 * fract(sin(st) * 43758.5453123);
+}
+
+// Multiple distance functions
+float euclideanDistance(vec2 a, vec2 b) {
+  return length(a - b);
+}
+
+float manhattanDistance(vec2 a, vec2 b) {
+  return abs(a.x - b.x) + abs(a.y - b.y);
+}
+
+float chebyshevDistance(vec2 a, vec2 b) {
+  return max(abs(a.x - b.x), abs(a.y - b.y));
+}
+
+// Voronoi diagram calculation with animation
+vec3 voronoi(vec2 st, float animationTime) {
+  // Scale coordinate system
+  st *= scale;
+  
+  // Tile the space
+  vec2 i_st = floor(st);
+  vec2 f_st = fract(st);
+  
+  float m_dist = 1.0;
+  vec2 m_point = vec2(0.0);
+  
+  // Check surrounding 9 cells
+  for (int j = -1; j <= 1; j++) {
+    for (int i = -1; i <= 1; i++) {
+      vec2 neighbor = vec2(float(i), float(j));
+      vec2 point = random2(i_st + neighbor);
+      
+      // Animate points
+      if (animate > 0.5) {
+        point = 0.5 + 0.5 * sin(animationTime * speed + 6.2831 * point);
+      } else {
+        point = 0.5 + 0.5 * point;
+      }
+      
+      vec2 diff = neighbor + point - f_st;
+      float dist = getDistance(vec2(0.0), diff, distanceMode);
+      
+      if (dist < m_dist) {
+        m_dist = dist;
+        m_point = point;
+      }
+    }
+  }
+  
+  // Different visualization modes
+  if (cellType < 0.5) {
+    // Solid cells
+    return vec3(m_point, 1.0);
+  } else if (cellType < 1.5) {
+    // Outlined cells with borders
+    return vec3(1.0) - step(0.02, m_dist);
+  } else {
+    // Distance field visualization
+    return vec3(m_dist);
+  }
+}
+```
+
+### 3. Integration with Effects System
+```typescript
+// In PostProcessingPass.ts
+case 'voronoi':
+  this.voronoiPass.setIntensity(effect.parameters.intensity ?? 1.0)
+  this.voronoiPass.setScale(effect.parameters.scale ?? 10.0)
+  this.voronoiPass.setSpeed(effect.parameters.speed ?? 1.0)
+  this.voronoiPass.setColor(
+    effect.parameters.colorR ?? 1.0,
+    effect.parameters.colorG ?? 0.5,
+    effect.parameters.colorB ?? 0.0
+  )
+  this.voronoiPass.setDistanceMode(effect.parameters.distanceMode ?? 0)
+  this.voronoiPass.setCellType(effect.parameters.cellType ?? 0)
+  this.voronoiPass.setAnimate(effect.parameters.animate > 0.5)
+  this.voronoiPass.render(renderer, inputTexture, outputTarget)
+  return
+```
+
+### 4. Effect Definition
+```typescript
+// In EffectsChainManager.ts
+{
+  type: 'voronoi',
+  name: 'Voronoi Noise',
+  supportsBlending: true,
+  defaultParameters: { 
+    intensity: 1.0,
+    scale: 10.0,
+    speed: 1.0,
+    colorR: 1.0,
+    colorG: 0.5,
+    colorB: 0.0,
+    distanceMode: 0,
+    cellType: 0,
+    animate: 1
+  },
+  parameterDefinitions: {
+    intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+    scale: { min: 1, max: 50, step: 0.5, label: 'Cell Scale' },
+    speed: { min: 0, max: 5, step: 0.1, label: 'Animation Speed' },
+    colorR: { min: 0, max: 1, step: 0.01, label: 'Color Red', type: 'color' },
+    colorG: { min: 0, max: 1, step: 0.01, label: 'Color Green', type: 'color' },
+    colorB: { min: 0, max: 1, step: 0.01, label: 'Color Blue', type: 'color' },
+    distanceMode: { min: 0, max: 2, step: 1, label: 'Distance Mode' },
+    cellType: { min: 0, max: 2, step: 1, label: 'Cell Type' },
+    animate: { min: 0, max: 1, step: 1, label: 'Animate Cells', type: 'boolean' }
+  }
+}
+```
+
+### Key Technical Features
+
+**Mathematical Foundation**:
+- Based on Voronoi diagrams from computational geometry
+- Uses Worley noise principles for cellular patterns
+- Implements multiple distance metrics for varied visual styles
+
+**Performance Optimizations**:
+- Efficient 3x3 neighbor sampling instead of full-screen distance calculation
+- Pre-computed random vectors for consistent point placement
+- Conditional branching for different visualization modes
+
+**Visual Flexibility**:
+- Three distance modes create distinct pattern styles
+- Three cell types offer solid, outlined, and gradient variations
+- Real-time animation with controllable speed
+- Full RGB color control for artistic customization
+
+### Applications
+- **Organic textures** for natural-looking surfaces
+- **Cellular patterns** for biological visualizations  
+- **Abstract art** with animated, flowing cells
+- **Technical drawings** with outlined cell structures
+- **Distance visualization** for spatial analysis
+
+This example demonstrates how procedural generation can create rich, customizable visual effects that blend mathematical precision with artistic flexibility.
 
 ## Resources
 

@@ -183,13 +183,15 @@ The application includes a comprehensive effects system with 40+ visual effects 
 
 **Color Effects**: Background Color, Gamma Correction, Sepia, Colorify, Split Tone, Gradient, Invert, Bleach Bypass, Posterize
 
-**Blur Effects**: Blur, Bloom, Motion Blur, Glow, Depth of Field
+**Blur Effects**: Blur, Bloom, Motion Blur, **Gaussian Blur**, **Glow**, Depth of Field
 
-**Grain Effects**: CRT Grain, Film 35mm, Pixelate, 2D Noise
+**Grain Effects**: CRT Grain, Film 35mm, Pixelate, 2D Noise, **Voronoi Noise**
 
 **3D Effects**: Concentric Circles, Point Network, Material Effects, Topographic, Distance Fog, Sky Sphere, Sin Radius
 
-**Circle Packing Effect** (New): Advanced post-processing technique that transforms visualizations into stylized circular representations using multi-scale hierarchical placement, QuadTree spatial optimization, and WebWorker parallelization. Features comprehensive parameter control and intelligent content analysis.
+**Voronoi Noise Effect** (New): Procedural texture generation based on Voronoi diagrams with multiple distance functions (Euclidean, Manhattan, Chebyshev) and visualization modes (solid cells, outlined borders, distance fields). Features real-time animation, customizable scaling, and full color control.
+
+**Circle Packing Effect**: Advanced post-processing technique that transforms visualizations into stylized circular representations using multi-scale hierarchical placement, QuadTree spatial optimization, and WebWorker parallelization. Features comprehensive parameter control and intelligent content analysis.
 
 See `CreateEffect.md`, `Postprocess.md`, and `BlendingModes.md` for effects system documentation.
 
