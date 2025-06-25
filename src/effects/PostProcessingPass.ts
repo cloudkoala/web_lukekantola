@@ -4,8 +4,9 @@ import { ASCIIDitheringPass } from './ASCIIDitheringPass'
 import { HalftoneDitheringPass } from './HalftoneDitheringPass'
 import { EngravingPass } from './EngravingPass'
 import { CirclePackingPass } from './CirclePackingPass'
+import { GaussianBlurPass } from './GaussianBlurPass'
 
-export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -73,6 +74,7 @@ export class PostProcessingPass {
   private halftoneDitheringPass: HalftoneDitheringPass
   private engravingPass: EngravingPass
   private circlePackingPass: CirclePackingPass
+  private gaussianBlurPass: GaussianBlurPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -329,6 +331,7 @@ export class PostProcessingPass {
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
     this.engravingPass = new EngravingPass(width, height)
     this.circlePackingPass = new CirclePackingPass(width, height)
+    this.gaussianBlurPass = new GaussianBlurPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -515,7 +518,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -786,6 +789,13 @@ export class PostProcessingPass {
         this.engravingPass.render(renderer, inputTexture, outputTarget || undefined)
         return
         break
+      case 'gaussianblur':
+        this.gaussianBlurPass.setBlurAmount(typeof effect.parameters.blurAmount === 'number' ? effect.parameters.blurAmount : 1.0)
+        this.gaussianBlurPass.setRadius(typeof effect.parameters.radius === 'number' ? effect.parameters.radius : 5)
+        this.gaussianBlurPass.setIterations(typeof effect.parameters.iterations === 'number' ? effect.parameters.iterations : 1)
+        this.gaussianBlurPass.render(renderer, inputTexture, outputTarget || undefined)
+        return
+        break
       default:
         return
     }
@@ -895,6 +905,7 @@ export class PostProcessingPass {
     this.halftoneDitheringPass.setSize(width, height)
     this.engravingPass.setSize(width, height)
     this.circlePackingPass.setSize(width, height)
+    this.gaussianBlurPass.setSize(width, height)
     
     
     // Update afterimage render target
@@ -921,6 +932,7 @@ export class PostProcessingPass {
     this.halftoneDitheringPass.dispose()
     this.engravingPass.dispose()
     this.circlePackingPass.dispose()
+    this.gaussianBlurPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()

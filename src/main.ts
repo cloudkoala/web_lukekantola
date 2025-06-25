@@ -1520,7 +1520,7 @@ function setupMobileEffectsButton() {
         },
         'Blur': {
           color: '#4ECDC4',
-          effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
+          effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof', 'gaussianblur']
         },
         'Grain': {
           color: '#45B7D1',

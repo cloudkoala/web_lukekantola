@@ -716,7 +716,7 @@ export class EffectsPanel {
         effects: ['gamma', 'sepia', 'colorify', 'splittone', 'gradient', 'invert', 'bleachbypass', 'posterize']
       },
       'Blur': {
-        effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof']
+        effects: ['blur', 'bloom', 'motionblur', 'glow', 'dof', 'gaussianblur']
       },
       'Grain': {
         effects: ['crtgrain', 'film35mm', 'pixelate', 'noise2d']

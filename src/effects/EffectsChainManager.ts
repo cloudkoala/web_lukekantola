@@ -723,6 +723,21 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       lineSpacing: { min: 1.0, max: 50.0, step: 0.1, label: 'Line Spacing (px)' },
       interpolationMode: { min: 0, max: 4, step: 1, label: 'Interpolation (0=None, 1=Linear, 2=Smooth, 3=Cubic, 4=Ultra)' }
     }
+  },
+  {
+    type: 'gaussianblur',
+    name: 'Gaussian Blur',
+    supportsBlending: true,
+    defaultParameters: { 
+      blurAmount: 1.0,
+      radius: 5,
+      iterations: 1
+    },
+    parameterDefinitions: {
+      blurAmount: { min: 0, max: 10, step: 0.1, label: 'Blur Amount' },
+      radius: { min: 1, max: 50, step: 1, label: 'Radius' },
+      iterations: { min: 1, max: 10, step: 1, label: 'Iterations' }
+    }
   }
 ]
 
