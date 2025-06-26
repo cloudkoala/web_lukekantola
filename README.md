@@ -18,6 +18,7 @@ This application uses a modular architecture with clear separation between camer
 - **Model Manager** (`src/models/ModelManager.ts`) - Point cloud loading and quality management  
 - **Effects System** (`src/effects/`) - Post-processing effects chain
 - **Interface Components** (`src/interface/`) - Dynamic content and mobile UI
+- **Gallery System** (`src/gallery/`) - PNG-based scene capture and visual gallery
 
 ## Key Architectural Patterns
 
@@ -205,6 +206,7 @@ src/
 ├── models/ModelManager.ts      # Point cloud loading and management
 ├── effects/                    # Post-processing effects system
 ├── interface/                  # UI components and content loading
+├── gallery/                    # PNG capture and gallery management
 └── style.css                   # Application styling
 
 public/
@@ -215,6 +217,7 @@ public/
 
 ## Specialized Documentation
 
+- **Gallery.md** - Complete PNG-based gallery system: capture, metadata, and management
 - **MobileSlider.md** - Comprehensive mobile slider implementation guide
 - **ColorPicker.md** - Mobile HSV color picker system and integration guide
 - **CirclePackingEffect.md** - Circle Packing effect: algorithms, parameters, performance, and usage guide

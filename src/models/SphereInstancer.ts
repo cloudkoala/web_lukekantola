@@ -474,6 +474,24 @@ export class SphereInstancer {
   }
 
   /**
+   * Set sphere mode to a specific state (instead of toggling)
+   */
+  setSphereMode(enabled: boolean): void {
+    console.log(`Setting sphere mode to: ${enabled}, currently: ${this.isSpheresEnabled}`)
+    
+    // Only change if different from current state
+    if (enabled !== this.isSpheresEnabled) {
+      if (enabled) {
+        this.enableSphereMode()
+        // Convert any existing point clouds to spheres individually to avoid pop-in
+        this.convertExistingPointCloudsProgressively()
+      } else {
+        this.disableSphereMode()
+      }
+    }
+  }
+
+  /**
    * Convert existing point clouds progressively to avoid pop-in effect
    */
   private convertExistingPointCloudsProgressively(): void {

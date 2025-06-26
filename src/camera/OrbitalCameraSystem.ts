@@ -2895,7 +2895,11 @@ export class OrbitalCameraSystem {
       const sphereToggle = document.getElementById('sphere-toggle') as HTMLInputElement
       if (sphereToggle) {
         sphereToggle.checked = sceneState.sphereMode
-        sphereToggle.dispatchEvent(new Event('change'))
+      }
+      
+      // Set sphere mode directly instead of dispatching events to avoid toggle bug
+      if (this.modelManager) {
+        this.modelManager.setSphereMode(sceneState.sphereMode)
       }
       
       if (sceneState.sphereMode && sceneState.sphereRadius) {

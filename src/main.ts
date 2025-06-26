@@ -2421,7 +2421,10 @@ function setupMobileSettings() {
       const sphereModeCard = createToggleCard('Sphere Mode', sphereToggle.checked,
         (checked) => {
           sphereToggle.checked = checked
-          sphereToggle.dispatchEvent(new Event('change'))
+          // Set sphere mode directly instead of dispatching events to avoid toggle bug
+          if (modelManager) {
+            modelManager.setSphereMode(checked)
+          }
           // Refresh the settings panel to show/hide appropriate slider
           setTimeout(() => {
             refreshHorizontalSettingsOptions()

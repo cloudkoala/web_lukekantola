@@ -782,6 +782,10 @@ export class ModelManager {
     this.sphereInstancer.toggleSpheres()
   }
 
+  setSphereMode(enabled: boolean): void {
+    this.sphereInstancer.setSphereMode(enabled)
+  }
+
   setSphereRadius(radius: number): void {
     this.sphereInstancer.setSphereRadius(radius)
   }
