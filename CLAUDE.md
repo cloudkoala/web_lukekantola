@@ -47,6 +47,150 @@ A Three.js-based point cloud viewer built specifically for showcasing Gaussian s
 - **Controls**: Collapsible panel at bottom (starts minimized)
 - **Font**: Space Mono for retro monospace aesthetic
 
+## Initial Page Load Process
+
+### Overview
+The application follows a sophisticated 8-phase initialization sequence that ensures smooth loading with no delays, progressive visual feedback, and robust error handling. The entire process takes approximately 5 seconds from HTML load to full interactivity.
+
+### Phase 1: HTML Structure & Immediate Loading Screen (0ms)
+- Browser loads `index.html` with immediate loading screen visible
+- Animated border chase effect provides visual feedback during JavaScript loading
+- All UI elements are present but hidden behind the loading overlay
+- Terminal-style aesthetic with green (#00ff00) color scheme established
+
+### Phase 2: JavaScript Module Loading & Three.js Setup (0-100ms)
+- `main.ts` executes, importing all dependencies
+- Three.js scene, camera, renderer initialized with optimized configurations:
+  - **Logarithmic depth buffer**: Better depth precision for large point clouds
+  - **Anti-aliasing enabled**: Smooth edges on rendered points
+  - **Pixel ratio capped**: Maximum 2x for performance on high-DPI displays
+  - **Scene background**: Dark gray (#151515) matching UI theme
+  - **Atmospheric fog**: FogExp2 with 0.003 density for depth perception
+
+### Phase 3: Core Module Instantiation (100-150ms)
+Modules are created in specific dependency order:
+```typescript
+const progressiveLoader = new ProgressiveLoader(scene, basePath)
+const postProcessingPass = new PostProcessingPass(width, height, renderer)  
+const contentLoader = new ContentLoader()
+const galleryManager = new GalleryManager()
+const cameraCapture = new CameraCapture(renderer, scene, camera)
+const modelManager = new ModelManager(scene, progressEl, progressFill, progressiveLoader)
+const orbitalCamera = new OrbitalCameraSystem(camera, controls, canvas, scene, ...)
+```
+
+### Phase 4: Main Initialize Function Execution (150ms+)
+
+#### **Sub-Phase 4a: Environment Setup**
+- **Input type detection**: Determines touch/mouse/hybrid for responsive layout
+- **Loading screen management**: Hides progress bar (keeps immediate overlay)
+- **Console logging**: Debugging output throughout initialization
+
+#### **Sub-Phase 4b: Asynchronous Configuration Loading**  
+Configs load in parallel while UI setup continues:
+```typescript
+const configLoadPromise = Promise.all([
+  modelManager.loadModelsConfig(),     // Model configurations from JSON
+  contentLoader.loadProjectsConfig()   // Project data for navigation
+])
+```
+
+#### **Sub-Phase 4c: UI Control Setup** (Parallel to config loading)
+- **Settings panel**: Button, sliders, color picker (100ms delay for DOM readiness)
+- **Effects panel**: Dropdown, parameter controls, chaining system
+- **Mobile controls**: Touch-optimized panels and buttons
+- **Auto-rotation**: Bidirectional speed control
+- **Fog controls**: Atmospheric depth adjustment
+- **Scene sharing**: URL-based state persistence
+- **Gallery system**: PNG capture with metadata
+
+#### **Sub-Phase 4d: Navigation & Home Setup**
+- **Home indicators**: Navigation arrows made visible
+- **Event listeners**: Page navigation, hamburger menu
+- **Point size controls**: Visibility based on current mode
+
+### Phase 5: Model Loading Priority Chain (500-2000ms)
+After configs are loaded, follows strict priority cascade:
+```typescript
+// Priority 1: Check for shared scene URL parameter
+hasSceneUrl = await orbitalCamera.loadSceneFromUrl()
+
+// Priority 2: Try to load random scene from scenes-config.json  
+if (!hasSceneUrl) {
+  hasRandomScene = await orbitalCamera.loadRandomScene()
+}
+
+// Priority 3: Try to load default scene
+if (!hasRandomScene) {
+  hasDefaultScene = await orbitalCamera.loadDefaultScene()
+}
+
+// Priority 4: Fallback to default point cloud
+if (!hasDefaultScene) {
+  modelManager.loadPointCloud()
+}
+```
+
+### Phase 6: Progressive Loading System (500-4000ms)
+- **Chunk Processing**: 150KB chunks loaded sequentially (not in batches)
+- **Visual Updates**: Every 300-600ms during loading process
+- **Sphere Conversion**: Progressive per-chunk processing with 50ms stagger
+- **Memory Management**: Efficient render loop with proper cleanup
+- **Loading Animation**: Triggers regardless of file caching status
+
+### Phase 7: Camera Animation System (2000-5000ms)
+- **Vector-based Positioning**: Mathematical approach using lookAt point + rotation offset
+- **Focal Length Animation**: Cinematic zoom-in effect during orbital motion
+- **Quaternion Interpolation**: Prevents gimbal lock with smooth SLERP
+- **Sine-based Easing**: Natural acceleration/deceleration curves
+- **Duration**: Exactly 5 seconds for consistent experience
+
+#### **Animation Configuration Example**:
+```json
+"loadingAnimation": {
+  "lookAtPoint": { "x": -0.13, "y": 0.87, "z": -0.29 },
+  "rotationOffset": { "axis": "y", "degrees": 30 },
+  "initialFocalLengthMultiplier": 10,
+  "duration": 4000
+}
+```
+
+### Phase 8: Animation Loop Start & Loading Screen Removal (5000ms)
+- **Render Loop**: `requestAnimationFrame` begins continuous rendering
+- **FPS Monitoring**: Real-time framerate tracking for performance optimization
+- **Sphere Detail Adjustment**: Automatic quality scaling based on performance
+- **Loading Screen Fade**: 500ms opacity transition with display: none cleanup
+
+### Technical Specifications
+
+#### **Progressive Loading Optimization**
+- **Chunk Size**: 150KB (5x improvement from original 768KB)
+- **Loading Pattern**: True sequential (1 chunk at a time vs 6-chunk batches)
+- **Update Frequency**: 300-600ms visual updates (vs 2-3 second delays)
+- **Sphere Processing**: No pop-in effects with progressive conversion
+
+#### **Performance Characteristics**
+- **Memory Efficiency**: Streaming 150KB processing chunks
+- **Render Optimization**: Logarithmic depth buffer, capped pixel ratio
+- **Mobile Detection**: Different layouts for touch vs mouse input
+- **Automatic Scaling**: Large point clouds scaled to 20 units maximum
+
+#### **Error Handling & Fallbacks**
+- **Config Loading**: Graceful degradation if JSON files fail
+- **Model Loading**: 4-tier fallback system prevents blank screens
+- **Loading Screen**: Guaranteed removal on both success and error
+- **Console Logging**: Comprehensive debugging throughout process
+
+### Timeline Summary
+- **0ms**: HTML loads, immediate loading screen visible
+- **~100ms**: JavaScript modules load, Three.js setup complete
+- **~150ms**: Core modules instantiated with dependencies
+- **~200ms**: Initialize function starts, UI setup begins
+- **~500ms**: Configs loaded, model loading priority chain executes
+- **~2000ms**: Point cloud loading begins with progressive chunks
+- **~5000ms**: Camera animation completes, loading screen fades out
+- **5000ms+**: Application fully interactive with all features enabled
+
 ## Development History
 
 ### Phase 1: Initial Setup (gsplat.js)

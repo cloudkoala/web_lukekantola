@@ -220,7 +220,7 @@ export class GalleryManager {
       // Capture scene with metadata
       const url = await this.cameraCapture.captureScene(sceneState, {
         ...options,
-        downloadImmediately: false // We'll handle the file ourselves
+        downloadImmediately: true // Save to downloads folder
       })
 
       // Create gallery item

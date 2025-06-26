@@ -147,6 +147,54 @@ sliderCard.id = 'mobile-setting-name-card'  // Always assign ID for external acc
 - Effects chains with full parameter sets and blend modes
 - Supports three blend modes: `normal`, `add`, `multiply`
 
+## Application Startup
+
+### Initialization Overview
+The application follows a sophisticated 8-phase startup sequence designed for optimal user experience with no loading delays and progressive visual feedback.
+
+### Module Dependency Order
+Core modules are instantiated in strict dependency order:
+```typescript
+ProgressiveLoader → PostProcessingPass → ContentLoader → 
+GalleryManager → CameraCapture → ModelManager → OrbitalCameraSystem
+```
+
+### Startup Timeline
+- **0-100ms**: HTML loads, JavaScript modules initialize, Three.js setup
+- **100-200ms**: Core modules instantiated with cross-references
+- **200-500ms**: Async config loading (models/projects), UI controls setup
+- **500-2000ms**: Model loading priority chain execution
+- **2000-5000ms**: Progressive loading (150KB chunks) + camera animation
+- **5000ms+**: Fully interactive with loading screen fadeout
+
+### Model Loading Priority
+The system follows a 4-tier fallback approach:
+1. **Shared Scene URL**: Load from URL parameters if present
+2. **Random Scene**: Select from `scenes-config.json` collection
+3. **Default Scene**: Load predefined default configuration
+4. **Point Cloud Fallback**: Load basic point cloud if all else fails
+
+### Progressive Loading System
+- **Chunk Size**: 150KB optimized chunks (5x improvement from 768KB)
+- **Pattern**: Sequential loading (1 chunk at a time, not batches)
+- **Visual Updates**: 300-600ms update frequency during loading
+- **Sphere Processing**: Progressive conversion with 50ms stagger prevents pop-in
+
+### Performance Optimizations
+- **Logarithmic depth buffer**: Better precision for large point clouds
+- **Pixel ratio capping**: Maximum 2x for high-DPI performance
+- **FPS monitoring**: Real-time adjustment of sphere detail levels
+- **Memory management**: Streaming chunks with proper cleanup
+- **Mobile detection**: Responsive layout based on input capabilities
+
+### Error Handling
+- **Config failures**: Graceful degradation with fallback values  
+- **Model loading**: Multi-tier fallback prevents blank screens
+- **Loading screen**: Guaranteed removal on success or error
+- **Console logging**: Comprehensive debugging throughout process
+
+For detailed technical specifications, see the "Initial Page Load Process" section in `CLAUDE.md`.
+
 ## Development Guidelines
 
 ### Adding New Sliders

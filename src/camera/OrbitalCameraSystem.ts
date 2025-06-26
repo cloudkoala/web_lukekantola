@@ -2899,7 +2899,28 @@ export class OrbitalCameraSystem {
       
       // Set sphere mode directly instead of dispatching events to avoid toggle bug
       if (this.modelManager) {
-        this.modelManager.setSphereMode(sceneState.sphereMode)
+        // Force proper sphere state by toggling if needed for gallery scenes
+        if (sceneState.sphereMode) {
+          // Ensure we start from a clean state, then enable spheres
+          this.modelManager.setSphereMode(false)  // Force disable first
+          this.modelManager.setSphereMode(true)   // Then enable to trigger conversion
+        } else {
+          this.modelManager.setSphereMode(false)
+        }
+        
+        // Ensure UI controls are properly synchronized after setting sphere mode
+        this.toggleSizeControls(sceneState.sphereMode)
+        
+        // Update sphere detail controls visibility
+        const detailControl = document.querySelector('.sphere-detail-control') as HTMLElement
+        if (detailControl) {
+          detailControl.style.display = sceneState.sphereMode ? 'flex' : 'none'
+        }
+        
+        // Refresh mobile UI to reflect sphere mode change
+        if (typeof refreshHorizontalSettingsOptions === 'function') {
+          refreshHorizontalSettingsOptions()
+        }
       }
       
       if (sceneState.sphereMode && sceneState.sphereRadius) {

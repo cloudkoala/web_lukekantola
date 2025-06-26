@@ -3452,10 +3452,22 @@ async function handleCaptureScene(isMobile: boolean) {
       throw new Error('Invalid camera state')
     }
     
-    // Add a name for gallery display
+    // Prompt user for scene title with 3 options
     if (!sceneState.name) {
-      const timestamp = new Date().toLocaleString()
-      sceneState.name = `Scene ${timestamp}`
+      const titleChoice = await showSceneTitleDialog()
+      
+      if (titleChoice.action === 'cancel') {
+        // User cancelled - abort capture
+        hideCaptureProgressModal()
+        return
+      } else if (titleChoice.action === 'skip') {
+        // Use default name
+        const timestamp = new Date().toLocaleString()
+        sceneState.name = `Scene ${timestamp}`
+      } else if (titleChoice.action === 'accept' && titleChoice.title) {
+        // Use custom title
+        sceneState.name = titleChoice.title.trim()
+      }
     }
     
     // Get recommended settings
@@ -3499,6 +3511,97 @@ async function handleCaptureScene(isMobile: boolean) {
     showCaptureFeedback(errorMessage, isMobile)
     throw error
   }
+}
+
+// Scene title dialog interface
+interface SceneTitleChoice {
+  action: 'cancel' | 'skip' | 'accept'
+  title?: string
+}
+
+function showSceneTitleDialog(): Promise<SceneTitleChoice> {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const overlay = document.createElement('div')
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      font-family: 'Space Mono', monospace;
+    `
+    
+    // Create dialog
+    const dialog = document.createElement('div')
+    dialog.style.cssText = `
+      background: #1a1a1a;
+      border: 1px solid #00ff00;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      color: #ffffff;
+    `
+    
+    dialog.innerHTML = `
+      <h3 style="margin: 0 0 16px 0; color: #00ff00; font-size: 1.1rem;">Scene Title</h3>
+      <input type="text" id="scene-title-input" placeholder="Enter scene title..." 
+             style="width: 100%; padding: 8px; margin-bottom: 16px; background: #2a2a2a; 
+                    border: 1px solid #555; color: #fff; border-radius: 4px; font-family: inherit;">
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button id="title-cancel" style="padding: 8px 16px; background: #666; border: none; 
+                color: #fff; border-radius: 4px; cursor: pointer; font-family: inherit;">Cancel</button>
+        <button id="title-skip" style="padding: 8px 16px; background: #444; border: none; 
+                color: #fff; border-radius: 4px; cursor: pointer; font-family: inherit;">Skip</button>
+        <button id="title-accept" style="padding: 8px 16px; background: #00ff00; border: none; 
+                color: #000; border-radius: 4px; cursor: pointer; font-family: inherit;">Accept</button>
+      </div>
+    `
+    
+    overlay.appendChild(dialog)
+    document.body.appendChild(overlay)
+    
+    // Focus input
+    const input = dialog.querySelector('#scene-title-input') as HTMLInputElement
+    input.focus()
+    
+    // Handle buttons
+    const cleanup = () => document.body.removeChild(overlay)
+    
+    dialog.querySelector('#title-cancel')?.addEventListener('click', () => {
+      cleanup()
+      resolve({ action: 'cancel' })
+    })
+    
+    dialog.querySelector('#title-skip')?.addEventListener('click', () => {
+      cleanup()
+      resolve({ action: 'skip' })
+    })
+    
+    dialog.querySelector('#title-accept')?.addEventListener('click', () => {
+      const title = input.value.trim()
+      cleanup()
+      resolve({ action: 'accept', title: title || undefined })
+    })
+    
+    // Handle Enter key
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const title = input.value.trim()
+        cleanup()
+        resolve({ action: 'accept', title: title || undefined })
+      } else if (e.key === 'Escape') {
+        cleanup()
+        resolve({ action: 'cancel' })
+      }
+    })
+  })
 }
 
 function showGalleryModal() {

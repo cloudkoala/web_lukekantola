@@ -479,16 +479,28 @@ export class SphereInstancer {
   setSphereMode(enabled: boolean): void {
     console.log(`Setting sphere mode to: ${enabled}, currently: ${this.isSpheresEnabled}`)
     
-    // Only change if different from current state
-    if (enabled !== this.isSpheresEnabled) {
-      if (enabled) {
-        this.enableSphereMode()
-        // Convert any existing point clouds to spheres individually to avoid pop-in
-        this.convertExistingPointCloudsProgressively()
-      } else {
+    if (enabled) {
+      // Always ensure sphere mode is properly enabled and convert existing point clouds
+      this.isSpheresEnabled = true
+      this.enableSphereMode()
+      // Force conversion of any existing point clouds
+      this.convertExistingPointCloudsProgressively()
+    } else {
+      // Only disable if currently enabled
+      if (this.isSpheresEnabled) {
         this.disableSphereMode()
       }
     }
+  }
+
+  /**
+   * Reset internal state without touching scene objects (called after scene clearing)
+   */
+  resetState(): void {
+    console.log('Resetting SphereInstancer state after scene clearing')
+    this.instancedMeshes = []
+    this.originalPointClouds = []
+    this.isSpheresEnabled = false
   }
 
   /**

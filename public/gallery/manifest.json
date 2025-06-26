@@ -1,5 +1,18 @@
 {
   "version": "1.0",
-  "generated": "2025-01-25T12:00:00.000Z",
-  "files": []
+  "generated": "2025-01-26T00:00:00.000Z",
+  "files": [
+    "Arscii.png",
+    "Castleton Basic.png", 
+    "Castleton Disco.png",
+    "Delicate Ascii.png",
+    "Delicate Basic.png",
+    "Delicate Dots.png",
+    "Delicate Noir.png",
+    "Elegant Delicate.png",
+    "Fisher Basic.png",
+    "Fisher Dither.png",
+    "Fisher Hologram.png",
+    "Fisher Sobel.png"
+  ]
 }

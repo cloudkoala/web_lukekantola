@@ -268,6 +268,9 @@ export class ModelManager {
         (child.type === 'Mesh' && child.userData?.isSplatMesh)
       )
       existingObjects.forEach(obj => this.scene.remove(obj))
+      
+      // Reset sphere instancer state after clearing scene objects
+      this.sphereInstancer.resetState()
     } else if (this.isQualitySwitching) {
       // For quality switches, only remove splats (keep point clouds for comparison)
       console.log('Quality switch: keeping point clouds, only clearing splats')

@@ -95,7 +95,7 @@ export class CameraCapture {
       this.updateProgress('saving', 90, 'Preparing download...')
       
       const finalBlob = new Blob([pngWithMetadata], { type: 'image/png' })
-      const finalFilename = filename || generateSceneFilename(sceneState)
+      const finalFilename = filename || generateSceneFilename(sceneState, sceneState.name)
       
       if (downloadImmediately) {
         this.downloadBlob(finalBlob, finalFilename)
