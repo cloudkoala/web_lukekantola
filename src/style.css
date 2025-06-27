@@ -1334,15 +1334,16 @@ body, html {
 
 .desktop-only .effects-panel {
   position: fixed !important; /* Changed to fixed for dragging */
-  left: 50% !important; /* Center horizontally */
-  bottom: 120px !important; /* Position above settings panel */
-  top: auto !important; /* Override any top positioning */
+  left: 12px !important; /* Top left positioning */
+  top: 150px !important; /* Just below the model dropdown */
+  bottom: auto !important; /* Override any bottom positioning */
   right: auto !important; /* Override any right positioning */
-  transform: translateX(-50%) !important; /* Center the panel */
+  transform: none !important; /* No transform needed for top-left positioning */
   display: none !important; /* Hidden by default */
   z-index: 999 !important; /* Below settings panel */
   padding: 0 !important; /* Remove padding to accommodate drag handle */
   flex-direction: column !important; /* Ensure column layout for drag handle */
+  max-width: 280px !important; /* Constrain width to not exceed controls-row */
 }
 
 .desktop-only .settings-panel[style*="display: grid"],
@@ -1406,6 +1407,174 @@ body, html {
   width: 750px; /* Increased width to prevent text wrapping */
   height: auto; /* Let content determine height */
   box-sizing: border-box;
+}
+
+/* Settings Panel Layout Variations */
+.settings-panel.layout-2x3 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto auto;
+  width: 750px;
+  /* Ensure tight margins for default layout */
+  height: auto;
+  padding: 0;
+}
+
+.settings-panel.layout-1x6 {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto repeat(6, auto);
+  width: 300px;
+}
+
+.settings-panel.layout-3x2 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto auto auto auto;
+  width: 500px;
+}
+
+.settings-panel.layout-6x1 {
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: auto auto;
+  width: 900px;
+}
+
+/* Layout-specific optimizations */
+.settings-panel.layout-1x6 .settings-slider-control,
+.settings-panel.layout-1x6 .sphere-controls,
+.settings-panel.layout-1x6 .settings-color-control {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+}
+
+.settings-panel.layout-6x1 .settings-slider-control,
+.settings-panel.layout-6x1 .sphere-controls,
+.settings-panel.layout-6x1 .settings-color-control {
+  font-size: 0.8rem;
+  padding: 6px 8px;
+}
+
+.settings-panel.layout-6x1 .settings-slider-control label,
+.settings-panel.layout-6x1 .sphere-controls label,
+.settings-panel.layout-6x1 .settings-color-control label {
+  font-size: 0.7rem;
+  margin-bottom: 2px;
+}
+
+/* Compact controls for horizontal layout */
+.settings-panel.layout-6x1 input[type="range"] {
+  height: 18px;
+}
+
+.settings-panel.layout-6x1 .settings-slider-control span,
+.settings-panel.layout-6x1 .sphere-controls span {
+  font-size: 0.6rem;
+}
+
+/* Enhanced spacing for vertical layout */
+.settings-panel.layout-1x6 .settings-slider-control:last-child {
+  margin-bottom: 0;
+}
+
+/* Settings controls - compact spacing for default layout */
+.settings-panel.layout-2x3 .settings-slider-control,
+.settings-panel.layout-2x3 .sphere-controls,
+.settings-panel.layout-2x3 .settings-color-control {
+  padding: 6px 10px;
+  margin: 2px;
+}
+
+/* Auto-rotation control is now a normal grid item, no special spanning */
+
+/* Smooth transitions between layouts */
+.settings-panel.transitioning {
+  transition: width 0.3s ease, transform 0.3s ease;
+}
+
+/* Snap zone indicators */
+.snap-zone-indicator {
+  position: fixed;
+  border: 2px dashed rgba(0, 255, 0, 0.5);
+  background: rgba(0, 255, 0, 0.1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 999;
+  border-radius: 4px;
+}
+
+.snap-zone-indicator.active {
+  opacity: 1;
+}
+
+/* Settings Drag Target */
+.settings-drag-target {
+  position: fixed;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 120px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 2px dashed rgba(0, 255, 0, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 998;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+}
+
+.settings-drag-target:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.settings-drag-target.active {
+  background: rgba(0, 255, 0, 0.3);
+  border-color: rgba(0, 255, 0, 0.8);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+}
+
+.drag-target-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: rgba(0, 255, 0, 0.8);
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+}
+
+.drag-target-icon {
+  font-size: 20px;
+  filter: hue-rotate(120deg);
+}
+
+.drag-target-text {
+  font-size: 10px;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+/* Settings Panel Resize Handle */
+.settings-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nw-resize;
+  background: rgba(0, 255, 0, 0.1);
+  border-radius: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.settings-resize-handle:hover {
+  background: rgba(0, 255, 0, 0.2);
 }
 
 /* Settings & Effects Drag Handle */
@@ -1535,6 +1704,77 @@ body, html {
   text-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
   background: rgba(255, 68, 68, 0.1);
   transform: scale(1.1);
+}
+
+/* Settings Minimize Button */
+.settings-minimize-button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 1px 2px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+.settings-minimize-button:hover {
+  color: rgba(0, 255, 0, 0.8);
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  background: rgba(0, 255, 0, 0.1);
+  transform: scale(1.1);
+}
+
+/* Panel collapsed states */
+.settings-panel.collapsed {
+  height: 20px !important;
+  overflow: hidden;
+}
+
+.settings-panel.collapsed > *:not(.settings-drag-handle) {
+  display: none !important;
+}
+
+.effects-panel.collapsed {
+  height: auto !important;
+  min-height: auto !important;
+  overflow: hidden;
+}
+
+.effects-panel.collapsed .effects-panel-inner,
+.effects-panel.collapsed .effects-panel-footer,
+.effects-panel.collapsed .effects-resize-handle {
+  display: none !important;
+}
+
+/* Panel arrows for expand/collapse indication */
+.panel-arrows {
+  display: flex;
+  gap: 1px;
+  align-items: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.panel-arrows .arrow {
+  color: #00ff00;
+  opacity: 0.5;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+/* Collapsed state - arrows pointing up */
+.settings-panel.collapsed .panel-arrows .arrow,
+.effects-panel.collapsed .panel-arrows .arrow {
+  transform: rotate(180deg);
 }
 
 .esc-hint {
@@ -4107,7 +4347,7 @@ body, html {
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  width: 360px;
+  width: 320px;
   height: 400px;
   min-width: 280px;
   min-height: 200px;
@@ -4128,9 +4368,6 @@ body, html {
   margin: 0;
 }
 
-.effects-panel.collapsed .effects-panel-header {
-  margin-bottom: 0;
-}
 
 .effects-panel-title-row {
   display: flex;
@@ -4241,7 +4478,50 @@ body, html {
   gap: 8px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 15px;
+  padding-bottom: 8px;
+}
+
+/* Effects Panel Footer */
+.effects-panel-footer {
+  display: flex;
+  gap: 8px;
+  padding: 8px 15px;
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 0 0 6px 6px;
+  flex-shrink: 0;
+}
+
+.effects-footer-button {
+  flex: 1;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  color: white;
+  font-size: 0.7rem;
+  font-family: 'Space Mono', monospace;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+}
+
+.effects-footer-button:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.5);
+  box-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
+}
+
+.effects-footer-button .button-icon {
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.effects-footer-button .button-text {
+  font-size: 0.65rem;
 }
 
 
@@ -4580,7 +4860,7 @@ body, html {
 .parameter-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .parameter-control label {
@@ -4588,11 +4868,13 @@ body, html {
   font-size: 0.7rem;
   font-family: monospace;
   font-weight: 400;
-  min-width: 60px;
+  min-width: 90px;
+  flex-shrink: 0;
 }
 
 .parameter-control input[type="range"] {
-  width: 80px;
+  flex: 1;
+  min-width: 80px;
   height: 2px;
   background: rgba(0, 64, 128, 0.6);
   border-radius: 1px;

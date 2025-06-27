@@ -129,31 +129,23 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       blackLevel: 0.0,
       whiteLevel: 1.0,
       temperature: 0.0,
-      tint: 0.0,
-      colorTintR: 1.0,
-      colorTintG: 1.0,
-      colorTintB: 1.0,
-      colorTintIntensity: 0.0
+      tint: 0.0
     },
     parameterDefinitions: {
-      intensity: { min: 0.0, max: 1.0, step: 0.01, label: 'Effect Intensity' },
+      intensity: { min: 0.0, max: 1.0, step: 0.01, label: 'Intensity' },
       gamma: { min: 0.1, max: 5.0, step: 0.1, label: 'Gamma' },
       brightness: { min: 0.0, max: 3.0, step: 0.1, label: 'Brightness' },
       contrast: { min: 0.0, max: 3.0, step: 0.1, label: 'Contrast' },
       saturation: { min: 0.0, max: 3.0, step: 0.1, label: 'Saturation' },
       exposure: { min: -3.0, max: 3.0, step: 0.1, label: 'Exposure' },
-      hue: { min: -180, max: 180, step: 1, label: 'Hue (degrees)' },
-      lightness: { min: -100, max: 100, step: 1, label: 'Lightness (%)' },
-      shadows: { min: -100, max: 100, step: 1, label: 'Shadows (%)' },
-      highlights: { min: -100, max: 100, step: 1, label: 'Highlights (%)' },
+      hue: { min: -180, max: 180, step: 1, label: 'Hue' },
+      lightness: { min: -100, max: 100, step: 1, label: 'Lightness' },
+      shadows: { min: -100, max: 100, step: 1, label: 'Shadows' },
+      highlights: { min: -100, max: 100, step: 1, label: 'Highlights' },
       blackLevel: { min: 0.0, max: 1.0, step: 0.01, label: 'Black Level' },
       whiteLevel: { min: 0.0, max: 1.0, step: 0.01, label: 'White Level' },
       temperature: { min: -100, max: 100, step: 1, label: 'Temperature' },
-      tint: { min: -100, max: 100, step: 1, label: 'Tint' },
-      colorTintR: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Red' },
-      colorTintG: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Green' },
-      colorTintB: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Blue' },
-      colorTintIntensity: { min: 0.0, max: 1.0, step: 0.01, label: 'Color Tint Intensity' }
+      tint: { min: -100, max: 100, step: 1, label: 'Tint' }
     }
   },
   {
@@ -578,6 +570,20 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       maxY: { min: 0, max: 100, step: 1, label: 'Max Y Threshold (%)' },
       wireOpacity: { min: 0.1, max: 1.0, step: 0.05, label: 'Wire Opacity' },
       maxSegmentLength: { min: 0.5, max: 20.0, step: 0.5, label: 'Cull Long Segments (%)' }
+    }
+  },
+  {
+    type: 'zdepth',
+    name: 'Z-Depth',
+    defaultParameters: { 
+      intensity: 1.0,
+      near: 1.0,
+      far: 10.0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      near: { min: 0, max: 50, step: 0.1, label: 'Near Plane' },
+      far: { min: 0, max: 50, step: 0.1, label: 'Far Plane' }
     }
   },
   {

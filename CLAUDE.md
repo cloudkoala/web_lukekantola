@@ -454,6 +454,113 @@ Fisher Towers:      multiplier: 0.1   (consistent with Delicate Arch)
 - **README.md**: Integration with main documentation and specialized docs section
 - **CreateEffect.md**: Advanced example showcasing sophisticated effect techniques
 
+## Phase 11: Draggable Panel System Implementation (January 2025)
+
+### Advanced Workspace Management
+- **Draggable Panels**: Complete workspace customization with repositionable Settings and Effects panels
+- **Resizable Effects Panel**: Height/width adjustment with scrollable content and fixed footer controls
+- **Grid-Based Settings Panel**: Organized 2×3 layout for optimal control density
+- **Viewport Constraints**: Intelligent boundary clamping prevents panels from being dragged off-screen
+
+### Technical Architecture
+
+**Drag System Implementation**:
+```typescript
+// CSS Transform Override Pattern
+panel.style.setProperty('transform', 'none', 'important')
+panel.style.setProperty('left', `${rect.left}px`, 'important')
+panel.style.setProperty('top', `${rect.top}px`, 'important')
+
+// Viewport Boundary Clamping
+const maxX = window.innerWidth - panel.offsetWidth
+const maxY = window.innerHeight - panel.offsetHeight
+const clampedX = Math.max(0, Math.min(newX, maxX))
+const clampedY = Math.max(0, Math.min(newY, maxY))
+```
+
+**Resize System for Effects Panel**:
+- **Constraints**: 280-600px width, 200px to 80% viewport height
+- **Real-time Content Adjustment**: Flex layout adapts smoothly during resize
+- **Visual Feedback**: Triangular grip with hover states and cursor changes
+
+### Settings Panel Architecture
+
+**Grid Layout Structure** (750px width, 2×3 organization):
+1. **Point Size Slider** - Individual point rendering size control
+2. **Sphere Radius Slider** - Sphere mode radius (conditional visibility)
+3. **Focal Length Slider** - Camera field of view control
+4. **Fog Density Slider** - Atmospheric depth effect
+5. **Sphere Mode Toggle** - Point/sphere rendering switch
+6. **Background Color Picker** - HSV color selection modal
+7. **Auto-Rotation Speed** - Bidirectional rotation control (spans full width)
+
+**Default Positioning**: Center screen, 40px from bottom edge for non-intrusive global controls
+
+### Effects Panel Architecture
+
+**Three-Section Layout**:
+- **Fixed Header**: Drag handle, collapse controls, effects dropdown
+- **Scrollable Content**: Effects chain cards and parameters (flex: 1, overflow-y: auto)
+- **Fixed Footer**: Add Effect and Reset All buttons (flex-shrink: 0)
+
+**Footer Controls Enhancement**:
+- **Add Effect Button**: Toggles searchable effects modal (reuses existing EffectsPanel infrastructure)
+- **Reset All Button**: Clears entire effects chain and resets dropdown
+- **Always Visible**: Remains accessible regardless of content scroll length
+
+**Default Positioning**: Top-left corner (150px from top, 12px from left) for immediate access near model controls
+
+### Critical Technical Solutions
+
+**CSS Transform Conflicts**:
+- **Problem**: CSS `transform: translateX(-50%) !important` prevented drag positioning
+- **Solution**: Override with `setProperty()` using `!important` during drag operations
+
+**Event Delegation Issues**:
+- **Problem**: Close buttons were triggering drag operations
+- **Solution**: Exclude specific elements with `target.closest('.settings-close-button')`
+
+**Modal Integration**:
+- **Problem**: Duplicating effects system functionality
+- **Solution**: Access existing EffectsPanel instance through OrbitalCameraSystem getter
+
+**Scroll Area Implementation**:
+- **Problem**: Creating scrollable content within resizable panels
+- **Solution**: Proper flex layout with overflow control and fixed footer sections
+
+### User Experience Enhancements
+
+**Visual Feedback Systems**:
+- **Cursor States**: `grab`/`grabbing` for drag handles, `nw-resize` for resize handle
+- **Hover Effects**: Subtle color changes on interactive elements
+- **Visual Hierarchy**: Clear distinction between fixed and scrollable areas
+
+**Workflow Optimization**:
+- **Effects Panel**: Positioned near model controls for immediate access
+- **Settings Panel**: Centered at bottom for non-intrusive global controls
+- **Resize Capability**: Users optimize panel size for their content density
+- **Fixed Footer**: Core actions remain accessible during long effect chains
+
+### Critical Discovery: Effects Preset Requirement
+
+**Important Finding**: The effects preset dropdown is essential for effects to display properly in the chain. Without selecting a preset first, effects remain invisible even when successfully added to the chain manager. This requirement is now documented as critical for proper effects system operation.
+
+### Performance Optimizations
+
+**Event Handling**:
+- **Global Listeners**: Efficient mouse move/up event delegation
+- **Boundary Calculations**: Cached viewport dimensions for repeated calculations
+- **Transform Optimization**: CSS transforms for static positioning, absolute only during drag
+
+**Memory Management**:
+- **Event Cleanup**: Proper listener removal and state reset
+- **DOM Queries**: Cached element references to minimize repeated queries
+
+### Documentation Integration
+- **DraggablePanels.md**: Complete technical implementation guide with code examples
+- **README.md**: Comprehensive overview integrated into main documentation
+- **CSS Architecture**: Documented override patterns and responsive layout strategies
+
 ## Future Considerations
 - **Layered Auto-Rotation**: Enable auto-rotation during initial animation for spiral/helical motion effects (framework complete)
 - **Smart Chunk Prioritization**: Load closest/largest chunks first based on camera position

@@ -8,8 +8,9 @@ import { GaussianBlurPass } from './GaussianBlurPass'
 import { GlowPass } from './GlowPass'
 import { MotionBlurPass } from './MotionBlurPass'
 import { SSAOPass } from './SSAOPass'
+import { ZDepthPass } from './ZDepthPass'
 
-export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi' | 'ambientocclusion'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'zdepth' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi' | 'ambientocclusion'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -78,6 +79,7 @@ export class PostProcessingPass {
   // Dithering passes
   private asciiDitheringPass: ASCIIDitheringPass
   private halftoneDitheringPass: HalftoneDitheringPass
+  private zDepthPass: ZDepthPass
   private engravingPass: EngravingPass
   private circlePackingPass: CirclePackingPass
   private gaussianBlurPass: GaussianBlurPass
@@ -226,10 +228,6 @@ export class PostProcessingPass {
         whiteLevel: { value: 1.0 },
         temperature: { value: 0.0 },
         tint: { value: 0.0 },
-        colorTintR: { value: 1.0 },
-        colorTintG: { value: 1.0 },
-        colorTintB: { value: 1.0 },
-        colorTintIntensity: { value: 0.0 },
         bloomThreshold: { value: 0.8 },
         bloomIntensity: { value: 1.0 },
         bloomRadius: { value: 0.5 },
@@ -351,6 +349,7 @@ export class PostProcessingPass {
     // Initialize dithering passes
     this.asciiDitheringPass = new ASCIIDitheringPass(width, height)
     this.halftoneDitheringPass = new HalftoneDitheringPass(width, height)
+    this.zDepthPass = new ZDepthPass(width, height)
     this.engravingPass = new EngravingPass(width, height)
     this.circlePackingPass = new CirclePackingPass(width, height)
     this.gaussianBlurPass = new GaussianBlurPass(width, height)
@@ -377,7 +376,7 @@ export class PostProcessingPass {
     // Check if we need depth buffer for SSAO or motion blur
     const enabledEffects = this.effectsChain.filter(effect => effect.enabled)
     const needsDepthBuffer = enabledEffects.some(effect => 
-      effect.type === 'motionblur' || effect.type === 'ambientocclusion'
+      effect.type === 'motionblur' || effect.type === 'ambientocclusion' || effect.type === 'zdepth'
     )
     
     // Render depth buffer if needed
@@ -561,7 +560,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur' || effect.type === 'ambientocclusion') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'zdepth' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur' || effect.type === 'ambientocclusion') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -588,10 +587,6 @@ export class PostProcessingPass {
         this.material.uniforms.whiteLevel.value = effect.parameters.whiteLevel ?? 1.0
         this.material.uniforms.temperature.value = effect.parameters.temperature ?? 0.0
         this.material.uniforms.tint.value = effect.parameters.tint ?? 0.0
-        this.material.uniforms.colorTintR.value = effect.parameters.colorTintR ?? 1.0
-        this.material.uniforms.colorTintG.value = effect.parameters.colorTintG ?? 1.0
-        this.material.uniforms.colorTintB.value = effect.parameters.colorTintB ?? 1.0
-        this.material.uniforms.colorTintIntensity.value = effect.parameters.colorTintIntensity ?? 0.0
         break
       case 'vignette':
         this.material.uniforms.vignetteOffset.value = effect.parameters.offset ?? 1.2
@@ -802,7 +797,7 @@ export class PostProcessingPass {
   }
   
   private renderDitheringEffect(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, effect: EffectInstance, outputTarget?: THREE.WebGLRenderTarget | null) {
-    let ditheringPass: ASCIIDitheringPass | HalftoneDitheringPass
+    let ditheringPass: ASCIIDitheringPass | HalftoneDitheringPass | ZDepthPass
     
     switch (effect.type) {
       case 'ascii':
@@ -817,6 +812,14 @@ export class PostProcessingPass {
         ditheringPass.dotSize = effect.parameters.dotSize ?? 8
         ditheringPass.contrast = effect.parameters.contrast ?? 1.2
         ditheringPass.angle = 0 // Fixed at 0 degrees
+        break
+      case 'zdepth':
+        console.log('Z-Depth: Rendering effect with parameters:', effect.parameters)
+        ditheringPass = this.zDepthPass
+        ditheringPass.intensity = effect.parameters.intensity ?? 1.0
+        ditheringPass.near = effect.parameters.near ?? 1.0
+        ditheringPass.far = effect.parameters.far ?? 10.0
+        console.log('Z-Depth: Applied parameters - intensity:', ditheringPass.intensity, 'near:', ditheringPass.near, 'far:', ditheringPass.far)
         break
       case 'circlepacking':
         this.circlePackingPass.enabled = effect.enabled
@@ -899,7 +902,13 @@ export class PostProcessingPass {
     }
     
     ditheringPass.enabled = true
-    ditheringPass.render(renderer, inputTexture, outputTarget)
+    
+    // Special handling for z-depth which needs depth
+    if (effect.type === 'zdepth' && this.depthTexture) {
+      (ditheringPass as ZDepthPass).render(renderer, inputTexture, this.depthTexture, outputTarget, this.currentCamera || undefined)
+    } else {
+      ditheringPass.render(renderer, inputTexture, outputTarget)
+    }
   }
   
   private copyTexture(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
@@ -999,6 +1008,7 @@ export class PostProcessingPass {
     // Update dithering passes
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
+    this.topographicDitheringPass.setSize(width, height)
     this.engravingPass.setSize(width, height)
     this.circlePackingPass.setSize(width, height)
     this.gaussianBlurPass.setSize(width, height)
@@ -1028,6 +1038,7 @@ export class PostProcessingPass {
     // Dispose dithering passes
     this.asciiDitheringPass.dispose()
     this.halftoneDitheringPass.dispose()
+    this.topographicDitheringPass.dispose()
     this.engravingPass.dispose()
     this.circlePackingPass.dispose()
     this.gaussianBlurPass.dispose()
@@ -1339,6 +1350,7 @@ export class PostProcessingPass {
       // Dithering effects are handled separately in renderDitheringEffect
       case 'ascii': return 0
       case 'halftone': return 0
+      case 'zdepth': return 0
       case 'circlepacking': return 0
       case 'engraving': return 0
       default: return 0
@@ -3135,10 +3147,6 @@ export class PostProcessingPass {
       uniform float whiteLevel;
       uniform float temperature;
       uniform float tint;
-      uniform float colorTintR;
-      uniform float colorTintG;
-      uniform float colorTintB;
-      uniform float colorTintIntensity;
       uniform float bloomThreshold;
       uniform float bloomIntensity;
       uniform float bloomRadius;
@@ -3404,11 +3412,6 @@ export class PostProcessingPass {
         
         // 8. Apply temperature and tint
         result = adjustTemperatureTint(result, temperature, tint);
-        
-        // 9. Apply color tint
-        vec3 colorTintVec = vec3(colorTintR, colorTintG, colorTintB);
-        float colorLuminance = dot(result, vec3(0.299, 0.587, 0.114));
-        result = mix(result, colorTintVec * colorLuminance, colorTintIntensity);
         
         // Final clamp to valid range
         return clamp(result, 0.0, 1.0);

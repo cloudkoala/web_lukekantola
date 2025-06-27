@@ -722,7 +722,7 @@ export class EffectsPanel {
         effects: ['crtgrain', 'film35mm', 'pixelate', 'noise2d']
       },
       'Post-Process': {
-        effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'circlepacking', 'engraving', 'datamosh', 'pixelsort', 'ambientocclusion']
+        effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'oilpainting', 'ascii', 'halftone', 'zdepth', 'circlepacking', 'engraving', 'datamosh', 'pixelsort', 'ambientocclusion']
       },
       '3D Effects': {
         effects: ['drawrange', 'pointnetwork', 'material', 'voronoi', 'randomscale', 'topographic', 'fog', 'skysphere', 'sinradius']

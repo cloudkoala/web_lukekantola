@@ -2810,6 +2810,19 @@ function setupMobileModelSelector() {
   ;(window as any).updateMobileModelDisplay = updateMobileModelDisplay
 }
 
+// Panel collapse/expand functionality
+function togglePanelCollapse(panel: HTMLElement) {
+  const isCollapsed = panel.classList.contains('collapsed')
+  
+  if (isCollapsed) {
+    // Expand panel
+    panel.classList.remove('collapsed')
+  } else {
+    // Collapse panel
+    panel.classList.add('collapsed')
+  }
+}
+
 // Settings button functionality
 function setupSettingsButton() {
   console.log('Setting up settings button...')
@@ -2856,16 +2869,336 @@ function setupSettingsButton() {
     })
   }
   
-  // Make settings panel draggable
-  setupSettingsPanelDrag(settingsPanel)
+  // Add single-click to header for expand/collapse
+  const settingsDragHandle = document.getElementById('settings-drag-handle') as HTMLElement
+  if (settingsDragHandle) {
+    let isDragging = false
+    let dragStarted = false
+    
+    settingsDragHandle.addEventListener('mousedown', () => {
+      isDragging = false
+      dragStarted = false
+    })
+    
+    settingsDragHandle.addEventListener('mousemove', () => {
+      if (!dragStarted) {
+        isDragging = true
+        dragStarted = true
+      }
+    })
+    
+    settingsDragHandle.addEventListener('mouseup', () => {
+      setTimeout(() => {
+        isDragging = false
+        dragStarted = false
+      }, 10) // Small delay to prevent click from firing immediately
+    })
+    
+    settingsDragHandle.addEventListener('click', (e) => {
+      // Only toggle if we're not clicking on the close button and not dragging
+      if (!e.target?.closest('.settings-close-button') && !isDragging) {
+        e.stopPropagation() // Prevent event bubbling
+        togglePanelCollapse(settingsPanel)
+      }
+    })
+  }
+  
+  // Setup drag target (returns functions for drag system)
+  const dragTargetController = setupSettingsDragTarget(settingsPanel)
+  
+  // Make settings panel draggable (pass drag target controller)
+  setupSettingsPanelDrag(settingsPanel, dragTargetController)
 }
 
-function setupSettingsPanelDrag(panel: HTMLElement) {
+// Setup Settings Drag Target (shows only during drag)
+function setupSettingsDragTarget(settingsPanel: HTMLElement) {
+  const dragTarget = document.getElementById('settings-drag-target') as HTMLElement
+  if (!dragTarget) return
+  
+  let layoutManager: SettingsLayoutManager | null = null
+  
+  const showTargetDuringDrag = () => {
+    const isSettingsVisible = settingsPanel.style.display === 'grid'
+    if (isSettingsVisible) {
+      dragTarget.style.setProperty('display', 'flex', 'important')
+      // Initialize layout manager if not already done
+      if (!layoutManager) {
+        layoutManager = new SettingsLayoutManager(settingsPanel)
+      }
+    }
+  }
+  
+  const hideTarget = () => {
+    dragTarget.style.setProperty('display', 'none', 'important')
+  }
+  
+  // Hide target initially - it will only show during drag operations
+  hideTarget()
+  
+  // Click to snap to 1x6 layout (only works when visible during drag)
+  dragTarget.addEventListener('click', () => {
+    if (layoutManager) {
+      layoutManager.snapToLayout('1x6')
+      dragTarget.classList.add('active')
+      setTimeout(() => {
+        dragTarget.classList.remove('active')
+        hideTarget() // Hide after snapping
+      }, 300)
+    }
+  })
+  
+  // Return functions for the drag system to use
+  return {
+    showDuringDrag: showTargetDuringDrag,
+    hide: hideTarget,
+    getLayoutManager: () => layoutManager
+  }
+}
+
+// Settings Layout Manager Class
+class SettingsLayoutManager {
+  private panel: HTMLElement
+  private currentLayout: '2x3' | '1x6' | '3x2' | '6x1' = '2x3'
+  private snapIndicator: HTMLElement | null = null
+  private readonly SNAP_THRESHOLD = 100 // pixels from edge to trigger snap
+  
+  constructor(panel: HTMLElement) {
+    this.panel = panel
+    this.loadLayoutFromStorage()
+    this.createSnapIndicator()
+    this.applyLayout(this.currentLayout, false) // Apply without animation on init
+  }
+  
+  private createSnapIndicator(): void {
+    this.snapIndicator = document.createElement('div')
+    this.snapIndicator.className = 'snap-zone-indicator'
+    document.body.appendChild(this.snapIndicator)
+  }
+  
+  private loadLayoutFromStorage(): void {
+    const saved = localStorage.getItem('settings-panel-layout')
+    if (saved && ['2x3', '1x6', '3x2', '6x1'].includes(saved)) {
+      this.currentLayout = saved as '2x3' | '1x6' | '3x2' | '6x1'
+    }
+  }
+  
+  private saveLayoutToStorage(): void {
+    localStorage.setItem('settings-panel-layout', this.currentLayout)
+  }
+  
+  public detectOptimalLayout(position: { x: number; y: number }): '2x3' | '1x6' | '3x2' | '6x1' {
+    const { x, y } = position
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    
+    // Left or right edge → 1x6 (vertical stack)
+    if (x < this.SNAP_THRESHOLD || x > viewportWidth - this.SNAP_THRESHOLD) {
+      return '1x6'
+    }
+    
+    // Top edge → 6x1 (horizontal row)
+    if (y < this.SNAP_THRESHOLD) {
+      return '6x1'
+    }
+    
+    // Corners → 3x2 (compact grid)
+    if ((x < this.SNAP_THRESHOLD * 2 && y < this.SNAP_THRESHOLD * 2) ||
+        (x > viewportWidth - this.SNAP_THRESHOLD * 2 && y < this.SNAP_THRESHOLD * 2) ||
+        (x < this.SNAP_THRESHOLD * 2 && y > viewportHeight - this.SNAP_THRESHOLD * 2) ||
+        (x > viewportWidth - this.SNAP_THRESHOLD * 2 && y > viewportHeight - this.SNAP_THRESHOLD * 2)) {
+      return '3x2'
+    }
+    
+    // Default center/bottom → 2x3 (current default)
+    return '2x3'
+  }
+  
+  public showSnapIndicator(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
+    if (!this.snapIndicator) return
+    
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const layoutDimensions = this.getLayoutDimensions(layout)
+    
+    let indicatorStyle = ''
+    
+    switch (layout) {
+      case '1x6':
+        // Show on left or right edge
+        indicatorStyle = `
+          left: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: ${layoutDimensions.width}px;
+          height: ${layoutDimensions.height}px;
+        `
+        break
+      case '6x1':
+        // Show on top edge
+        indicatorStyle = `
+          left: 50%;
+          top: 20px;
+          transform: translateX(-50%);
+          width: ${layoutDimensions.width}px;
+          height: ${layoutDimensions.height}px;
+        `
+        break
+      case '3x2':
+        // Show in top-left corner
+        indicatorStyle = `
+          left: 20px;
+          top: 20px;
+          width: ${layoutDimensions.width}px;
+          height: ${layoutDimensions.height}px;
+        `
+        break
+      case '2x3':
+        // Show in bottom center
+        indicatorStyle = `
+          left: 50%;
+          bottom: 60px;
+          transform: translateX(-50%);
+          width: ${layoutDimensions.width}px;
+          height: ${layoutDimensions.height}px;
+        `
+        break
+    }
+    
+    this.snapIndicator.setAttribute('style', indicatorStyle)
+    this.snapIndicator.classList.add('active')
+  }
+  
+  public hideSnapIndicator(): void {
+    if (this.snapIndicator) {
+      this.snapIndicator.classList.remove('active')
+    }
+  }
+  
+  private getLayoutDimensions(layout: '2x3' | '1x6' | '3x2' | '6x1'): { width: number; height: number } {
+    // Estimate heights based on number of controls (7 total) + drag handle (20px) + padding
+    const baseControlHeight = 35 // Tighter height per control
+    const dragHandleHeight = 20
+    const padding = 15 // Reduced padding for tighter layout
+    
+    switch (layout) {
+      case '2x3':
+        return { width: 750, height: dragHandleHeight + (2 * baseControlHeight) + padding }
+      case '1x6':
+        return { width: 300, height: dragHandleHeight + (6 * baseControlHeight) + padding }
+      case '3x2':
+        return { width: 500, height: dragHandleHeight + (3 * baseControlHeight) + padding }
+      case '6x1':
+        return { width: 900, height: dragHandleHeight + baseControlHeight + padding }
+    }
+  }
+  
+  public applyLayout(layout: '2x3' | '1x6' | '3x2' | '6x1', animate: boolean = true): void {
+    if (animate) {
+      this.panel.classList.add('transitioning')
+    }
+    
+    // Remove all layout classes
+    this.panel.classList.remove('layout-2x3', 'layout-1x6', 'layout-3x2', 'layout-6x1')
+    
+    // Add new layout class
+    this.panel.classList.add(`layout-${layout}`)
+    
+    this.currentLayout = layout
+    this.saveLayoutToStorage()
+    
+    // Position panel appropriately for the layout
+    this.positionPanelForLayout(layout)
+    
+    if (animate) {
+      setTimeout(() => {
+        this.panel.classList.remove('transitioning')
+      }, 300) // Match CSS transition duration
+    }
+  }
+  
+  private positionPanelForLayout(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+    const dimensions = this.getLayoutDimensions(layout)
+    
+    switch (layout) {
+      case '1x6':
+        // Position on left side
+        this.panel.style.setProperty('left', '20px', 'important')
+        this.panel.style.setProperty('top', '50%', 'important')
+        this.panel.style.setProperty('transform', 'translateY(-50%)', 'important')
+        this.panel.style.setProperty('bottom', 'auto', 'important')
+        break
+      case '6x1':
+        // Position on top center
+        this.panel.style.setProperty('left', '50%', 'important')
+        this.panel.style.setProperty('top', '20px', 'important')
+        this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
+        this.panel.style.setProperty('bottom', 'auto', 'important')
+        break
+      case '3x2':
+        // Position in top-left
+        this.panel.style.setProperty('left', '20px', 'important')
+        this.panel.style.setProperty('top', '20px', 'important')
+        this.panel.style.setProperty('transform', 'none', 'important')
+        this.panel.style.setProperty('bottom', 'auto', 'important')
+        break
+      case '2x3':
+      default:
+        // Position between controls-row and right edge, aligned with controls top
+        const controlsContainer = document.querySelector('.controls-container') as HTMLElement
+        const controlsRow = document.querySelector('.controls-row') as HTMLElement
+        
+        if (controlsContainer && controlsRow) {
+          // Get controls-row right edge position
+          const controlsRect = controlsRow.getBoundingClientRect()
+          const controlsRightEdge = controlsRect.right
+          
+          // Calculate center position between controls-row right edge and viewport right edge
+          const availableSpace = viewportWidth - controlsRightEdge
+          const panelWidth = 750
+          const centeredLeft = controlsRightEdge + (availableSpace - panelWidth) / 2
+          
+          this.panel.style.setProperty('left', `${centeredLeft}px`, 'important')
+          this.panel.style.setProperty('top', '90px', 'important') // Align with controls-container top
+          this.panel.style.setProperty('transform', 'none', 'important')
+          this.panel.style.setProperty('bottom', 'auto', 'important')
+          this.panel.style.setProperty('height', 'auto', 'important')
+          this.panel.style.setProperty('width', '750px', 'important')
+        } else {
+          // Fallback to original positioning if controls not found
+          this.panel.style.setProperty('left', '50%', 'important')
+          this.panel.style.setProperty('bottom', '40px', 'important')
+          this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
+          this.panel.style.setProperty('top', 'auto', 'important')
+          this.panel.style.setProperty('height', 'auto', 'important')
+          this.panel.style.setProperty('width', '750px', 'important')
+        }
+        break
+    }
+  }
+  
+  public getCurrentLayout(): '2x3' | '1x6' | '3x2' | '6x1' {
+    return this.currentLayout
+  }
+  
+  public snapToLayout(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
+    this.applyLayout(layout, true)
+    this.hideSnapIndicator()
+  }
+}
+
+function setupSettingsPanelDrag(panel: HTMLElement, dragTargetController?: any) {
   let isDragging = false
   let dragOffset = { x: 0, y: 0 }
+  let layoutManager: SettingsLayoutManager | null = null
+  let lastSnapLayout: '2x3' | '1x6' | '3x2' | '6x1' | null = null
   
   const dragHandle = panel.querySelector('.settings-drag-handle') as HTMLElement
   if (!dragHandle) return
+  
+  // Initialize layout manager
+  layoutManager = new SettingsLayoutManager(panel)
   
   const onMouseDown = (e: MouseEvent) => {
     // Only start drag on the drag content area, not the close button
@@ -2876,16 +3209,21 @@ function setupSettingsPanelDrag(panel: HTMLElement) {
     
     isDragging = true
     
+    // Show drag target when dragging starts
+    if (dragTargetController) {
+      dragTargetController.showDuringDrag()
+    }
+    
     // Get the actual position considering transform
     const rect = panel.getBoundingClientRect()
     dragOffset.x = e.clientX - rect.left
     dragOffset.y = e.clientY - rect.top
     
     // Remove transform to use absolute positioning during drag
-    panel.style.transform = 'none'
-    panel.style.left = `${rect.left}px`
-    panel.style.top = `${rect.top}px`
-    panel.style.bottom = 'auto'
+    panel.style.setProperty('transform', 'none', 'important')
+    panel.style.setProperty('left', `${rect.left}px`, 'important')
+    panel.style.setProperty('top', `${rect.top}px`, 'important')
+    panel.style.setProperty('bottom', 'auto', 'important')
     
     dragHandle.style.cursor = 'grabbing'
     document.body.style.userSelect = 'none'
@@ -2895,7 +3233,7 @@ function setupSettingsPanelDrag(panel: HTMLElement) {
   }
   
   const onMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return
+    if (!isDragging || !layoutManager) return
     
     const newX = e.clientX - dragOffset.x
     const newY = e.clientY - dragOffset.y
@@ -2907,21 +3245,123 @@ function setupSettingsPanelDrag(panel: HTMLElement) {
     const clampedX = Math.max(0, Math.min(newX, maxX))
     const clampedY = Math.max(0, Math.min(newY, maxY))
     
-    panel.style.left = `${clampedX}px`
-    panel.style.top = `${clampedY}px`
+    panel.style.setProperty('left', `${clampedX}px`, 'important')
+    panel.style.setProperty('top', `${clampedY}px`, 'important')
+    
+    // Detect optimal layout based on current position
+    const panelCenter = {
+      x: clampedX + panel.offsetWidth / 2,
+      y: clampedY + panel.offsetHeight / 2
+    }
+    
+    const optimalLayout = layoutManager.detectOptimalLayout(panelCenter)
+    
+    // Show snap indicator if layout would change
+    if (optimalLayout !== layoutManager.getCurrentLayout()) {
+      if (lastSnapLayout !== optimalLayout) {
+        layoutManager.showSnapIndicator(optimalLayout)
+        lastSnapLayout = optimalLayout
+      }
+    } else {
+      // Hide indicator if back to current layout zone
+      if (lastSnapLayout !== null) {
+        layoutManager.hideSnapIndicator()
+        lastSnapLayout = null
+      }
+    }
   }
   
   const onMouseUp = () => {
-    if (!isDragging) return
+    if (!isDragging || !layoutManager) return
     
     isDragging = false
     dragHandle.style.cursor = 'grab'
     document.body.style.userSelect = ''
+    
+    // Hide drag target when dragging ends
+    if (dragTargetController) {
+      dragTargetController.hide()
+    }
+    
+    // Check if we should snap to a new layout
+    if (lastSnapLayout && lastSnapLayout !== layoutManager.getCurrentLayout()) {
+      layoutManager.snapToLayout(lastSnapLayout)
+    } else {
+      // Just hide the indicator if no snap occurred
+      layoutManager.hideSnapIndicator()
+    }
+    
+    lastSnapLayout = null
   }
   
   dragHandle.addEventListener('mousedown', onMouseDown)
   document.addEventListener('mousemove', onMouseMove)
   document.addEventListener('mouseup', onMouseUp)
+  
+  // Setup resize functionality
+  setupSettingsPanelResize(panel)
+}
+
+function setupSettingsPanelResize(panel: HTMLElement) {
+  const resizeHandle = panel.querySelector('.settings-resize-handle') as HTMLElement
+  if (!resizeHandle) return
+  
+  let isResizing = false
+  let startX = 0, startY = 0, startWidth = 0, startHeight = 0
+  
+  const onResizeMouseDown = (e: MouseEvent) => {
+    isResizing = true
+    startX = e.clientX
+    startY = e.clientY
+    
+    const rect = panel.getBoundingClientRect()
+    startWidth = rect.width
+    startHeight = rect.height
+    
+    document.body.style.userSelect = 'none'
+    resizeHandle.style.cursor = 'nw-resize'
+    
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  
+  const onResizeMouseMove = (e: MouseEvent) => {
+    if (!isResizing) return
+    
+    const deltaX = e.clientX - startX
+    const deltaY = e.clientY - startY
+    
+    // Apply size constraints (minimum 250px width, 80px height for very compact layouts)
+    const newWidth = Math.max(250, Math.min(1200, startWidth + deltaX))
+    const newHeight = Math.max(80, Math.min(window.innerHeight * 0.8, startHeight + deltaY))
+    
+    // If user resizes very small (under 120px height), snap back to auto height
+    if (newHeight <= 120) {
+      panel.style.setProperty('height', 'auto', 'important')
+      panel.style.setProperty('width', `${newWidth}px`, 'important')
+      // Restore original grid for compact layout
+      panel.style.setProperty('grid-template-columns', 'repeat(3, 1fr)', 'important')
+      panel.style.setProperty('grid-template-rows', 'auto auto auto', 'important')
+    } else {
+      panel.style.setProperty('width', `${newWidth}px`, 'important')
+      panel.style.setProperty('height', `${newHeight}px`, 'important')
+      // Use flexible grid for larger layouts
+      panel.style.setProperty('grid-template-columns', 'repeat(auto-fit, minmax(200px, 1fr))', 'important')
+      panel.style.setProperty('grid-template-rows', 'auto repeat(auto-fit, auto)', 'important')
+    }
+  }
+  
+  const onResizeMouseUp = () => {
+    if (!isResizing) return
+    
+    isResizing = false
+    document.body.style.userSelect = ''
+    resizeHandle.style.cursor = 'nw-resize'
+  }
+  
+  resizeHandle.addEventListener('mousedown', onResizeMouseDown)
+  document.addEventListener('mousemove', onResizeMouseMove)
+  document.addEventListener('mouseup', onResizeMouseUp)
 }
 
 // Effects button functionality
@@ -2939,6 +3379,20 @@ function setupEffectsButton() {
   if (!effectsButton || !effectsPanel || !effectsButtonContainer || !effectsCloseButton) {
     console.warn('Effects elements not found', { effectsButton, effectsPanel, effectsButtonContainer, effectsCloseButton })
     return
+  }
+  
+  // Set effects panel max-width to not extend past controls-row
+  const controlsRow = document.querySelector('.controls-row') as HTMLElement
+  if (controlsRow) {
+    const controlsRect = controlsRow.getBoundingClientRect()
+    const controlsRightEdge = controlsRect.right
+    const maxAllowedWidth = controlsRightEdge - 12 - 20 // 12px left position + 20px margin
+    
+    if (maxAllowedWidth > 280) {
+      effectsPanel.style.setProperty('max-width', `${Math.min(maxAllowedWidth, 350)}px`, 'important')
+    } else {
+      effectsPanel.style.setProperty('max-width', '280px', 'important')
+    }
   }
   
   // Toggle effects panel
@@ -3008,6 +3462,40 @@ function setupEffectsButton() {
     checkBothPanelsOpen()
   })
   
+  // Add single-click to effects header for expand/collapse
+  const effectsDragHandle = document.getElementById('effects-drag-handle') as HTMLElement
+  if (effectsDragHandle) {
+    let isDragging = false
+    let dragStarted = false
+    
+    effectsDragHandle.addEventListener('mousedown', () => {
+      isDragging = false
+      dragStarted = false
+    })
+    
+    effectsDragHandle.addEventListener('mousemove', () => {
+      if (!dragStarted) {
+        isDragging = true
+        dragStarted = true
+      }
+    })
+    
+    effectsDragHandle.addEventListener('mouseup', () => {
+      setTimeout(() => {
+        isDragging = false
+        dragStarted = false
+      }, 10) // Small delay to prevent click from firing immediately
+    })
+    
+    effectsDragHandle.addEventListener('click', (e) => {
+      // Only toggle if we're not clicking on the close button and not dragging
+      if (!e.target?.closest('.settings-close-button') && !isDragging) {
+        e.stopPropagation() // Prevent event bubbling
+        togglePanelCollapse(effectsPanel)
+      }
+    })
+  }
+  
   // Setup effects panel collapse/expand functionality
   const effectsCollapseArrow = document.getElementById('effects-panel-collapse') as HTMLElement
   const effectsCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
@@ -3046,6 +3534,9 @@ function setupEffectsButton() {
   
   // Make effects panel draggable
   setupEffectsPanelDrag(effectsPanel)
+  
+  // Setup footer buttons
+  setupEffectsPanelFooter()
 }
 
 function setupEffectsPanelDrag(panel: HTMLElement) {
@@ -3174,6 +3665,47 @@ function setupEffectsPanelResize(panel: HTMLElement) {
   document.addEventListener('mousemove', onResizeMouseMove)
   document.addEventListener('mouseup', onResizeMouseUp)
 }
+
+function setupEffectsPanelFooter() {
+  const addEffectButton = document.getElementById('desktop-add-effect-button') as HTMLElement
+  const resetEffectsButton = document.getElementById('desktop-reset-effects-button') as HTMLElement
+  
+  if (!addEffectButton || !resetEffectsButton) {
+    console.warn('Effects footer buttons not found')
+    return
+  }
+  
+  // Add Effect button functionality
+  addEffectButton.addEventListener('click', () => {
+    // Use the existing add effect modal from the EffectsPanel
+    const effectsPanel = orbitalCamera.getEffectsPanel()
+    if (effectsPanel) {
+      // Check if modal is already open
+      const modal = document.querySelector('.add-effect-dropdown') as HTMLElement
+      if (modal && modal.style.display === 'flex') {
+        // Modal is open, close it
+        ;(effectsPanel as any).hideAddEffectModal()
+      } else {
+        // Modal is closed, open it
+        ;(effectsPanel as any).showAddEffectModal()
+      }
+    }
+  })
+  
+  // Reset All button functionality  
+  resetEffectsButton.addEventListener('click', () => {
+    if (window.effectsChainManager) {
+      window.effectsChainManager.clearEffects()
+      
+      // Update the main dropdown to "None"
+      const effectsDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
+      if (effectsDropdown) {
+        effectsDropdown.value = 'none'
+      }
+    }
+  })
+}
+
 
 // Helper function to hide all panels and reset button states
 function hideAllPanels() {

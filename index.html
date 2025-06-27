@@ -139,8 +139,13 @@
             </div>
             <span class="drag-label">Settings</span>
           </div>
+          <div class="panel-arrows" id="settings-arrows">
+            <span class="arrow">▼</span>
+            <span class="arrow">▼</span>
+            <span class="arrow">▼</span>
+          </div>
           <button id="settings-close" class="settings-close-button">
-            ×<span class="esc-hint">esc</span>
+            ×
           </button>
         </div>
         <div class="settings-slider-control" id="point-size-control">
@@ -177,10 +182,15 @@
             <input type="color" id="background-color-picker" class="hidden-color-input" value="#1a0e17">
           </div>
         </div>
-        <div class="settings-slider-control">
+        <div class="settings-slider-control" id="auto-rotation-control">
           <label for="auto-rotation-speed">Rotation Speed:</label>
           <input type="range" id="auto-rotation-speed" min="-2.0" max="2.0" step="0.01" value="0.0">
           <span id="auto-rotation-speed-value">0.0</span>
+        </div>
+        
+        <!-- Settings Panel Resize Handle -->
+        <div class="settings-resize-handle" id="settings-resize-handle">
+          <div class="resize-grip"></div>
         </div>
       </div>
       
@@ -198,8 +208,13 @@
             </div>
             <span class="drag-label">Effects</span>
           </div>
+          <div class="panel-arrows" id="effects-arrows">
+            <span class="arrow">▼</span>
+            <span class="arrow">▼</span>
+            <span class="arrow">▼</span>
+          </div>
           <button id="effects-close" class="settings-close-button">
-            ×<span class="esc-hint">esc</span>
+            ×
           </button>
         </div>
         
@@ -232,6 +247,18 @@
               </div>
             </div>
           </div>
+        </div>
+        
+        <!-- Effects Panel Footer (Always Visible) -->
+        <div class="effects-panel-footer" id="effects-panel-footer">
+          <button class="effects-footer-button add-effect-button" id="desktop-add-effect-button">
+            <span class="button-icon">+</span>
+            <span class="button-text">Add Effect</span>
+          </button>
+          <button class="effects-footer-button reset-effects-button" id="desktop-reset-effects-button">
+            <span class="button-icon">×</span>
+            <span class="button-text">Reset All</span>
+          </button>
         </div>
         
         <!-- Resize Handle -->
@@ -510,6 +537,14 @@
     </div>
 
     
+    <!-- Settings Panel Drag Target -->
+    <div id="settings-drag-target" class="settings-drag-target desktop-only" style="display: none;">
+      <div class="drag-target-indicator">
+        <div class="drag-target-icon">⚙️</div>
+        <div class="drag-target-text">1×6</div>
+      </div>
+    </div>
+
     <canvas id="canvas"></canvas>
     
     <div id="progress" class="progress">

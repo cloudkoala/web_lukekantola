@@ -199,7 +199,165 @@ For detailed technical specifications, see the "Initial Page Load Process" secti
 
 The application provides distinct, optimized experiences for mobile and desktop devices through sophisticated capability detection and responsive design patterns.
 
-### Platform Detection
+### Draggable Panel System
+
+The application features a sophisticated draggable panel system that provides users with complete control over their workspace layout.
+
+### Panel Architecture
+
+**Two Main Draggable Panels**:
+- **Settings Panel**: Grid-based layout (2 rows × 3 columns) for core application settings
+- **Effects Panel**: Resizable panel with scrollable content and fixed footer controls
+
+### Settings Panel Features
+
+**Layout & Positioning**:
+- **Fixed Grid**: 2 rows, 3 columns (750px width to prevent text wrapping)
+- **Default Position**: Center screen at bottom (40px from bottom edge)
+- **Drag Handle**: Visual indicator with 6 dots and "Settings" label
+- **Viewport Constraints**: Panel stays within screen boundaries during drag
+
+**Grid Contents** (Left to Right, Top to Bottom):
+1. **Point Size Slider** - Controls individual point rendering size
+2. **Sphere Radius Slider** - Adjusts sphere mode radius (shown only in sphere mode)
+3. **Focal Length Slider** - Camera field of view control
+4. **Fog Density Slider** - Atmospheric depth effect
+5. **Sphere Mode Toggle** - Switches between point and sphere rendering
+6. **Background Color Picker** - Scene background color with HSV modal
+7. **Auto-Rotation Speed** - Bidirectional rotation control (-2.0 to +2.0)
+
+### Effects Panel Features
+
+**Advanced Panel System**:
+- **Resizable**: Drag bottom-right corner to adjust width (280-600px) and height (200px to 80% viewport)
+- **Scrollable Content**: Effects list scrolls independently while header and footer remain fixed
+- **Default Position**: Top-left corner (150px from top, 12px from left)
+- **Default Size**: 360px × 400px
+
+**Panel Structure**:
+```
+┌─────────────────────────────────┐
+│ [Drag Handle] Effects        [×]│ ← Fixed header
+├─────────────────────────────────┤
+│ Effect: [Dropdown] ▼           │ ← Controls section
+├─────────────────────────────────┤
+│ ┌─────────────────────────────┐ │
+│ │                             │ │ ← Scrollable content
+│ │   [Effect Cards]            │ │   (effect chain)
+│ │   [Parameters]              │ │
+│ │                             │ │
+│ └─────────────────────────────┘ │
+├─────────────────────────────────┤
+│ [+ Add Effect] [× Reset All]   │ ← Fixed footer
+└─────────────────────────────────┘
+```
+
+**Footer Controls**:
+- **Add Effect Button**: Opens searchable effects modal (toggles open/closed)
+- **Reset All Button**: Clears entire effects chain
+- **Always Visible**: Footer remains accessible regardless of content scroll
+
+### Drag Implementation
+
+**Technical Architecture**:
+```typescript
+// Drag handle detection with proper event handling
+const onMouseDown = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (target.closest('.settings-close-button')) return // Exclude close button
+  
+  // Convert from transform-based to absolute positioning
+  panel.style.setProperty('transform', 'none', 'important')
+  panel.style.setProperty('left', `${rect.left}px`, 'important')
+  panel.style.setProperty('top', `${rect.top}px`, 'important')
+}
+```
+
+**Key Features**:
+- **Transform Override**: Uses `setProperty()` with `!important` to override CSS positioning
+- **Viewport Clamping**: Prevents panels from being dragged off-screen
+- **Event Exclusion**: Close buttons don't trigger drag operations
+- **Cursor States**: Visual feedback with `grab` and `grabbing` cursors
+
+### Resize Implementation (Effects Panel Only)
+
+**Resize Handle Design**:
+- **Visual Indicator**: Small triangular grip in bottom-right corner
+- **Cursor Feedback**: Changes to `nw-resize` cursor on hover
+- **Color Feedback**: Background lightens on hover for clear interaction
+
+**Constraints**:
+- **Minimum Size**: 280px × 200px (ensures usability)
+- **Maximum Size**: 600px × 80% viewport height (prevents overwhelm)
+- **Real-time Updates**: Panel content adjusts smoothly during resize
+
+### CSS Architecture
+
+**Critical Override Pattern**:
+```css
+.desktop-only .effects-panel {
+  position: fixed !important;
+  left: 12px !important;
+  top: 150px !important;
+  transform: none !important; /* Enables drag positioning */
+}
+```
+
+**Responsive Layout**:
+```css
+.effects-panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Enables scroll in content area */
+}
+
+.effects-panel-content {
+  flex: 1;
+  overflow-y: auto; /* Scrollable content */
+  overflow-x: hidden;
+}
+
+.effects-panel-footer {
+  flex-shrink: 0; /* Always visible footer */
+  border-top: 1px solid rgba(0, 255, 0, 0.2);
+}
+```
+
+### Integration with Effects System
+
+**Modal Integration**:
+The "Add Effect" button reuses the existing effects system infrastructure:
+```typescript
+// Accesses the EffectsPanel instance through OrbitalCameraSystem
+const effectsPanel = orbitalCamera.getEffectsPanel()
+if (effectsPanel) {
+  // Toggle the searchable effects modal
+  const modal = document.querySelector('.add-effect-dropdown') as HTMLElement
+  if (modal?.style.display === 'flex') {
+    effectsPanel.hideAddEffectModal()
+  } else {
+    effectsPanel.showAddEffectModal()
+  }
+}
+```
+
+**Critical Discovery**: The effects preset dropdown is essential for effects to display properly. Without selecting a preset, effects remain invisible in the chain.
+
+### User Experience Enhancements
+
+**Workflow Optimization**:
+1. **Effects Panel**: Opens near model controls for immediate access
+2. **Settings Panel**: Centers at bottom for non-intrusive global controls
+3. **Resize Capability**: Users can optimize panel size for their content
+4. **Fixed Footer**: Core actions remain accessible during long effect chains
+
+**Visual Consistency**:
+- **Terminal Aesthetic**: Green borders, Space Mono font, retro styling
+- **Hover Effects**: Subtle color changes for interactive elements
+- **Proper Spacing**: 8px gaps, consistent padding throughout
+
+## Platform Detection
 
 **Multi-Modal Detection System**:
 ```typescript
@@ -391,6 +549,7 @@ public/
 
 ## Specialized Documentation
 
+- **DraggablePanels.md** - Complete draggable panel system: implementation, architecture, and UX design
 - **Gallery.md** - Complete PNG-based gallery system: capture, metadata, and management
 - **MobileSlider.md** - Comprehensive mobile slider implementation guide
 - **ColorPicker.md** - Mobile HSV color picker system and integration guide
