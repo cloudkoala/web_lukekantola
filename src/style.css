@@ -805,7 +805,7 @@
   display: none;
 }
 
-/* Desktop gallery button matches capture button styling */
+/* Desktop gallery button - exact match to capture scene button styling */
 .gallery-button {
   display: flex;
   align-items: center;
@@ -4851,7 +4851,7 @@ body, html {
   isolation: isolate;
 }
 
-.gallery-button {
+.mobile-control-buttons .gallery-button {
   width: 44px;
   height: 44px;
   background: rgba(0, 0, 0, 0.7);
@@ -4867,23 +4867,23 @@ body, html {
   box-shadow: none;
 }
 
-.gallery-button:hover:not(.active):not(:focus) {
+.mobile-control-buttons .gallery-button:hover:not(.active):not(:focus) {
   background: rgba(0, 255, 0, 0.1);
   border-color: #00ff00;
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
 
-.gallery-button.active {
+.mobile-control-buttons .gallery-button.active {
   background: rgba(0, 255, 0, 0.2);
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
-.gallery-button:not(.active):not(:hover) {
+.mobile-control-buttons .gallery-button:not(.active):not(:hover) {
   background: rgba(0, 0, 0, 0.7);
   box-shadow: none;
 }
 
-.gallery-button svg {
+.mobile-control-buttons .gallery-button svg {
   width: 24px;
   height: 24px;
   stroke: #00ff00;
