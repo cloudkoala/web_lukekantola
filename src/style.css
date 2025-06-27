@@ -34,66 +34,28 @@
   }
 }
 
-/* Mobile Camera Reset Button */
-.mobile-camera-reset {
+
+
+/* Mobile Control Buttons Container */
+.mobile-control-buttons {
   position: fixed;
   bottom: 12px;
-  left: 12px;
+  left: 12px; /* Start from left edge of screen */
   z-index: 800;
   display: flex;
+  flex-direction: row;
+  gap: 12px;
   align-items: center;
-  gap: 10px;
-  opacity: 1;
-  pointer-events: auto;
 }
 
-.camera-reset-button {
-  width: 44px;
-  height: 44px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid #00ff00;
-  border-radius: 8px;
-  color: #00ff00;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: none; /* Remove transitions to prevent stuck states */
-  font-family: 'Space Mono', monospace;
-  box-shadow: none;
+.mobile-control-buttons .mobile-effects-button,
+.mobile-control-buttons .mobile-settings-button,
+.mobile-control-buttons .mobile-gallery-button {
+  /* These are flex items, no need to override display */
 }
-
-.camera-reset-button:hover:not(.active):not(:focus) {
-  background: rgba(0, 255, 0, 0.1);
-  border-color: #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
-}
-
-.camera-reset-button.active {
-  background: rgba(0, 255, 0, 0.2);
-  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
-}
-
-/* Force default state */
-.camera-reset-button:not(.active):not(:hover) {
-  background: rgba(0, 0, 0, 0.7);
-  box-shadow: none;
-}
-
-.camera-reset-button svg {
-  width: 24px;
-  height: 24px;
-  stroke: #00ff00;
-  fill: none;
-}
-
 
 /* Mobile Effects Button */
 .mobile-effects-button {
-  position: fixed;
-  bottom: 12px;
-  left: 68px;
-  z-index: 800;
   opacity: 1;
   pointer-events: auto;
   transform: translateZ(0); /* Force hardware acceleration and proper repainting */
@@ -145,13 +107,8 @@
 
 /* Mobile Settings Button - Hidden on desktop */
 .mobile-settings-button {
-  position: fixed;
-  bottom: 12px;
-  left: 124px;
-  z-index: 800;
   opacity: 1;
   pointer-events: auto;
-  display: none; /* Hidden on desktop by default */
   transform: translateZ(0); /* Force hardware acceleration and proper repainting */
   will-change: transform; /* Hint browser that element will be animated */
   isolation: isolate; /* Create a new stacking context to prevent bleed-through */
@@ -3406,9 +3363,9 @@ body, html {
     display: none;
   }
   
-  /* Show mobile settings button on mobile */
-  .mobile-settings-button {
-    display: block;
+  /* Show mobile control buttons container on mobile */
+  .mobile-control-buttons.mobile-only {
+    display: flex !important;
   }
   
   /* Show mobile share button on mobile */
@@ -4781,6 +4738,159 @@ body, html {
   transition: none;
 }
 
+/* Mobile Rotation Controls with Tap Zones */
+.rotation-card {
+  position: relative;
+}
+
+.rotation-tap-left,
+.rotation-tap-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 25%;
+  background: transparent;
+  cursor: pointer;
+  z-index: 1;
+  transition: background 0.1s ease;
+}
+
+.rotation-tap-left {
+  left: 0;
+}
+
+.rotation-tap-right {
+  right: 0;
+}
+
+.rotation-tap-left:active {
+  background: rgba(255, 0, 0, 0.1); /* Subtle red for decrease */
+}
+
+.rotation-tap-right:active {
+  background: rgba(0, 255, 0, 0.1); /* Subtle green for increase */
+}
+
+.rotation-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  font-weight: bold;
+  color: rgba(0, 255, 0, 0.3);
+  pointer-events: none;
+  user-select: none;
+  transition: color 0.1s ease;
+}
+
+.rotation-tap-left:active .rotation-icon {
+  color: rgba(0, 255, 0, 0.8);
+}
+
+.rotation-tap-right:active .rotation-icon {
+  color: rgba(0, 255, 0, 0.8);
+}
+
+.rotation-card .settings-option-value {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  font-size: 0.55rem;
+  font-weight: 400;
+  line-height: 1;
+  opacity: 0.8;
+  pointer-events: none; /* Allow touches to pass through to tap zones */
+}
+
+/* Mobile BG Color Card */
+.bg-color-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: fit-content !important;
+  max-width: fit-content !important;
+  padding: 0 12px !important;
+}
+
+.bg-color-card .camera-option-name {
+  margin: 0;
+  text-align: left;
+}
+
+/* Mobile BG Color Swatch */
+.mobile-bg-color-swatch {
+  position: static;
+  transform: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.bg-color-card:hover .mobile-bg-color-swatch {
+  border-color: rgba(0, 255, 0, 0.5);
+  transform: scale(1.1);
+}
+
+.bg-color-card:active .mobile-bg-color-swatch {
+  transform: scale(0.95);
+}
+
+/* Mobile Gallery Button */
+.mobile-gallery-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateZ(0);
+  will-change: transform;
+  isolation: isolate;
+}
+
+.gallery-button {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  color: #00ff00;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: none;
+  font-family: 'Space Mono', monospace;
+  box-shadow: none;
+}
+
+.gallery-button:hover:not(.active):not(:focus) {
+  background: rgba(0, 255, 0, 0.1);
+  border-color: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+.gallery-button.active {
+  background: rgba(0, 255, 0, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+.gallery-button:not(.active):not(:hover) {
+  background: rgba(0, 0, 0, 0.7);
+  box-shadow: none;
+}
+
+.gallery-button svg {
+  width: 24px;
+  height: 24px;
+  stroke: #00ff00;
+  fill: none;
+}
+
+
 /* Force hide mobile elements on desktop with high specificity */
 @media (hover: hover) and (pointer: fine) {
   .mobile-scene-actions.mobile-only {
@@ -4796,6 +4906,9 @@ body, html {
     display: none !important;
   }
   .mobile-settings-button.mobile-only {
+    display: none !important;
+  }
+  .mobile-gallery-button.mobile-only {
     display: none !important;
   }
 }

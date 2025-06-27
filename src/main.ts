@@ -307,41 +307,7 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false })
 
 window.addEventListener('resize', handleResize)
 
-// Simple mobile button positioning (since bottom sheet is hidden)
-let positioningInitialized = false
-function setMobileButtonPositions() {
-  // Only run once since CSS now has correct initial positions
-  if (positioningInitialized) {
-    console.log('🔧 setMobileButtonPositions skipped - already initialized')
-    return
-  }
-  
-  console.log('🔧 setMobileButtonPositions called (first time)')
-  const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
-  const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-  const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
-  
-  // Since bottom sheet is hidden and CSS has correct positions, just ensure they're set
-  const fixedBottomPosition = 12 // 12px from bottom
-  
-  if (effectsButtonContainer && effectsButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
-    effectsButtonContainer.style.bottom = `${fixedBottomPosition}px`
-    console.log(`✅ Effects container positioned: ${effectsButtonContainer.style.bottom}`)
-  }
-  
-  if (cameraButtonContainer && cameraButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
-    cameraButtonContainer.style.bottom = `${fixedBottomPosition}px`
-    console.log(`✅ Camera container positioned: ${cameraButtonContainer.style.bottom}`)
-  }
-  
-  if (settingsButtonContainer && settingsButtonContainer.style.bottom !== `${fixedBottomPosition}px`) {
-    settingsButtonContainer.style.bottom = `${fixedBottomPosition}px`
-    console.log(`✅ Settings container positioned: ${settingsButtonContainer.style.bottom}`)
-  }
-  
-  positioningInitialized = true
-  console.log('🔧 Mobile button positioning initialized')
-}
+// Mobile button positioning is now handled by the mobile-control-buttons container and panel manager
 
 // Color conversion utilities
 function hexToRgb(hex: string) {
@@ -1816,7 +1782,7 @@ function setupMobileEffectsButton() {
   
   // Set initial position
   setTimeout(() => {
-    setMobileButtonPositions()
+    // Mobile button positioning now handled by container
     updateEffectsButtonVisibility()
     setupMobilePresetSelector()
   }, 50)
@@ -1914,17 +1880,10 @@ function createPanelManager() {
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
       // Clear all inline styles that could make mobile elements visible on desktop
-      if (cameraButtonContainer) {
-        cameraButtonContainer.style.bottom = ''
-        cameraButtonContainer.style.display = ''
-      }
-      if (effectsButtonContainer) {
-        effectsButtonContainer.style.bottom = ''
-        effectsButtonContainer.style.display = ''
-      }
-      if (settingsButtonContainer) {
-        settingsButtonContainer.style.bottom = ''
-        settingsButtonContainer.style.display = ''
+      
+      if (controlButtonsContainer) {
+        controlButtonsContainer.style.bottom = ''
+        controlButtonsContainer.style.display = ''
       }
       if (sceneActionsContainer) {
         sceneActionsContainer.style.bottom = ''
@@ -1951,16 +1910,12 @@ function createPanelManager() {
         // No panels open, use default position
         const defaultPosition = 12
         const defaultTrashPosition = 120
-        const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-        const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
-        const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+        const controlButtonsContainer = document.getElementById('mobile-control-buttons') as HTMLElement
         const sceneActionsContainer = document.getElementById('mobile-scene-actions') as HTMLElement
         const modelSelector = document.getElementById('mobile-model-selector') as HTMLElement
         const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
         
-        if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
-        if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
-        if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
+        if (controlButtonsContainer) controlButtonsContainer.style.bottom = `${defaultPosition}px`
         if (sceneActionsContainer) sceneActionsContainer.style.bottom = `${defaultPosition}px`
         if (modelSelector) modelSelector.style.bottom = `${defaultPosition}px`
         if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
@@ -1988,21 +1943,13 @@ function createPanelManager() {
         120 // Default position when no panels open
       
       // Update all mobile button positions
-      const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
-      const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
-      const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      const controlButtonsContainer = document.getElementById('mobile-control-buttons') as HTMLElement
       const sceneActionsContainer = document.getElementById('mobile-scene-actions') as HTMLElement
       const modelSelector = document.getElementById('mobile-model-selector') as HTMLElement
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
-      if (cameraButtonContainer) {
-        cameraButtonContainer.style.bottom = `${buttonBottomPosition}px`
-      }
-      if (effectsButtonContainer) {
-        effectsButtonContainer.style.bottom = `${buttonBottomPosition}px`
-      }
-      if (settingsButtonContainer) {
-        settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      if (controlButtonsContainer) {
+        controlButtonsContainer.style.bottom = `${buttonBottomPosition}px`
       }
       if (sceneActionsContainer) {
         sceneActionsContainer.style.bottom = `${buttonBottomPosition}px`
@@ -2020,18 +1967,11 @@ function createPanelManager() {
 
   function updateIconActiveStates() {
     // Update button active states only, not positions
-    const cameraButton = document.getElementById('camera-reset-button') as HTMLElement
-    const cameraPanel = panels.get('camera')
-    
     const effectsButton = document.getElementById('mobile-effects-button-element') as HTMLElement
     const effectsPanel = panels.get('effects')
     
     const settingsButton = document.getElementById('mobile-settings-button-element') as HTMLElement
     const settingsPanel = panels.get('settings')
-    
-    if (cameraButton && cameraPanel) {
-      forceButtonReset(cameraButton, cameraPanel.isOpen)
-    }
     
     if (effectsButton && effectsPanel) {
       forceButtonReset(effectsButton, effectsPanel.isOpen)
@@ -2129,6 +2069,187 @@ function initializePanelManager() {
 }
 
 // This function has been replaced by combining camera controls with settings
+
+// Shared function for creating rotation cards with tap zones and drag functionality
+function createRotationCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
+  const card = document.createElement('div')
+  card.className = 'settings-option-card rotation-card'
+  
+  const initialValue = parseFloat(currentValue)
+  let currentRotationValue = initialValue
+  
+  // Calculate initial fill for bidirectional slider
+  let initialFillStyle = ''
+  if (initialValue === 0) {
+    initialFillStyle = 'width: 0%; display: none;'
+  } else if (initialValue > 0) {
+    const fillWidth = (initialValue / max) * 50
+    initialFillStyle = `display: block; left: 50%; right: auto; width: ${fillWidth}%;`
+  } else {
+    const fillWidth = (Math.abs(initialValue) / Math.abs(min)) * 50
+    initialFillStyle = `display: block; left: auto; right: 50%; width: ${fillWidth}%;`
+  }
+  
+  card.innerHTML = `
+    <div class="settings-option-name">${label}</div>
+    <div class="settings-option-value">${currentValue}</div>
+    <div class="slider-fill" style="${initialFillStyle}"></div>
+    <div class="rotation-tap-left">
+      <span class="rotation-icon">−</span>
+    </div>
+    <div class="rotation-tap-right">
+      <span class="rotation-icon">+</span>
+    </div>
+  `
+  
+  const valueElement = card.querySelector('.settings-option-value') as HTMLElement
+  const fillElement = card.querySelector('.slider-fill') as HTMLElement
+  const tapLeftElement = card.querySelector('.rotation-tap-left') as HTMLElement
+  const tapRightElement = card.querySelector('.rotation-tap-right') as HTMLElement
+  
+  const updateRotationValueInternal = (newValue: number) => {
+    // Apply step rounding
+    let steppedValue = Math.round(newValue / step) * step
+    
+    const clampedValue = Math.max(min, Math.min(max, steppedValue))
+    
+    // Only update if value actually changed
+    if (Math.abs(clampedValue - currentRotationValue) < step * 0.01) return
+    
+    currentRotationValue = clampedValue
+    
+    // Update visual fill - bidirectional from center
+    if (fillElement) {
+      if (clampedValue === 0) {
+        fillElement.style.width = '0%'
+        fillElement.style.display = 'none'
+      } else if (clampedValue > 0) {
+        const fillWidth = (clampedValue / max) * 50
+        fillElement.style.display = 'block'
+        fillElement.style.left = '50%'
+        fillElement.style.right = 'auto'
+        fillElement.style.width = `${fillWidth}%`
+      } else {
+        const fillWidth = (Math.abs(clampedValue) / Math.abs(min)) * 50
+        fillElement.style.display = 'block'
+        fillElement.style.left = 'auto'
+        fillElement.style.right = '50%'
+        fillElement.style.width = `${fillWidth}%`
+      }
+    }
+    
+    // Update value display
+    if (valueElement) {
+      valueElement.textContent = clampedValue === 0 ? '0' : clampedValue.toFixed(2)
+    }
+    
+    // Call onChange callback
+    onChange(clampedValue)
+  }
+  
+  // Touch interaction for slider - relative movement (original drag functionality)
+  let isDragging = false
+  let startX = 0
+  let startValue = parseFloat(currentValue)
+  
+  // Double tap detection
+  let lastTapTime = 0
+  const doubleTapDelay = 300 // ms
+  
+  // Calculate range for relative movement
+  const range = max - min
+  const cardWidth = 120 // Approximate card width in pixels
+  const sensitivityFactor = range / cardWidth // Value change per pixel
+  
+  card.addEventListener('touchstart', (e) => {
+    const rect = card.getBoundingClientRect()
+    const touch = e.touches[0]
+    const x = touch.clientX - rect.left
+    const cardWidth = rect.width
+    const currentTime = Date.now()
+    
+    // Check if touch is in left or right tap zones (outer 25% on each side)
+    const leftZone = cardWidth * 0.25
+    const rightZone = cardWidth * 0.75
+    
+    if (x < leftZone) {
+      // Left tap zone - decrease only (no double tap reset)
+      e.preventDefault()
+      updateRotationValueInternal(currentRotationValue - step)
+      lastTapTime = 0 // Reset double tap timer
+      return
+    } else if (x > rightZone) {
+      // Right tap zone - increase only (no double tap reset)
+      e.preventDefault()
+      updateRotationValueInternal(currentRotationValue + step)
+      lastTapTime = 0 // Reset double tap timer
+      return
+    }
+    
+    // Middle zone - check for double tap OR start drag
+    if (currentTime - lastTapTime < doubleTapDelay) {
+      // Double tap detected in center zone - reset to 0
+      e.preventDefault()
+      updateRotationValueInternal(0)
+      lastTapTime = 0 // Reset to prevent triple tap
+      return
+    }
+    
+    lastTapTime = currentTime
+    
+    // Middle zone - start drag
+    isDragging = true
+    startX = touch.clientX
+    startValue = currentRotationValue
+    e.preventDefault()
+  })
+  
+  card.addEventListener('touchmove', (e) => {
+    if (!isDragging) return
+    
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - startX
+    const deltaValue = deltaX * sensitivityFactor
+    const newValue = startValue + deltaValue
+    
+    updateRotationValueInternal(newValue)
+    e.preventDefault()
+  })
+  
+  card.addEventListener('touchend', (e) => {
+    isDragging = false
+    e.preventDefault()
+  })
+  
+  // Expose update function for external use
+  ;(card as any).updateValue = (newValue: string) => {
+    const numValue = parseFloat(newValue)
+    currentRotationValue = numValue
+    if (valueElement) valueElement.textContent = numValue === 0 ? '0' : numValue.toFixed(2)
+    
+    // Update fill visual
+    if (fillElement) {
+      if (numValue === 0) {
+        fillElement.style.width = '0%'
+        fillElement.style.display = 'none'
+      } else if (numValue > 0) {
+        const fillWidth = (numValue / max) * 50
+        fillElement.style.display = 'block'
+        fillElement.style.left = '50%'
+        fillElement.style.right = 'auto'
+        fillElement.style.width = `${fillWidth}%`
+      } else {
+        const fillWidth = (Math.abs(numValue) / Math.abs(min)) * 50
+        fillElement.style.display = 'block'
+        fillElement.style.left = 'auto'
+        fillElement.style.right = '50%'
+        fillElement.style.width = `${fillWidth}%`
+      }
+    }
+  }
+  
+  return card
+}
 
 // Shared function for creating slider cards (used by both settings and camera panels)
 function createSliderCard(label: string, currentValue: string, min: number, max: number, step: number, onChange: (value: number) => void) {
@@ -2333,8 +2454,7 @@ function setupMobileSettings() {
   const manager = initializePanelManager()
   manager.registerPanel('settings', horizontalSettingsPanel)
   
-  // Position settings button to far left
-  settingsButtonContainer.style.left = '12px'
+  // Settings button position is now managed by the mobile-control-buttons container
   
   // Settings button is always visible now (no bottom sheet)
   function updateSettingsButtonVisibility() {
@@ -2499,30 +2619,49 @@ function setupMobileSettings() {
     })
     horizontalSettingsOptions.appendChild(resetCard)
     
-    // Add Play Animation option
-    const animationCard = document.createElement('div')
-    animationCard.className = 'camera-option-card'
-    animationCard.style.cssText = `
+    // Add BG Color option
+    const bgColorCard = document.createElement('div')
+    bgColorCard.className = 'camera-option-card bg-color-card'
+    bgColorCard.style.cssText = `
       flex: 1;
       min-width: 80px;
       max-width: calc(33.33% - 8px);
       order: 101;
+      position: relative;
     `
-    animationCard.innerHTML = `
-      <div class="camera-option-name">Play<br>Animation</div>
+    
+    // Get current background color from the desktop color picker
+    const backgroundColorPicker = document.getElementById('background-color-picker') as HTMLInputElement
+    const currentBgColor = backgroundColorPicker ? backgroundColorPicker.value : '#1a0e17'
+    
+    bgColorCard.innerHTML = `
+      <div class="camera-option-name">BG<br>Color</div>
+      <div class="mobile-bg-color-swatch" style="background-color: ${currentBgColor};" data-color="${currentBgColor}"></div>
     `
-    animationCard.addEventListener('click', () => {
-      if (orbitalCamera) {
-        orbitalCamera.startLoadingAnimation()
-      }
+    
+    bgColorCard.addEventListener('click', () => {
+      const swatch = bgColorCard.querySelector('.mobile-bg-color-swatch') as HTMLElement
+      const currentColor = swatch.getAttribute('data-color') || '#1a0e17'
+      
+      showMobileColorPicker(currentColor, (newHex) => {
+        // Update mobile swatch
+        swatch.style.backgroundColor = newHex
+        swatch.setAttribute('data-color', newHex)
+        
+        // Update desktop color picker and trigger change
+        if (backgroundColorPicker) {
+          backgroundColorPicker.value = newHex
+          backgroundColorPicker.dispatchEvent(new Event('change'))
+        }
+      })
     })
-    horizontalSettingsOptions.appendChild(animationCard)
+    horizontalSettingsOptions.appendChild(bgColorCard)
     
     // Get current rotation speed from orbitalCamera or default
     const currentSpeed = '0.0' // Default value - will be updated by scene state
     
-    // Create rotation speed slider card using the same method as settings panel
-    const speedCard = createSliderCard('Rotation', currentSpeed, -2.0, 2.0, 0.01, (value) => {
+    // Create rotation speed control with plus/minus buttons
+    const speedCard = createRotationCard('Rotation', currentSpeed, -0.5, 0.5, 0.01, (value) => {
       if (orbitalCamera) {
         orbitalCamera.setBidirectionalRotationSpeed(value)
         
@@ -2559,7 +2698,7 @@ function setupMobileSettings() {
 
   // Initial setup
   setTimeout(() => {
-    setMobileButtonPositions()
+    // Mobile button positioning now handled by container
     updateSettingsButtonVisibility()
     setupMobileModelSelector()
   }, 50)
@@ -2624,19 +2763,24 @@ function setupMobileModelSelector() {
     }
   })
   
-  // Sync with desktop model changes
-  desktopModelDropdown.addEventListener('change', () => {
+  // Create update function for mobile model display
+  function updateMobileModelDisplay() {
     const selectedModel = models.find(m => m.value === desktopModelDropdown.value)
     if (selectedModel) {
       mobileModelName.textContent = selectedModel.name
     }
+  }
+  
+  // Sync with desktop model changes
+  desktopModelDropdown.addEventListener('change', () => {
+    updateMobileModelDisplay()
   })
   
   // Initialize with current desktop selection
-  const currentModel = models.find(m => m.value === desktopModelDropdown.value)
-  if (currentModel) {
-    mobileModelName.textContent = currentModel.name
-  }
+  updateMobileModelDisplay()
+  
+  // Expose function globally so it can be called when models change
+  ;(window as any).updateMobileModelDisplay = updateMobileModelDisplay
 }
 
 // Settings button functionality

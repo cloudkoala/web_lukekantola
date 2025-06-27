@@ -241,6 +241,17 @@ export class ModelManager {
     
     console.log('Switching to model:', model.displayName)
     
+    // Update desktop dropdown to reflect the model change
+    const dropdown = document.querySelector('#model-dropdown') as HTMLSelectElement
+    if (dropdown && dropdown.value !== modelKey) {
+      dropdown.value = modelKey
+    }
+    
+    // Update mobile model display if available
+    if ((window as any).updateMobileModelDisplay) {
+      (window as any).updateMobileModelDisplay()
+    }
+    
     // Update display name field and load defaults
     this.orbitalCamera.updateDisplayNameField()
     this.orbitalCamera.loadDefaultPointSize()
