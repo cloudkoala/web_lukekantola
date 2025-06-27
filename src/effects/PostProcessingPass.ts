@@ -7,8 +7,9 @@ import { CirclePackingPass } from './CirclePackingPass'
 import { GaussianBlurPass } from './GaussianBlurPass'
 import { GlowPass } from './GlowPass'
 import { MotionBlurPass } from './MotionBlurPass'
+import { SSAOPass } from './SSAOPass'
 
-export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi'
+export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi' | 'ambientocclusion'
 
 export class PostProcessingPass {
   private renderTargets: THREE.WebGLRenderTarget[]
@@ -82,6 +83,7 @@ export class PostProcessingPass {
   private gaussianBlurPass: GaussianBlurPass
   private glowPass: GlowPass
   private motionBlurPass: MotionBlurPass
+  private ssaoPass: SSAOPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -317,7 +319,20 @@ export class PostProcessingPass {
         posterizeLevels: { value: 8.0 },
         posterizeBlackAndWhite: { value: 0.0 },
         posterizeGamma: { value: 1.0 },
-        posterizeSmoothness: { value: 0.0 }
+        posterizeSmoothness: { value: 0.0 },
+        // Ambient Occlusion uniforms
+        aoRadius: { value: 2.0 },
+        aoStrength: { value: 1.5 },
+        aoBias: { value: 0.05 },
+        aoSamples: { value: 16 },
+        aoQuality: { value: 2 },
+        aoOnly: { value: 0 },
+        debugDepth: { value: 0 },
+        projectionMatrix: { value: new THREE.Matrix4() },
+        inverseProjectionMatrix: { value: new THREE.Matrix4() },
+        cameraViewMatrix: { value: new THREE.Matrix4() },
+        cameraNear: { value: 0.1 },
+        cameraFar: { value: 1000 }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -341,6 +356,7 @@ export class PostProcessingPass {
     this.gaussianBlurPass = new GaussianBlurPass(width, height)
     this.glowPass = new GlowPass(width, height)
     this.motionBlurPass = new MotionBlurPass(width, height)
+    this.ssaoPass = new SSAOPass(width, height)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -358,8 +374,16 @@ export class PostProcessingPass {
       this.motionBlurPass.updateCameraMatrices(this.currentCamera)
     }
     
-    // Render depth and update previous frame for enhanced motion blur
-    this.updateMotionBlurFrameData(renderer, inputTexture)
+    // Check if we need depth buffer for SSAO or motion blur
+    const enabledEffects = this.effectsChain.filter(effect => effect.enabled)
+    const needsDepthBuffer = enabledEffects.some(effect => 
+      effect.type === 'motionblur' || effect.type === 'ambientocclusion'
+    )
+    
+    // Render depth buffer if needed
+    if (needsDepthBuffer) {
+      this.updateMotionBlurFrameData(renderer, inputTexture)
+    }
     
     if (!this.enabled) {
       // If disabled, just copy input to output
@@ -368,8 +392,7 @@ export class PostProcessingPass {
       return
     }
     
-    // Check if we have effects in the chain
-    const enabledEffects = this.effectsChain.filter(effect => effect.enabled)
+    // We already have enabledEffects from above
     
     // Check if any drawrange effects are active
     const hasDrawRangeEffect = enabledEffects.some(effect => effect.type === 'drawrange')
@@ -537,7 +560,7 @@ export class PostProcessingPass {
     }
     
     // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur') {
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur' || effect.type === 'ambientocclusion') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -723,6 +746,30 @@ export class PostProcessingPass {
         this.material.uniforms.posterizeSmoothness.value = effect.parameters.smoothness ?? 0.0
         break
       
+      case 'ambientocclusion':
+        this.material.uniforms.aoRadius.value = effect.parameters.radius ?? 2.0
+        this.material.uniforms.aoStrength.value = effect.parameters.strength ?? 1.5
+        this.material.uniforms.aoBias.value = effect.parameters.bias ?? 0.05
+        this.material.uniforms.aoSamples.value = effect.parameters.samples ?? 16
+        this.material.uniforms.aoQuality.value = effect.parameters.quality ?? 2
+        this.material.uniforms.aoOnly.value = effect.parameters.aoOnly ?? 0
+        this.material.uniforms.debugDepth.value = effect.parameters.debugDepth ?? 0
+        
+        // Update camera matrices for SSAO position reconstruction
+        if (this.currentCamera) {
+          this.material.uniforms.projectionMatrix.value.copy(this.currentCamera.projectionMatrix)
+          this.material.uniforms.inverseProjectionMatrix.value.copy(this.currentCamera.projectionMatrix).invert()
+          this.material.uniforms.cameraViewMatrix.value.copy(this.currentCamera.matrixWorldInverse)
+          this.material.uniforms.cameraNear.value = this.currentCamera.near
+          this.material.uniforms.cameraFar.value = this.currentCamera.far
+        }
+        
+        // Ensure depth texture is available for SSAO
+        if (this.depthRenderTarget) {
+          this.material.uniforms.tDepth.value = this.depthRenderTarget.texture
+        }
+        break
+      
       case 'noise2d':
         this.material.uniforms.noiseScale.value = effect.parameters.scale ?? 10.0
         this.material.uniforms.noiseTimeSpeed.value = effect.parameters.timeSpeed ?? 1.0
@@ -834,6 +881,18 @@ export class PostProcessingPass {
         }
         return
         break
+      case 'ambientocclusion':
+        this.ssaoPass.intensity = effect.parameters.intensity ?? 0.5
+        this.ssaoPass.radius = effect.parameters.radius ?? 2.0
+        this.ssaoPass.strength = effect.parameters.strength ?? 1.5
+        this.ssaoPass.bias = effect.parameters.bias ?? 0.05
+        this.ssaoPass.samples = effect.parameters.samples ?? 16
+        this.ssaoPass.quality = effect.parameters.quality ?? 2
+        this.ssaoPass.aoOnly = effect.parameters.aoOnly ?? 0
+        this.ssaoPass.debugDepth = effect.parameters.debugDepth ?? 0
+        this.ssaoPass.render(renderer, inputTexture, null, outputTarget)
+        return
+        break
       default:
         return
     }
@@ -897,10 +956,10 @@ export class PostProcessingPass {
               // blend.rgb represents the intensity to add (0.0 = no change, 1.0 = full brighten)
               result = vec4(clamp(base.rgb + blend.rgb, 0.0, 1.0), base.a);
             } else if (blendMode == 2) {
-              // Multiply blend mode - fixed  
-              // Effect outputs: white = no change, black = darken
-              // Invert blend so: white (1.0) → 0.0 = no darkening, black (0.0) → 1.0 = full darkening
-              result = vec4(base.rgb * (1.0 - blend.rgb), base.a);
+              // Multiply blend mode - standard implementation
+              // Effect outputs: white (1.0) = no change, black (0.0) = darken
+              // Standard multiply: result = base * blend
+              result = vec4(base.rgb * blend.rgb, base.a);
             } else {
               // Normal blend mode (default)
               result = blend;
@@ -1265,6 +1324,7 @@ export class PostProcessingPass {
       case 'skysphere': return 24
       case 'splittone': return 25
       case 'posterize': return 26
+      case 'ambientocclusion': return 0 // Handled as dithering effect
       // Topographic effects are handled separately in applyTopographicEffect
       case 'topographic': return 0
       // DrawRange effects are handled separately in applyDrawRangeEffect  
@@ -3089,6 +3149,18 @@ export class PostProcessingPass {
       uniform float posterizeBlackAndWhite;
       uniform float posterizeGamma;
       uniform float posterizeSmoothness;
+      uniform float aoRadius;
+      uniform float aoStrength;
+      uniform float aoBias;
+      uniform float aoSamples;
+      uniform float aoQuality;
+      uniform float aoOnly;
+      uniform float debugDepth;
+      uniform mat4 projectionMatrix;
+      uniform mat4 inverseProjectionMatrix;
+      uniform mat4 cameraViewMatrix;
+      uniform float cameraNear;
+      uniform float cameraFar;
       uniform float noiseScale;
       uniform float noiseTimeSpeed;
       uniform int noiseType;
@@ -3637,6 +3709,35 @@ export class PostProcessingPass {
         
         // Blend with original color based on intensity
         return mix(color, quantizedColor, posterizeIntensity);
+      }
+      
+      // Helper function to decode depth from RGBA depth texture
+      float decodeDepth(vec4 rgba) {
+        return dot(rgba, vec4(1.0, 1.0/255.0, 1.0/65025.0, 1.0/16581375.0));
+      }
+      
+      // Convert screen-space coordinates to view-space position
+      vec3 getViewPosition(vec2 screenPos, float depth) {
+        vec4 clipSpacePos = vec4(screenPos * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+        vec4 viewSpacePos = inverseProjectionMatrix * clipSpacePos;
+        return viewSpacePos.xyz / viewSpacePos.w;
+      }
+      
+      // True Screen Space Ambient Occlusion (SSAO)
+      vec3 ambientOcclusion(vec3 color, vec2 uv) {
+        // SIMPLE TEST: Always return bright colors to verify function is called
+        if (debugDepth > 0.5) {
+          // Test if function is being called - should show rainbow pattern
+          return vec3(uv.x, uv.y, 0.5);
+        }
+        
+        // Test if SSAO function is called at all
+        if (aoOnly > 0.5) {
+          return vec3(1.0, 0.0, 1.0); // Magenta = AO Only mode active
+        }
+        
+        // Simple color tint to verify function execution
+        return mix(color, vec3(0.8, 0.9, 1.0), intensity * 0.2);
       }
       
       // 3D gradient function for proper evolution
@@ -4567,6 +4668,12 @@ export class PostProcessingPass {
         } else if (effectType == 26) {
           // Posterize Effect
           color = posterize(color, vUv);
+        } else if (effectType == 27) {
+          // Ambient Occlusion Effect
+          color = ambientOcclusion(color, vUv);
+        } else if (effectType > 26) {
+          // Debug: Show if we have an effect type > 26
+          color = vec3(1.0, 0.0, 1.0); // Magenta for unknown effect types
         }
         
         gl_FragColor = vec4(color, originalColor.a);
@@ -4755,11 +4862,7 @@ export class PostProcessingPass {
           float depth = readDepth(tDepth, vUv);
           float viewZ = abs(getViewZ(depth));
           
-          // Debug: visualize depth
-          if (vUv.x < 0.2) {
-            gl_FragColor = vec4(viewZ / 50.0, 0.0, 0.0, 1.0);
-            return;
-          }
+          // Debug: visualize depth (removed)
           
           // Calculate blur amount based on distance from focus
           float depthDiff = abs(viewZ - focusDistance);
@@ -4815,12 +4918,13 @@ export class PostProcessingPass {
 
   // Enhanced motion blur effect methods
   private initializeMotionBlurBuffers(width: number, height: number): void {
-    // Create depth render target
+    // Create depth render target with depth texture
     this.depthRenderTarget = new THREE.WebGLRenderTarget(width, height, {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
       type: THREE.UnsignedByteType,
+      depthTexture: new THREE.DepthTexture(width, height),
       depthBuffer: true,
       stencilBuffer: false
     })
@@ -4835,7 +4939,7 @@ export class PostProcessingPass {
       stencilBuffer: false
     })
     
-    // Create depth material for depth rendering
+    // Use Three.js built-in depth material (works with instancing automatically)
     this.depthMaterial = new THREE.MeshDepthMaterial({
       depthPacking: THREE.RGBADepthPacking
     })
@@ -4846,30 +4950,13 @@ export class PostProcessingPass {
       return
     }
 
-    // Render depth buffer
-    if (this.depthMaterial) {
-      // Store original materials
-      const originalMaterials = new Map<THREE.Object3D, THREE.Material | THREE.Material[]>()
-      
-      this.mainScene.traverse((object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
-          originalMaterials.set(object, object.material)
-          object.material = this.depthMaterial!
-        }
-      })
-
-      // Render depth to depth render target
-      renderer.setRenderTarget(this.depthRenderTarget)
-      renderer.clear()
-      renderer.render(this.mainScene, this.currentCamera)
-
-      // Restore original materials
-      originalMaterials.forEach((material, object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.Points) {
-          object.material = material
-        }
-      })
-    }
+    // Render scene normally to get built-in depth texture
+    const oldRenderTarget = renderer.getRenderTarget()
+    renderer.setRenderTarget(this.depthRenderTarget)
+    renderer.clear()
+    renderer.render(this.mainScene, this.currentCamera)
+    renderer.setRenderTarget(oldRenderTarget)
+    console.log('Rendered scene to depth target, depthTexture available:', !!this.depthRenderTarget.depthTexture)
 
     // Update depth and previous frame textures in shader uniforms
     this.material.uniforms.tDepth.value = this.depthRenderTarget.texture

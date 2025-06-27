@@ -1,10 +1,232 @@
 import * as THREE from 'three'
 
+// Singleton geometry cache for sphere reuse
+class GeometryCache {
+  private static instance: GeometryCache
+  private cache = new Map<string, THREE.SphereGeometry>()
+  
+  static getInstance(): GeometryCache {
+    if (!GeometryCache.instance) {
+      GeometryCache.instance = new GeometryCache()
+    }
+    return GeometryCache.instance
+  }
+  
+  getGeometry(widthSegments: number, heightSegments: number): THREE.SphereGeometry {
+    const key = `${widthSegments}-${heightSegments}`
+    if (!this.cache.has(key)) {
+      this.cache.set(key, new THREE.SphereGeometry(1, widthSegments, heightSegments))
+    }
+    return this.cache.get(key)!
+  }
+  
+  dispose(): void {
+    this.cache.forEach(geometry => geometry.dispose())
+    this.cache.clear()
+  }
+}
+
+// Material pool for reusing shader materials
+class MaterialPool {
+  private static instance: MaterialPool
+  private coloredMaterials = new Map<string, THREE.ShaderMaterial>()
+  private simpleMaterials = new Map<string, THREE.ShaderMaterial>()
+  
+  static getInstance(): MaterialPool {
+    if (!MaterialPool.instance) {
+      MaterialPool.instance = new MaterialPool()
+    }
+    return MaterialPool.instance
+  }
+  
+  getMaterial(hasColors: boolean, randomIntensity: number, randomSeed: number): THREE.ShaderMaterial {
+    const cache = hasColors ? this.coloredMaterials : this.simpleMaterials
+    const key = `${hasColors}-${randomIntensity.toFixed(3)}-${randomSeed}`
+    
+    if (!cache.has(key)) {
+      cache.set(key, this.createMaterial(hasColors, randomIntensity, randomSeed))
+    }
+    
+    // Clone material to avoid shared uniform issues
+    const baseMaterial = cache.get(key)!
+    const clonedMaterial = baseMaterial.clone()
+    
+    // Update uniforms on the cloned material
+    clonedMaterial.uniforms.randomIntensity.value = randomIntensity
+    clonedMaterial.uniforms.randomSeed.value = randomSeed
+    
+    return clonedMaterial
+  }
+  
+  private createMaterial(hasColors: boolean, randomIntensity: number, randomSeed: number): THREE.ShaderMaterial {
+    const commonUniforms = {
+      fogColor: { value: new THREE.Color(0x151515) },
+      fogDensity: { value: 0.003 },
+      randomIntensity: { value: randomIntensity },
+      randomSeed: { value: randomSeed },
+      luminanceInfluence: { value: 0.0 },
+      thresholdLow: { value: 0.0 },
+      thresholdHigh: { value: 1.0 }
+    }
+    
+    const vertexShader = `
+      attribute float randomScale;
+      uniform float randomIntensity;
+      uniform float randomSeed;
+      uniform float luminanceInfluence;
+      uniform float thresholdLow;
+      uniform float thresholdHigh;
+      varying vec3 vColor;
+      varying float vFogDepth;
+      
+      void main() {
+        vColor = ${hasColors ? 'instanceColor' : 'vec3(1.0)'};
+        
+        float scaleFactor = randomScale;
+        
+        if (abs(luminanceInfluence) > 0.001) {
+          float luminance = ${hasColors ? 'dot(instanceColor, vec3(0.299, 0.587, 0.114))' : '1.0'};
+          float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
+          
+          if (luminanceInfluence > 0.0) {
+            scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
+          } else {
+            scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
+          }
+        }
+        
+        vec3 scaledPosition = position;
+        if (randomIntensity > 0.0) {
+          float finalScale = 1.0 + scaleFactor * randomIntensity;
+          scaledPosition = position * finalScale;
+        }
+        
+        vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(scaledPosition, 1.0);
+        vFogDepth = -mvPosition.z;
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `
+    
+    const fragmentShader = `
+      uniform vec3 fogColor;
+      uniform float fogDensity;
+      varying vec3 vColor;
+      varying float vFogDepth;
+      
+      void main() {
+        float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+        fogFactor = clamp(fogFactor, 0.0, 1.0);
+        vec3 brightColor = vColor * 1.8;
+        gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
+      }
+    `
+    
+    return new THREE.ShaderMaterial({
+      fog: true,
+      vertexShader,
+      fragmentShader,
+      uniforms: commonUniforms
+    })
+  }
+  
+  dispose(): void {
+    this.coloredMaterials.forEach(material => material.dispose())
+    this.simpleMaterials.forEach(material => material.dispose())
+    this.coloredMaterials.clear()
+    this.simpleMaterials.clear()
+  }
+}
+
+// Object pools for reusing expensive objects
+class ObjectPools {
+  private static instance: ObjectPools
+  private matrixPool: THREE.Matrix4[] = []
+  private vectorPool: THREE.Vector3[] = []
+  private colorPool: THREE.Color[] = []
+  private quaternionPool: THREE.Quaternion[] = []
+  
+  static getInstance(): ObjectPools {
+    if (!ObjectPools.instance) {
+      ObjectPools.instance = new ObjectPools()
+    }
+    return ObjectPools.instance
+  }
+  
+  getMatrix(): THREE.Matrix4 {
+    return this.matrixPool.pop() || new THREE.Matrix4()
+  }
+  
+  releaseMatrix(matrix: THREE.Matrix4): void {
+    matrix.identity()
+    this.matrixPool.push(matrix)
+  }
+  
+  getVector(): THREE.Vector3 {
+    return this.vectorPool.pop() || new THREE.Vector3()
+  }
+  
+  releaseVector(vector: THREE.Vector3): void {
+    vector.set(0, 0, 0)
+    this.vectorPool.push(vector)
+  }
+  
+  getColor(): THREE.Color {
+    return this.colorPool.pop() || new THREE.Color()
+  }
+  
+  releaseColor(color: THREE.Color): void {
+    color.setRGB(1, 1, 1)
+    this.colorPool.push(color)
+  }
+  
+  getQuaternion(): THREE.Quaternion {
+    return this.quaternionPool.pop() || new THREE.Quaternion()
+  }
+  
+  releaseQuaternion(quaternion: THREE.Quaternion): void {
+    quaternion.identity()
+    this.quaternionPool.push(quaternion)
+  }
+}
+
+// Random value lookup table for performance
+class RandomLookup {
+  private static instance: RandomLookup
+  private lookupTable: Float32Array
+  private tableSize = 65536 // 2^16 for good distribution
+  
+  static getInstance(): RandomLookup {
+    if (!RandomLookup.instance) {
+      RandomLookup.instance = new RandomLookup()
+    }
+    return RandomLookup.instance
+  }
+  
+  constructor() {
+    this.lookupTable = new Float32Array(this.tableSize)
+    for (let i = 0; i < this.tableSize; i++) {
+      this.lookupTable[i] = Math.random()
+    }
+  }
+  
+  getValue(index: number, seed: number = 42): number {
+    const hash = (index * 12.9898 + seed) % this.tableSize
+    return this.lookupTable[Math.abs(Math.floor(hash))]
+  }
+}
+
 export class SphereInstancer {
   private scene: THREE.Scene
   private instancedMeshes: THREE.InstancedMesh[] = []
-  private originalPointClouds: THREE.Points[] = []
+  private originalPointClouds: Set<THREE.Points> = new Set()
+  private processedUUIDs: Set<string> = new Set()
   private isSpheresEnabled: boolean = true
+  
+  // Cached instances for reuse
+  private geometryCache = GeometryCache.getInstance()
+  private materialPool = MaterialPool.getInstance()
+  private objectPools = ObjectPools.getInstance()
+  private randomLookup = RandomLookup.getInstance()
   
   // Sphere parameters
   public sphereRadius: number = 0.01 // Increased default size to be more visible
@@ -14,8 +236,18 @@ export class SphereInstancer {
   private randomScaleIntensity: number = 0
   private randomScaleSeed: number = 42
   
+  // Cached scale matrix to avoid repeated calculations
+  private cachedScaleMatrix: THREE.Matrix4 = new THREE.Matrix4()
+  private cachedRadius: number = -1
+  
   constructor(scene: THREE.Scene) {
     this.scene = scene
+    
+    // Ensure singletons are initialized
+    this.geometryCache = GeometryCache.getInstance()
+    this.materialPool = MaterialPool.getInstance()
+    this.objectPools = ObjectPools.getInstance()
+    this.randomLookup = RandomLookup.getInstance()
   }
 
   /**
@@ -24,7 +256,6 @@ export class SphereInstancer {
   public setRandomScale(intensity: number, seed: number = 42, luminanceInfluence: number = 0, thresholdLow: number = 0, thresholdHigh: number = 1) {
     this.randomScaleIntensity = intensity
     this.randomScaleSeed = seed
-    console.log(`🎲 SphereInstancer: Random scale updated - intensity: ${intensity}, seed: ${seed}, luminanceInfluence: ${luminanceInfluence}, thresholds=[${thresholdLow}, ${thresholdHigh}]`)
     
     // Update existing sphere materials if any exist
     this.instancedMeshes.forEach(mesh => {
@@ -54,11 +285,9 @@ export class SphereInstancer {
    */
   convertPointCloudsToSpheres(): void {
     if (this.isSpheresEnabled) {
-      console.log('⚠️ Spheres already enabled, skipping conversion')
-      return
+        return
     }
     
-    console.log('🔄 Converting point clouds to spheres...')
     
     // Find all point clouds in the scene
     const pointClouds: THREE.Points[] = []
@@ -68,7 +297,6 @@ export class SphereInstancer {
       }
     })
     
-    console.log(`Found ${pointClouds.length} point clouds to convert`)
     
     // Convert each point cloud to instanced spheres
     pointClouds.forEach((pointCloud, index) => {
@@ -76,11 +304,6 @@ export class SphereInstancer {
     })
     
     this.isSpheresEnabled = true
-    console.log('✅ Point cloud to sphere conversion complete:', {
-      totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0),
-      meshCount: this.instancedMeshes.length,
-      originalClouds: this.originalPointClouds.length
-    })
   }
 
   /**
@@ -94,17 +317,11 @@ export class SphereInstancer {
       return Promise.resolve()
     }
 
-    // Check if this point cloud has already been converted
-    const alreadyConverted = this.originalPointClouds.some(cloud => 
-      cloud === pointCloud || cloud.uuid === pointCloud.uuid
-    )
-    
-    if (alreadyConverted) {
-      console.log('Point cloud already converted to spheres, skipping')
+    // Check if this point cloud has already been converted using Set for O(1) lookup
+    if (this.processedUUIDs.has(pointCloud.uuid)) {
       return Promise.resolve()
     }
 
-    console.log('🔄 Converting single point cloud to spheres progressively')
     
     // Convert this specific point cloud
     const currentIndex = this.instancedMeshes.length
@@ -114,14 +331,9 @@ export class SphereInstancer {
       try {
         this.convertSinglePointCloudToSpheres(pointCloud, currentIndex)
         
-        console.log(`✅ Progressive sphere conversion complete for chunk ${currentIndex}:`, {
-          chunkVertices: pointCloud.geometry.attributes.position.count,
-          totalSphereChunks: this.instancedMeshes.length,
-          totalSpheres: this.instancedMeshes.reduce((sum, mesh) => sum + mesh.count, 0)
-        })
         
-        // Reduced delay for better performance
-        setTimeout(() => resolve(), 25)
+        // Resolve immediately for better performance
+        resolve()
       } catch (error) {
         console.error('Error in sphere conversion:', error)
         resolve() // Don't fail loading if sphere conversion fails
@@ -133,7 +345,6 @@ export class SphereInstancer {
    * Enable sphere mode - sets the flag so progressive loading will create spheres
    */
   enableSphereMode(): void {
-    console.log('🔄 Enabling sphere mode for progressive loading')
     this.isSpheresEnabled = true
   }
 
@@ -141,7 +352,6 @@ export class SphereInstancer {
    * Disable sphere mode and revert any existing spheres
    */
   disableSphereMode(): void {
-    console.log('🔄 Disabling sphere mode')
     this.revertToPointClouds()
   }
   
@@ -160,7 +370,7 @@ export class SphereInstancer {
   }
 
   /**
-   * Convert a single point cloud to instanced spheres
+   * Convert a single point cloud to instanced spheres (OPTIMIZED)
    */
   private convertSinglePointCloudToSpheres(pointCloud: THREE.Points, index: number): void {
     const geometry = pointCloud.geometry
@@ -173,208 +383,105 @@ export class SphereInstancer {
     }
     
     const pointCount = positionAttribute.count
-    console.log(`Converting point cloud ${index} with ${pointCount} points`)
-    console.log(`Using sphere radius: ${this.sphereRadius}, detail: ${this.sphereDetail}`)
     
-    // Create sphere geometry based on detail level
+    // Create fresh sphere geometry for each chunk (avoid shared attribute conflicts)
     const sphereGeometry = this.createSphereGeometry()
     
     // Check for color attributes
     const hasColors = !!colorAttribute
-    console.log(`Point cloud ${index}: hasColors=${hasColors}, colorAttribute:`, colorAttribute)
     
-    // Create material - use shader material for proper instance color support
-    const material = hasColors ? 
-      new THREE.ShaderMaterial({
-        fog: true,
-        vertexShader: `
-          attribute float randomScale;
-          uniform float randomIntensity;
-          uniform float randomSeed;
-          uniform float luminanceInfluence;
-          uniform float thresholdLow;
-          uniform float thresholdHigh;
-          varying vec3 vColor;
-          varying float vFogDepth;
-          
-          void main() {
-            vColor = instanceColor;
-            
-            // Calculate scaling factor
-            float scaleFactor = randomScale;
-            
-            // Apply luminance influence
-            if (abs(luminanceInfluence) > 0.001) {
-              float luminance = dot(instanceColor, vec3(0.299, 0.587, 0.114));
-              
-              // Remap luminance using thresholds
-              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
-              
-              // Direct luminance scaling approach
-              if (luminanceInfluence > 0.0) {
-                // Positive: interpolate from random toward remapped luminance (bright = bigger)
-                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
-              } else {
-                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
-                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
-              }
-            }
-            
-            // Apply random scaling to the sphere
-            vec3 scaledPosition = position;
-            if (randomIntensity > 0.0) {
-              float finalScale = 1.0 + scaleFactor * randomIntensity;
-              scaledPosition = position * finalScale;
-            }
-            
-            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(scaledPosition, 1.0);
-            vFogDepth = -mvPosition.z;
-            gl_Position = projectionMatrix * mvPosition;
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 fogColor;
-          uniform float fogDensity;
-          varying vec3 vColor;
-          varying float vFogDepth;
-          
-          void main() {
-            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-            fogFactor = clamp(fogFactor, 0.0, 1.0);
-            vec3 brightColor = vColor * 1.8; // Increase brightness
-            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
-          }
-        `,
-        uniforms: {
-          fogColor: { value: new THREE.Color(0x151515) },
-          fogDensity: { value: 0.003 },
-          randomIntensity: { value: this.randomScaleIntensity },
-          randomSeed: { value: this.randomScaleSeed },
-          luminanceInfluence: { value: 0.0 },
-          thresholdLow: { value: 0.0 },
-          thresholdHigh: { value: 1.0 }
-        }
-      }) :
-      new THREE.ShaderMaterial({
-        fog: true,
-        vertexShader: `
-          attribute float randomScale;
-          uniform float randomIntensity;
-          uniform float randomSeed;
-          uniform float luminanceInfluence;
-          uniform float thresholdLow;
-          uniform float thresholdHigh;
-          varying vec3 vColor;
-          varying float vFogDepth;
-          
-          void main() {
-            vColor = vec3(1.0); // White color fallback
-            
-            // Calculate scaling factor
-            float scaleFactor = randomScale;
-            
-            // Apply luminance influence
-            if (abs(luminanceInfluence) > 0.001) {
-              float luminance = 1.0; // White has full luminance
-              
-              // Remap luminance using thresholds
-              float remappedLuminance = clamp((luminance - thresholdLow) / (thresholdHigh - thresholdLow), 0.0, 1.0);
-              
-              // Direct luminance scaling approach
-              if (luminanceInfluence > 0.0) {
-                // Positive: interpolate from random toward remapped luminance (bright = bigger)
-                scaleFactor = mix(randomScale, remappedLuminance, luminanceInfluence);
-              } else {
-                // Negative: interpolate from random toward inverted remapped luminance (dark = bigger)
-                scaleFactor = mix(randomScale, (1.0 - remappedLuminance), -luminanceInfluence);
-              }
-            }
-            
-            // Apply random scaling to the sphere
-            vec3 scaledPosition = position;
-            if (randomIntensity > 0.0) {
-              float finalScale = 1.0 + scaleFactor * randomIntensity;
-              scaledPosition = position * finalScale;
-            }
-            
-            vec4 mvPosition = modelViewMatrix * instanceMatrix * vec4(scaledPosition, 1.0);
-            vFogDepth = -mvPosition.z;
-            gl_Position = projectionMatrix * mvPosition;
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 fogColor;
-          uniform float fogDensity;
-          varying vec3 vColor;
-          varying float vFogDepth;
-          
-          void main() {
-            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-            fogFactor = clamp(fogFactor, 0.0, 1.0);
-            vec3 brightColor = vColor * 1.8; // Increase brightness
-            gl_FragColor = vec4(mix(brightColor, fogColor, fogFactor), 1.0);
-          }
-        `,
-        uniforms: {
-          fogColor: { value: new THREE.Color(0x151515) },
-          fogDensity: { value: 0.003 },
-          randomIntensity: { value: this.randomScaleIntensity },
-          randomSeed: { value: this.randomScaleSeed },
-          luminanceInfluence: { value: 0.0 },
-          thresholdLow: { value: 0.0 },
-          thresholdHigh: { value: 1.0 }
-        }
-      })
+    // Get material from pool (reused/cloned)
+    const material = this.materialPool.getMaterial(hasColors, this.randomScaleIntensity, this.randomScaleSeed)
     
     // Create instanced mesh
     const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, pointCount)
     
-    // Set up instance matrices and colors
-    const matrix = new THREE.Matrix4()
-    const color = new THREE.Color()
-    const position = new THREE.Vector3()
+    // Process instances with optimized object pooling
+    this.processInstancesOptimized(instancedMesh, positionAttribute, colorAttribute, pointCount)
+    
+    // Copy transform from original point cloud
+    instancedMesh.position.copy(pointCloud.position)
+    instancedMesh.rotation.copy(pointCloud.rotation)
+    instancedMesh.scale.copy(pointCloud.scale)
+    instancedMesh.userData = { ...pointCloud.userData, isSphereInstanced: true }
+    
+    
+    // Hide original point cloud and add instanced mesh
+    // Exception: Don't hide point cloud if sky sphere is active (background effect)
+    const skySpherActive = this.isSkySpherActive()
+    if (!skySpherActive) {
+      pointCloud.visible = false
+    } else {
+    }
+    this.scene.add(instancedMesh)
+    
+    // Store references using Set for faster lookups
+    this.originalPointClouds.add(pointCloud)
+    this.processedUUIDs.add(pointCloud.uuid)
+    this.instancedMeshes.push(instancedMesh)
+    
+    // Sphere creation completed for chunk
+  }
+  
+  /**
+   * Get sphere geometry (create fresh to avoid cache issues)
+   */
+  private getCachedSphereGeometry(): THREE.SphereGeometry {
+    const detailLevels = [
+      { widthSegments: 6, heightSegments: 4 },   // Low detail
+      { widthSegments: 8, heightSegments: 6 },   // Medium detail
+      { widthSegments: 12, heightSegments: 8 }   // High detail
+    ]
+    
+    const detail = detailLevels[this.sphereDetail] || detailLevels[1]
+    // Create fresh geometry - caching causes issues with instanced attributes
+    return new THREE.SphereGeometry(1, detail.widthSegments, detail.heightSegments)
+  }
+  
+  /**
+   * Process instances with optimized object pooling (OPTIMIZED)
+   */
+  private processInstancesOptimized(
+    instancedMesh: THREE.InstancedMesh,
+    positionAttribute: THREE.BufferAttribute,
+    colorAttribute: THREE.BufferAttribute | null,
+    pointCount: number
+  ): void {
+    // Get pooled objects with fallback to new objects
+    const matrix = this.objectPools?.getMatrix() || new THREE.Matrix4()
+    const position = this.objectPools?.getVector() || new THREE.Vector3()
+    const color = this.objectPools?.getColor() || new THREE.Color()
+    
+    // Use cached scale matrix for better performance
+    const scaleMatrix = this.getCachedScaleMatrix()
     
     // Create color array for instances if we have color data
     let instanceColors: Float32Array | null = null
+    const hasColors = !!colorAttribute
     if (hasColors) {
       instanceColors = new Float32Array(pointCount * 3)
-      console.log(`Creating instance colors array for ${pointCount} points`)
     }
     
-    // Create random scale array for instances
-    const instanceRandomScales = new Float32Array(pointCount)
-    for (let i = 0; i < pointCount; i++) {
-      // Create deterministic random value from vertex index
-      const randomValue = ((Math.sin(i * 12.9898 + this.randomScaleSeed) * 43758.5453) % 1 + 1) % 1
-      instanceRandomScales[i] = randomValue
-    }
+    // Generate random scale array using lookup table (OPTIMIZED)
+    const instanceRandomScales = this.generateRandomScales(pointCount)
     
-    // Process each point
+    // Process each point (optimized loop with batched operations)
     for (let i = 0; i < pointCount; i++) {
       // Get position
       position.fromBufferAttribute(positionAttribute, i)
       
-      // Create transformation matrix (position + scale)
-      matrix.makeScale(this.sphereRadius, this.sphereRadius, this.sphereRadius)
+      // Create transformation matrix efficiently
+      matrix.copy(scaleMatrix)
       matrix.setPosition(position)
       instancedMesh.setMatrixAt(i, matrix)
       
-      // Debug first few positions
-      if (i < 3) {
-        console.log(`Point ${i} position: x=${position.x.toFixed(3)}, y=${position.y.toFixed(3)}, z=${position.z.toFixed(3)}, radius=${this.sphereRadius}`)
-      }
-      
-      // Set color if available
-      if (hasColors && instanceColors) {
+      // Set color if available (optimized color extraction)
+      if (hasColors && instanceColors && colorAttribute) {
         color.fromBufferAttribute(colorAttribute, i)
-        instanceColors[i * 3] = color.r
-        instanceColors[i * 3 + 1] = color.g
-        instanceColors[i * 3 + 2] = color.b
-        
-        // Debug first few colors
-        if (i < 5) {
-          console.log(`Point ${i} color: r=${color.r.toFixed(3)}, g=${color.g.toFixed(3)}, b=${color.b.toFixed(3)}`)
-        }
+        const baseIndex = i * 3
+        instanceColors[baseIndex] = color.r
+        instanceColors[baseIndex + 1] = color.g
+        instanceColors[baseIndex + 2] = color.b
       }
     }
     
@@ -385,60 +492,44 @@ export class SphereInstancer {
     if (instanceColors) {
       const colorAttribute = new THREE.InstancedBufferAttribute(instanceColors, 3)
       instancedMesh.instanceColor = colorAttribute
-      
-      console.log(`Applied instance colors to mesh, first few values:`, instanceColors.slice(0, 15))
-    } else {
-      console.log('No instance colors applied - using material color')
     }
     
     // Apply random scale attribute
     const randomScaleAttribute = new THREE.InstancedBufferAttribute(instanceRandomScales, 1)
     instancedMesh.geometry.setAttribute('randomScale', randomScaleAttribute)
-    console.log(`Applied random scale attributes to ${pointCount} sphere instances`)
     
-    // Copy transform from original point cloud
-    instancedMesh.position.copy(pointCloud.position)
-    instancedMesh.rotation.copy(pointCloud.rotation)
-    instancedMesh.scale.copy(pointCloud.scale)
-    instancedMesh.userData = { ...pointCloud.userData, isSphereInstanced: true }
-    
-    // Add some debugging for visibility
-    console.log('Sphere mesh bounds:', {
-      position: instancedMesh.position,
-      scale: instancedMesh.scale,
-      visible: instancedMesh.visible,
-      count: instancedMesh.count
-    })
-    
-    // Hide original point cloud and add instanced mesh
-    // Exception: Don't hide point cloud if sky sphere is active (background effect)
-    const skySpherActive = this.isSkySpherActive()
-    if (!skySpherActive) {
-      pointCloud.visible = false
-    } else {
-      console.log('Sky sphere active - keeping point cloud visible alongside spheres')
-    }
-    this.scene.add(instancedMesh)
-    
-    // Store references
-    this.originalPointClouds.push(pointCloud)
-    this.instancedMeshes.push(instancedMesh)
-    
-    console.log(`Created instanced spheres for point cloud ${index}:`, {
-      pointCount,
-      hasColors,
-      sphereRadius: this.sphereRadius,
-      sphereDetail: this.sphereDetail
-    })
+    // Objects will be garbage collected automatically
   }
   
   /**
-   * Revert back to original point cloud rendering
+   * Generate random scale values using lookup table (OPTIMIZED)
+   */
+  private generateRandomScales(pointCount: number): Float32Array {
+    const instanceRandomScales = new Float32Array(pointCount)
+    for (let i = 0; i < pointCount; i++) {
+      // Use optimized lookup table instead of expensive Math.sin()
+      instanceRandomScales[i] = this.randomLookup.getValue(i, this.randomScaleSeed)
+    }
+    return instanceRandomScales
+  }
+  
+  /**
+   * Get cached scale matrix (OPTIMIZED)
+   */
+  private getCachedScaleMatrix(): THREE.Matrix4 {
+    if (this.cachedRadius !== this.sphereRadius) {
+      this.cachedScaleMatrix.makeScale(this.sphereRadius, this.sphereRadius, this.sphereRadius)
+      this.cachedRadius = this.sphereRadius
+    }
+    return this.cachedScaleMatrix
+  }
+  
+  /**
+   * Revert back to original point cloud rendering (OPTIMIZED)
    */
   revertToPointClouds(): void {
     if (!this.isSpheresEnabled) return
     
-    console.log('Reverting to original point clouds...')
     
     // Remove instanced meshes
     this.instancedMeshes.forEach(mesh => {
@@ -451,19 +542,18 @@ export class SphereInstancer {
       pointCloud.visible = true
     })
     
-    // Clear arrays
+    // Clear collections
     this.instancedMeshes = []
-    this.originalPointClouds = []
+    this.originalPointClouds.clear()
+    this.processedUUIDs.clear()
     this.isSpheresEnabled = false
     
-    console.log('Reverted to point clouds')
   }
   
   /**
    * Toggle between spheres and point clouds
    */
   toggleSpheres(): void {
-    console.log(`Toggling spheres. Currently enabled: ${this.isSpheresEnabled}, radius: ${this.sphereRadius}`)
     if (this.isSpheresEnabled) {
       this.disableSphereMode()
     } else {
@@ -477,7 +567,6 @@ export class SphereInstancer {
    * Set sphere mode to a specific state (instead of toggling)
    */
   setSphereMode(enabled: boolean): void {
-    console.log(`Setting sphere mode to: ${enabled}, currently: ${this.isSpheresEnabled}`)
     
     if (enabled) {
       // Always ensure sphere mode is properly enabled and convert existing point clouds
@@ -494,12 +583,12 @@ export class SphereInstancer {
   }
 
   /**
-   * Reset internal state without touching scene objects (called after scene clearing)
+   * Reset internal state without touching scene objects (OPTIMIZED)
    */
   resetState(): void {
-    console.log('Resetting SphereInstancer state after scene clearing')
     this.instancedMeshes = []
-    this.originalPointClouds = []
+    this.originalPointClouds.clear()
+    this.processedUUIDs.clear()
     this.isSpheresEnabled = false
   }
 
@@ -514,18 +603,19 @@ export class SphereInstancer {
       }
     })
 
-    console.log(`🔄 Converting ${pointClouds.length} existing point clouds to spheres progressively`)
+    // Converting existing point clouds to spheres
 
-    // Convert each point cloud with a small delay to avoid pop-in
+    // Convert each point cloud immediately for better performance
     pointClouds.forEach((pointCloud, index) => {
-      setTimeout(() => {
+      // Use requestAnimationFrame instead of setTimeout for better performance
+      requestAnimationFrame(() => {
         this.convertSinglePointCloudToSpheresProgressive(pointCloud)
-      }, index * 50) // 50ms delay between each conversion
+      })
     })
   }
   
   /**
-   * Update sphere radius for all instances
+   * Update sphere radius for all instances (OPTIMIZED)
    */
   setSphereRadius(radius: number): void {
     this.sphereRadius = radius
@@ -536,13 +626,15 @@ export class SphereInstancer {
     this.instancedMeshes.forEach(instancedMesh => {
       const matrix = new THREE.Matrix4()
       const position = new THREE.Vector3()
+      const quaternion = new THREE.Quaternion()
+      const scale = new THREE.Vector3()
       
       for (let i = 0; i < instancedMesh.count; i++) {
         instancedMesh.getMatrixAt(i, matrix)
-        matrix.decompose(position, new THREE.Quaternion(), new THREE.Vector3())
+        matrix.decompose(position, quaternion, scale)
         
-        matrix.makeScale(radius, radius, radius)
-        matrix.setPosition(position)
+        // Only update scale, keep position and rotation
+        matrix.compose(position, quaternion, new THREE.Vector3(radius, radius, radius))
         instancedMesh.setMatrixAt(i, matrix)
       }
       
@@ -614,9 +706,12 @@ export class SphereInstancer {
   }
 
   /**
-   * Cleanup - dispose of all resources
+   * Cleanup - dispose of all resources (OPTIMIZED)
    */
   dispose(): void {
     this.revertToPointClouds()
+    
+    // Dispose of cached resources (only if this is the last instance)
+    // Note: Singletons will persist across instances for performance
   }
 }

@@ -36,6 +36,11 @@ let currentFramerate = 60
 let sphereDetailLevel = 1 // Start with medium detail
 let lastSphereDetailAdjustment = 0
 
+// FPS min/max tracking
+let fpsMin = 60
+let fpsMax = 60
+let lastFpsReset = performance.now()
+
 // Input type detection and layout management
 function detectAndApplyInputType() {
   const body = document.body
@@ -180,9 +185,31 @@ function animate() {
   
   // Update FPS counter display every frame
   const fpsElement = document.getElementById('fps-value')
+  const fpsMinElement = document.getElementById('fps-min')
+  const fpsMaxElement = document.getElementById('fps-max')
+  
   if (fpsElement && deltaTime > 0) {
-    const instantFPS = 1000 / (now - (lastFrameTime || now))
-    fpsElement.textContent = Math.round(instantFPS).toString()
+    const instantFPS = Math.round(1000 / (now - (lastFrameTime || now)))
+    
+    // Format with 3 digits (leading zeros)
+    const formatFPS = (fps: number) => fps.toString().padStart(3, '0')
+    
+    fpsElement.textContent = formatFPS(instantFPS)
+    
+    // Update min/max tracking
+    fpsMin = Math.min(fpsMin, instantFPS)
+    fpsMax = Math.max(fpsMax, instantFPS)
+    
+    // Update min/max display
+    if (fpsMinElement) fpsMinElement.textContent = formatFPS(fpsMin)
+    if (fpsMaxElement) fpsMaxElement.textContent = formatFPS(fpsMax)
+    
+    // Reset min/max every 5 seconds
+    if (now - lastFpsReset >= 5000) {
+      fpsMin = instantFPS
+      fpsMax = instantFPS
+      lastFpsReset = now
+    }
   }
   
   // Check framerate every second for sphere detail adjustment
@@ -1504,7 +1531,7 @@ function setupMobileEffectsButton() {
         },
         'Post-Process': {
           color: '#96CEB4',
-          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'engraving', 'datamosh', 'pixelsort']
+          effects: ['vignette', 'afterimage', 'sobel', 'sobelthreshold', 'threshold', 'depthpass', 'oilpainting', 'ascii', 'halftone', 'engraving', 'datamosh', 'pixelsort', 'ambientocclusion']
         },
         '3D Effects': {
           color: '#FECA57',
@@ -4269,9 +4296,9 @@ async function initialize() {
     const hasSceneUrl = await orbitalCamera.loadSceneFromUrl()
     
     if (!hasSceneUrl) {
-      // No shared scene, try to load a random scene
-      console.log('🎲 Attempting to load random scene...')
-      const hasRandomScene = await orbitalCamera.loadRandomScene()
+      // No shared scene, try to load a random gallery scene
+      console.log('🎲 Attempting to load random gallery scene...')
+      const hasRandomScene = await orbitalCamera.loadRandomGalleryScene()
       
       if (!hasRandomScene) {
         // No random scene available, try to load default scene

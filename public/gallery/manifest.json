@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "generated": "2025-01-26T00:00:00.000Z",
   "files": [
     "Arscii.png",
@@ -14,5 +14,14 @@
     "Fisher Dither.png",
     "Fisher Hologram.png",
     "Fisher Sobel.png"
+  ],
+  "randomCandidates": [
+    "Elegant Delicate.png",
+    "Fisher Sobel.png",
+    "Castleton Disco.png",
+    "Delicate Dots.png",
+    "Fisher Hologram.png",
+    "Arscii.png",
+    "Delicate Ascii.png"
   ]
 }

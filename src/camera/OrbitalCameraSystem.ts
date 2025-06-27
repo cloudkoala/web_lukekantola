@@ -3263,6 +3263,80 @@ export class OrbitalCameraSystem {
   }
 
   /**
+   * Loads a random scene from the gallery based on the manifest's randomCandidates
+   */
+  public async loadRandomGalleryScene(): Promise<boolean> {
+    try {
+      // Access the gallery manager from the global window object
+      const galleryManager = (window as any).galleryManager
+      if (!galleryManager) {
+        console.warn('Gallery manager not available')
+        return false
+      }
+
+      // Load the gallery manifest to get random candidates
+      const manifestResponse = await fetch('/gallery/manifest.json')
+      if (!manifestResponse.ok) {
+        console.warn('Failed to load gallery manifest')
+        return false
+      }
+
+      const manifest = await manifestResponse.json()
+      if (!manifest.randomCandidates || manifest.randomCandidates.length === 0) {
+        console.log('No random candidates available in gallery manifest')
+        return false
+      }
+
+      // Get all gallery items, ensure gallery is loaded
+      let galleryItems = galleryManager.getItems()
+      
+      // If no items are available, try to scan gallery files first
+      if (!galleryItems || galleryItems.length === 0) {
+        await galleryManager.scanGalleryFiles()
+        galleryItems = galleryManager.getItems()
+        
+        if (!galleryItems || galleryItems.length === 0) {
+          console.log('No gallery items available')
+          return false
+        }
+      }
+
+      // Filter gallery items to only include random candidates
+      const candidateItems = galleryItems.filter((item: any) => 
+        manifest.randomCandidates.includes(item.filename)
+      )
+
+      if (candidateItems.length === 0) {
+        console.log('No gallery items match the random candidates list')
+        return false
+      }
+
+      // Pick a random candidate
+      const randomIndex = Math.floor(Math.random() * candidateItems.length)
+      const selectedItem = candidateItems[randomIndex]
+
+      console.log('Loading random gallery scene:', selectedItem.info.name)
+
+      // Extract scene state from the gallery item's metadata
+      const sceneState = selectedItem.metadata.sceneState
+      if (!sceneState) {
+        console.warn('Selected gallery item has no scene state metadata')
+        return false
+      }
+
+      // Apply the scene state
+      await this.applySceneState(sceneState)
+
+      // No scene dropdown update needed since gallery scenes aren't in the dropdown
+      
+      return true
+    } catch (error) {
+      console.error('Failed to load random gallery scene:', error)
+      return false
+    }
+  }
+
+  /**
    * Loads a specific scene by key from the collection
    */
   public async loadSceneByKey(sceneKey: string): Promise<boolean> {

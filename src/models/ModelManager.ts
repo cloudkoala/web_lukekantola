@@ -280,8 +280,23 @@ export class ModelManager {
       )
       existingObjects.forEach(obj => this.scene.remove(obj))
       
+      // Preserve sphere mode state by checking both internal state and checkbox
+      const sphereCheckbox = document.querySelector('#sphere-toggle') as HTMLInputElement
+      const wasSphereMode = this.sphereInstancer.isEnabled() || (sphereCheckbox?.checked ?? false)
+      
       // Reset sphere instancer state after clearing scene objects
       this.sphereInstancer.resetState()
+      
+      // Restore sphere mode state if it was enabled
+      if (wasSphereMode) {
+        console.log('🔵 Preserving sphere mode state across model switch')
+        this.sphereInstancer.enableSphereMode()
+        
+        // Ensure checkbox state is synchronized
+        if (sphereCheckbox) {
+          sphereCheckbox.checked = true
+        }
+      }
     } else if (this.isQualitySwitching) {
       // For quality switches, only remove splats (keep point clouds for comparison)
       console.log('Quality switch: keeping point clouds, only clearing splats')

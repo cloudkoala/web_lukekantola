@@ -774,6 +774,31 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       radius: { min: 1, max: 50, step: 1, label: 'Radius' },
       iterations: { min: 1, max: 10, step: 1, label: 'Iterations' }
     }
+  },
+  {
+    type: 'ambientocclusion',
+    name: 'Ambient Occlusion (SSAO)',
+    supportsBlending: true,
+    defaultParameters: { 
+      intensity: 0.5,
+      radius: 2.0,
+      strength: 1.5,
+      bias: 0.05,
+      samples: 16,
+      quality: 2,
+      aoOnly: 0,
+      debugDepth: 0
+    },
+    parameterDefinitions: {
+      intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
+      radius: { min: 0.1, max: 10.0, step: 0.1, label: 'Sample Radius (world units)' },
+      strength: { min: 0.1, max: 5.0, step: 0.1, label: 'AO Strength' },
+      bias: { min: 0.001, max: 0.2, step: 0.001, label: 'Depth Bias' },
+      samples: { min: 4, max: 64, step: 1, label: 'Sample Count' },
+      quality: { min: 1, max: 4, step: 1, label: 'Quality Levels' },
+      aoOnly: { min: 0, max: 1, step: 1, label: 'Show AO Only', type: 'boolean' },
+      debugDepth: { min: 0, max: 1, step: 1, label: 'Debug: Show Depth Buffer', type: 'boolean' }
+    }
   }
 ]
 
