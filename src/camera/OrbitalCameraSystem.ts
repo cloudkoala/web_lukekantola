@@ -2690,7 +2690,16 @@ export class OrbitalCameraSystem {
       console.log('Effects panel initialized successfully')
     } catch (error) {
       console.warn('Effects panel initialization failed:', error)
-      // Graceful fallback - effects panel is optional
+      // Graceful fallback - set up essential chain updates even without UI panel
+      this.effectsChainManager.onChainUpdated(() => {
+        this.updatePostProcessingChain()
+      })
+      
+      this.effectsChainManager.onParameterUpdated(() => {
+        this.updatePostProcessingChain()
+      })
+      
+      console.log('Effects system initialized without UI panel - programmatic effects still available')
     }
   }
 

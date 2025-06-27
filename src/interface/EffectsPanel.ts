@@ -223,8 +223,16 @@ export class EffectsPanel {
     // Update the PostProcessingPass enabled state
     const postProcessingPass = (window as any).postProcessingPass
     if (postProcessingPass) {
+      const wasEnabled = postProcessingPass.enabled
       postProcessingPass.enabled = enabled
-      console.log('Effects pipeline', enabled ? 'enabled' : 'disabled')
+      
+      if (wasEnabled !== enabled) {
+        console.log('Effects pipeline', enabled ? 'enabled' : 'disabled')
+      } else {
+        console.log('Effects pipeline state unchanged:', enabled ? 'enabled' : 'disabled')
+      }
+    } else {
+      console.warn('PostProcessingPass not found - effects pipeline may not be initialized')
     }
   }
 

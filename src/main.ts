@@ -108,6 +108,8 @@ const progressiveLoader = new ProgressiveLoader(scene, `${import.meta.env.BASE_U
 // Post-processing effects (includes effects chain management)
 const postProcessingPass = new PostProcessingPass(window.innerWidth, window.innerHeight, renderer)
 postProcessingPass.setMainScene(scene, camera)
+// Enable effects pipeline by default (fixes issue where effects don't work without preset dropdown)
+postProcessingPass.enabled = true
 
 const pixelRatio = Math.min(window.devicePixelRatio, 2)
 const renderTarget = new THREE.WebGLRenderTarget(
