@@ -96,6 +96,9 @@
   z-index: 800;
   opacity: 1;
   pointer-events: auto;
+  transform: translateZ(0); /* Force hardware acceleration and proper repainting */
+  will-change: transform; /* Hint browser that element will be animated */
+  isolation: isolate; /* Create a new stacking context to prevent bleed-through */
 }
 
 .effects-button {
@@ -113,6 +116,7 @@
   font-family: 'Space Mono', monospace;
   padding: 0;
   box-shadow: none;
+  backface-visibility: hidden; /* Force proper layer management */
 }
 
 .effects-button:hover:not(.active):not(:focus) {
@@ -148,6 +152,9 @@
   opacity: 1;
   pointer-events: auto;
   display: none; /* Hidden on desktop by default */
+  transform: translateZ(0); /* Force hardware acceleration and proper repainting */
+  will-change: transform; /* Hint browser that element will be animated */
+  isolation: isolate; /* Create a new stacking context to prevent bleed-through */
 }
 
 .mobile-settings-button .settings-button {
@@ -174,6 +181,7 @@
   font-family: 'Space Mono', monospace;
   padding: 0;
   box-shadow: none;
+  backface-visibility: hidden; /* Force proper layer management */
 }
 
 .settings-button:hover:not(.active):not(:focus) {
@@ -787,13 +795,13 @@
 
 
 
-/* Mobile Model Selector */
+/* Mobile Model Selector - Hidden on desktop */
 .mobile-model-selector {
   position: fixed;
   bottom: 12px;
   right: 80px;
   z-index: 800;
-  display: flex;
+  display: none !important; /* Force hidden on desktop */
   flex-direction: column;
   align-items: flex-end;
   opacity: 1;
@@ -3386,7 +3394,12 @@ body, html {
   
   /* Show mobile scene actions with flex layout */
   .mobile-scene-actions.mobile-only {
-    display: flex;
+    display: flex !important;
+  }
+  
+  /* Show mobile model selector on mobile */
+  .mobile-model-selector.mobile-only {
+    display: flex !important;
   }
   
   .desktop-only {
@@ -4762,10 +4775,29 @@ body, html {
   bottom: 12px;
   right: 12px;
   z-index: 800;
-  display: none; /* Hidden by default */
+  display: none !important; /* Force hidden on desktop */
   flex-direction: column;
   gap: 12px;
   transition: none;
+}
+
+/* Force hide mobile elements on desktop with high specificity */
+@media (hover: hover) and (pointer: fine) {
+  .mobile-scene-actions.mobile-only {
+    display: none !important;
+  }
+  .mobile-model-selector.mobile-only {
+    display: none !important;
+  }
+  .mobile-camera-reset.mobile-only {
+    display: none !important;
+  }
+  .mobile-effects-button.mobile-only {
+    display: none !important;
+  }
+  .mobile-settings-button.mobile-only {
+    display: none !important;
+  }
 }
 
 

@@ -1902,6 +1902,46 @@ function createPanelManager() {
   }
   
   function updateMobileButtonPositions() {
+    // Only update positions on mobile devices
+    const isMobile = window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    if (!isMobile) {
+      // On desktop, ensure mobile elements have no inline styles that could override CSS
+      const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
+      const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
+      const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
+      const sceneActionsContainer = document.getElementById('mobile-scene-actions') as HTMLElement
+      const modelSelector = document.getElementById('mobile-model-selector') as HTMLElement
+      const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
+      
+      // Clear all inline styles that could make mobile elements visible on desktop
+      if (cameraButtonContainer) {
+        cameraButtonContainer.style.bottom = ''
+        cameraButtonContainer.style.display = ''
+      }
+      if (effectsButtonContainer) {
+        effectsButtonContainer.style.bottom = ''
+        effectsButtonContainer.style.display = ''
+      }
+      if (settingsButtonContainer) {
+        settingsButtonContainer.style.bottom = ''
+        settingsButtonContainer.style.display = ''
+      }
+      if (sceneActionsContainer) {
+        sceneActionsContainer.style.bottom = ''
+        sceneActionsContainer.style.display = ''
+      }
+      if (modelSelector) {
+        modelSelector.style.bottom = ''
+        modelSelector.style.display = ''
+      }
+      if (trashIcon) {
+        trashIcon.style.bottom = ''
+        trashIcon.style.display = ''
+      }
+      
+      return // Skip positioning updates on desktop
+    }
+    
     // Use requestAnimationFrame to ensure DOM has updated before measuring heights
     requestAnimationFrame(() => {
       // Calculate how high the buttons should be positioned based on open panels
@@ -3543,8 +3583,33 @@ async function handleCaptureScene(isMobile: boolean) {
       }
     }
     
-    // Get recommended settings
-    const settings = cameraCapture.getRecommendedSettings()
+    // Get appropriate settings based on platform
+    let settings: any
+    if (isMobile) {
+      // Mobile: capture full 9:16 screen at full resolution
+      const screenWidth = window.screen.width * (window.devicePixelRatio || 1)
+      const screenHeight = window.screen.height * (window.devicePixelRatio || 1)
+      
+      // Ensure 9:16 aspect ratio (portrait)
+      const aspectRatio = 9 / 16
+      let captureWidth = screenWidth
+      let captureHeight = Math.round(screenWidth / aspectRatio)
+      
+      // If height exceeds screen, scale down to fit
+      if (captureHeight > screenHeight) {
+        captureHeight = screenHeight
+        captureWidth = Math.round(screenHeight * aspectRatio)
+      }
+      
+      settings = {
+        width: captureWidth,
+        height: captureHeight,
+        quality: 0.95
+      }
+    } else {
+      // Desktop: use recommended square settings for gallery
+      settings = cameraCapture.getRecommendedSettings()
+    }
     
     console.log('Capturing with settings:', settings)
     

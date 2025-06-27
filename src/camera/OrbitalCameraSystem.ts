@@ -1664,7 +1664,7 @@ export class OrbitalCameraSystem {
     
     // Only show desktop controls on non-touch devices
     const isTouchDevice = document.body.classList.contains('touch-layout')
-    if (controlsContainer && !isTouchDevice) controlsContainer.style.display = 'flex'
+    if (controlsContainer && !isTouchDevice) controlsContainer.style.display = 'grid'
     if (cameraInfo && !isTouchDevice) cameraInfo.style.display = 'flex'
     if (contentArea) {
       contentArea.style.display = 'none'
