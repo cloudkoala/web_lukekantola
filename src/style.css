@@ -3425,36 +3425,7 @@ body, html {
   min-width: 80px;
 }
 
-.mobile-effects-main-dropdown {
-  flex: 1;
-  min-width: 0; /* Allow flex item to shrink below content size */
-  max-width: 100%;
-  background: rgba(0, 40, 0, 0.8);
-  border: 1px solid rgba(0, 255, 0, 0.4);
-  border-radius: 6px;
-  padding: 8px;
-  color: #00ff00;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
-.mobile-save-preset-button {
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.4);
-  border-radius: 6px;
-  padding: 8px;
-  color: #00ff00;
-  cursor: pointer;
-  font-size: 0.75rem; /* 25% smaller */
-  min-height: 44px;
-  width: 44px; /* Fixed width instead of min-width */
-  flex-shrink: 0; /* Don't shrink */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 
 .mobile-effects-chain-container {
@@ -4370,31 +4341,6 @@ body, html {
   white-space: nowrap;
 }
 
-.effects-main-dropdown {
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 4px;
-  color: white;
-  font-size: 0.7rem;
-  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  padding: 6px;
-  outline: none;
-  min-width: 40px;
-  text-shadow: none;
-  transition: all 0.3s ease;
-}
-
-.effects-main-dropdown option {
-  background: #1a1a1a;
-  color: #00ff00;
-  opacity: 0.9;
-}
-
-.effects-main-dropdown:hover {
-  background: rgba(0, 255, 0, 0.2);
-  border-color: rgba(0, 255, 0, 0.5);
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
-}
 
 .effects-panel-collapse-arrow {
   display: none; /* Hide collapse arrow completely */
@@ -4410,23 +4356,6 @@ body, html {
 }
 
 
-.save-preset-button {
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 4px;
-  color: white;
-  cursor: pointer;
-  padding: 6px;
-  font-size: 0.7rem;
-  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  transition: all 0.3s ease;
-}
-
-.save-preset-button:hover {
-  background: rgba(0, 255, 0, 0.2);
-  border-color: rgba(0, 255, 0, 0.5);
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
-}
 
 .effects-panel-collapsible {
   display: flex;
