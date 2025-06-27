@@ -2903,302 +2903,75 @@ function setupSettingsButton() {
     })
   }
   
-  // Setup drag target (returns functions for drag system)
-  const dragTargetController = setupSettingsDragTarget(settingsPanel)
-  
-  // Make settings panel draggable (pass drag target controller)
-  setupSettingsPanelDrag(settingsPanel, dragTargetController)
+  // Make settings panel draggable
+  setupSettingsPanelDrag(settingsPanel)
 }
 
-// Setup Settings Drag Target (shows only during drag)
-function setupSettingsDragTarget(settingsPanel: HTMLElement) {
-  const dragTarget = document.getElementById('settings-drag-target') as HTMLElement
-  if (!dragTarget) return
-  
-  let layoutManager: SettingsLayoutManager | null = null
-  
-  const showTargetDuringDrag = () => {
-    const isSettingsVisible = settingsPanel.style.display === 'grid'
-    if (isSettingsVisible) {
-      dragTarget.style.setProperty('display', 'flex', 'important')
-      // Initialize layout manager if not already done
-      if (!layoutManager) {
-        layoutManager = new SettingsLayoutManager(settingsPanel)
-      }
-    }
-  }
-  
-  const hideTarget = () => {
-    dragTarget.style.setProperty('display', 'none', 'important')
-  }
-  
-  // Hide target initially - it will only show during drag operations
-  hideTarget()
-  
-  // Click to snap to 1x6 layout (only works when visible during drag)
-  dragTarget.addEventListener('click', () => {
-    if (layoutManager) {
-      layoutManager.snapToLayout('1x6')
-      dragTarget.classList.add('active')
-      setTimeout(() => {
-        dragTarget.classList.remove('active')
-        hideTarget() // Hide after snapping
-      }, 300)
-    }
-  })
-  
-  // Return functions for the drag system to use
-  return {
-    showDuringDrag: showTargetDuringDrag,
-    hide: hideTarget,
-    getLayoutManager: () => layoutManager
-  }
-}
 
-// Settings Layout Manager Class
+// Simplified Settings Layout Manager Class (no snapping)
 class SettingsLayoutManager {
   private panel: HTMLElement
-  private currentLayout: '2x3' | '1x6' | '3x2' | '6x1' = '2x3'
-  private snapIndicator: HTMLElement | null = null
-  private readonly SNAP_THRESHOLD = 100 // pixels from edge to trigger snap
   
   constructor(panel: HTMLElement) {
     this.panel = panel
-    this.loadLayoutFromStorage()
-    this.createSnapIndicator()
-    this.applyLayout(this.currentLayout, false) // Apply without animation on init
+    this.applyDefaultLayout()
   }
   
-  private createSnapIndicator(): void {
-    this.snapIndicator = document.createElement('div')
-    this.snapIndicator.className = 'snap-zone-indicator'
-    document.body.appendChild(this.snapIndicator)
-  }
-  
-  private loadLayoutFromStorage(): void {
-    const saved = localStorage.getItem('settings-panel-layout')
-    if (saved && ['2x3', '1x6', '3x2', '6x1'].includes(saved)) {
-      this.currentLayout = saved as '2x3' | '1x6' | '3x2' | '6x1'
+  private applyDefaultLayout(): void {
+    // Apply the default 1x8 layout
+    this.panel.classList.add('layout-1x8')
+    
+    // Only apply default positioning if panel doesn't already have custom positioning
+    const hasCustomPositioning = this.panel.style.left && this.panel.style.top
+    if (!hasCustomPositioning) {
+      this.positionPanelForDefault()
     }
   }
   
-  private saveLayoutToStorage(): void {
-    localStorage.setItem('settings-panel-layout', this.currentLayout)
-  }
-  
-  public detectOptimalLayout(position: { x: number; y: number }): '2x3' | '1x6' | '3x2' | '6x1' {
-    const { x, y } = position
+  private positionPanelForDefault(): void {
     const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
     
-    // Left or right edge → 1x6 (vertical stack)
-    if (x < this.SNAP_THRESHOLD || x > viewportWidth - this.SNAP_THRESHOLD) {
-      return '1x6'
+    // Position between controls-row and right edge, aligned with controls top
+    const controlsContainer = document.querySelector('.controls-container') as HTMLElement
+    const controlsRow = document.querySelector('.controls-row') as HTMLElement
+    
+    if (controlsContainer && controlsRow) {
+      // Get controls-row right edge position
+      const controlsRect = controlsRow.getBoundingClientRect()
+      const controlsRightEdge = controlsRect.right
+      
+      // Calculate center position between controls-row right edge and viewport right edge
+      const availableSpace = viewportWidth - controlsRightEdge
+      const panelWidth = 264
+      const centeredLeft = controlsRightEdge + (availableSpace - panelWidth) / 2
+      
+      this.panel.style.setProperty('left', `${centeredLeft}px`, 'important')
+      this.panel.style.setProperty('top', '90px', 'important') // Align with controls-container top
+      this.panel.style.setProperty('transform', 'none', 'important')
+      this.panel.style.setProperty('bottom', 'auto', 'important')
+      this.panel.style.setProperty('height', 'auto', 'important')
+      this.panel.style.setProperty('width', '264px', 'important')
+    } else {
+      // Fallback to original positioning if controls not found
+      this.panel.style.setProperty('left', '50%', 'important')
+      this.panel.style.setProperty('bottom', '40px', 'important')
+      this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
+      this.panel.style.setProperty('top', 'auto', 'important')
+      this.panel.style.setProperty('height', 'auto', 'important')
+      this.panel.style.setProperty('width', '264px', 'important')
     }
-    
-    // Top edge → 6x1 (horizontal row)
-    if (y < this.SNAP_THRESHOLD) {
-      return '6x1'
-    }
-    
-    // Corners → 3x2 (compact grid)
-    if ((x < this.SNAP_THRESHOLD * 2 && y < this.SNAP_THRESHOLD * 2) ||
-        (x > viewportWidth - this.SNAP_THRESHOLD * 2 && y < this.SNAP_THRESHOLD * 2) ||
-        (x < this.SNAP_THRESHOLD * 2 && y > viewportHeight - this.SNAP_THRESHOLD * 2) ||
-        (x > viewportWidth - this.SNAP_THRESHOLD * 2 && y > viewportHeight - this.SNAP_THRESHOLD * 2)) {
-      return '3x2'
-    }
-    
-    // Default center/bottom → 2x3 (current default)
-    return '2x3'
-  }
-  
-  public showSnapIndicator(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
-    if (!this.snapIndicator) return
-    
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    const layoutDimensions = this.getLayoutDimensions(layout)
-    
-    let indicatorStyle = ''
-    
-    switch (layout) {
-      case '1x6':
-        // Show on left or right edge
-        indicatorStyle = `
-          left: 20px;
-          top: 50%;
-          transform: translateY(-50%);
-          width: ${layoutDimensions.width}px;
-          height: ${layoutDimensions.height}px;
-        `
-        break
-      case '6x1':
-        // Show on top edge
-        indicatorStyle = `
-          left: 50%;
-          top: 20px;
-          transform: translateX(-50%);
-          width: ${layoutDimensions.width}px;
-          height: ${layoutDimensions.height}px;
-        `
-        break
-      case '3x2':
-        // Show in top-left corner
-        indicatorStyle = `
-          left: 20px;
-          top: 20px;
-          width: ${layoutDimensions.width}px;
-          height: ${layoutDimensions.height}px;
-        `
-        break
-      case '2x3':
-        // Show in bottom center
-        indicatorStyle = `
-          left: 50%;
-          bottom: 60px;
-          transform: translateX(-50%);
-          width: ${layoutDimensions.width}px;
-          height: ${layoutDimensions.height}px;
-        `
-        break
-    }
-    
-    this.snapIndicator.setAttribute('style', indicatorStyle)
-    this.snapIndicator.classList.add('active')
-  }
-  
-  public hideSnapIndicator(): void {
-    if (this.snapIndicator) {
-      this.snapIndicator.classList.remove('active')
-    }
-  }
-  
-  private getLayoutDimensions(layout: '2x3' | '1x6' | '3x2' | '6x1'): { width: number; height: number } {
-    // Estimate heights based on number of controls (7 total) + drag handle (20px) + padding
-    const baseControlHeight = 35 // Tighter height per control
-    const dragHandleHeight = 20
-    const padding = 15 // Reduced padding for tighter layout
-    
-    switch (layout) {
-      case '2x3':
-        return { width: 750, height: dragHandleHeight + (2 * baseControlHeight) + padding }
-      case '1x6':
-        return { width: 300, height: dragHandleHeight + (6 * baseControlHeight) + padding }
-      case '3x2':
-        return { width: 500, height: dragHandleHeight + (3 * baseControlHeight) + padding }
-      case '6x1':
-        return { width: 900, height: dragHandleHeight + baseControlHeight + padding }
-    }
-  }
-  
-  public applyLayout(layout: '2x3' | '1x6' | '3x2' | '6x1', animate: boolean = true): void {
-    if (animate) {
-      this.panel.classList.add('transitioning')
-    }
-    
-    // Remove all layout classes
-    this.panel.classList.remove('layout-2x3', 'layout-1x6', 'layout-3x2', 'layout-6x1')
-    
-    // Add new layout class
-    this.panel.classList.add(`layout-${layout}`)
-    
-    this.currentLayout = layout
-    this.saveLayoutToStorage()
-    
-    // Position panel appropriately for the layout
-    this.positionPanelForLayout(layout)
-    
-    if (animate) {
-      setTimeout(() => {
-        this.panel.classList.remove('transitioning')
-      }, 300) // Match CSS transition duration
-    }
-  }
-  
-  private positionPanelForLayout(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    const dimensions = this.getLayoutDimensions(layout)
-    
-    switch (layout) {
-      case '1x6':
-        // Position on left side
-        this.panel.style.setProperty('left', '20px', 'important')
-        this.panel.style.setProperty('top', '50%', 'important')
-        this.panel.style.setProperty('transform', 'translateY(-50%)', 'important')
-        this.panel.style.setProperty('bottom', 'auto', 'important')
-        break
-      case '6x1':
-        // Position on top center
-        this.panel.style.setProperty('left', '50%', 'important')
-        this.panel.style.setProperty('top', '20px', 'important')
-        this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
-        this.panel.style.setProperty('bottom', 'auto', 'important')
-        break
-      case '3x2':
-        // Position in top-left
-        this.panel.style.setProperty('left', '20px', 'important')
-        this.panel.style.setProperty('top', '20px', 'important')
-        this.panel.style.setProperty('transform', 'none', 'important')
-        this.panel.style.setProperty('bottom', 'auto', 'important')
-        break
-      case '2x3':
-      default:
-        // Position between controls-row and right edge, aligned with controls top
-        const controlsContainer = document.querySelector('.controls-container') as HTMLElement
-        const controlsRow = document.querySelector('.controls-row') as HTMLElement
-        
-        if (controlsContainer && controlsRow) {
-          // Get controls-row right edge position
-          const controlsRect = controlsRow.getBoundingClientRect()
-          const controlsRightEdge = controlsRect.right
-          
-          // Calculate center position between controls-row right edge and viewport right edge
-          const availableSpace = viewportWidth - controlsRightEdge
-          const panelWidth = 750
-          const centeredLeft = controlsRightEdge + (availableSpace - panelWidth) / 2
-          
-          this.panel.style.setProperty('left', `${centeredLeft}px`, 'important')
-          this.panel.style.setProperty('top', '90px', 'important') // Align with controls-container top
-          this.panel.style.setProperty('transform', 'none', 'important')
-          this.panel.style.setProperty('bottom', 'auto', 'important')
-          this.panel.style.setProperty('height', 'auto', 'important')
-          this.panel.style.setProperty('width', '750px', 'important')
-        } else {
-          // Fallback to original positioning if controls not found
-          this.panel.style.setProperty('left', '50%', 'important')
-          this.panel.style.setProperty('bottom', '40px', 'important')
-          this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
-          this.panel.style.setProperty('top', 'auto', 'important')
-          this.panel.style.setProperty('height', 'auto', 'important')
-          this.panel.style.setProperty('width', '750px', 'important')
-        }
-        break
-    }
-  }
-  
-  public getCurrentLayout(): '2x3' | '1x6' | '3x2' | '6x1' {
-    return this.currentLayout
-  }
-  
-  public snapToLayout(layout: '2x3' | '1x6' | '3x2' | '6x1'): void {
-    this.applyLayout(layout, true)
-    this.hideSnapIndicator()
   }
 }
 
-function setupSettingsPanelDrag(panel: HTMLElement, dragTargetController?: any) {
+function setupSettingsPanelDrag(panel: HTMLElement) {
   let isDragging = false
   let dragOffset = { x: 0, y: 0 }
-  let layoutManager: SettingsLayoutManager | null = null
-  let lastSnapLayout: '2x3' | '1x6' | '3x2' | '6x1' | null = null
   
   const dragHandle = panel.querySelector('.settings-drag-handle') as HTMLElement
   if (!dragHandle) return
   
-  // Initialize layout manager
-  layoutManager = new SettingsLayoutManager(panel)
+  // Initialize layout manager for default positioning
+  new SettingsLayoutManager(panel)
   
   const onMouseDown = (e: MouseEvent) => {
     // Only start drag on the drag content area, not the close button
@@ -3208,11 +2981,6 @@ function setupSettingsPanelDrag(panel: HTMLElement, dragTargetController?: any) 
     }
     
     isDragging = true
-    
-    // Show drag target when dragging starts
-    if (dragTargetController) {
-      dragTargetController.showDuringDrag()
-    }
     
     // Get the actual position considering transform
     const rect = panel.getBoundingClientRect()
@@ -3233,7 +3001,7 @@ function setupSettingsPanelDrag(panel: HTMLElement, dragTargetController?: any) 
   }
   
   const onMouseMove = (e: MouseEvent) => {
-    if (!isDragging || !layoutManager) return
+    if (!isDragging) return
     
     const newX = e.clientX - dragOffset.x
     const newY = e.clientY - dragOffset.y
@@ -3247,51 +3015,14 @@ function setupSettingsPanelDrag(panel: HTMLElement, dragTargetController?: any) 
     
     panel.style.setProperty('left', `${clampedX}px`, 'important')
     panel.style.setProperty('top', `${clampedY}px`, 'important')
-    
-    // Detect optimal layout based on current position
-    const panelCenter = {
-      x: clampedX + panel.offsetWidth / 2,
-      y: clampedY + panel.offsetHeight / 2
-    }
-    
-    const optimalLayout = layoutManager.detectOptimalLayout(panelCenter)
-    
-    // Show snap indicator if layout would change
-    if (optimalLayout !== layoutManager.getCurrentLayout()) {
-      if (lastSnapLayout !== optimalLayout) {
-        layoutManager.showSnapIndicator(optimalLayout)
-        lastSnapLayout = optimalLayout
-      }
-    } else {
-      // Hide indicator if back to current layout zone
-      if (lastSnapLayout !== null) {
-        layoutManager.hideSnapIndicator()
-        lastSnapLayout = null
-      }
-    }
   }
   
   const onMouseUp = () => {
-    if (!isDragging || !layoutManager) return
+    if (!isDragging) return
     
     isDragging = false
     dragHandle.style.cursor = 'grab'
     document.body.style.userSelect = ''
-    
-    // Hide drag target when dragging ends
-    if (dragTargetController) {
-      dragTargetController.hide()
-    }
-    
-    // Check if we should snap to a new layout
-    if (lastSnapLayout && lastSnapLayout !== layoutManager.getCurrentLayout()) {
-      layoutManager.snapToLayout(lastSnapLayout)
-    } else {
-      // Just hide the indicator if no snap occurred
-      layoutManager.hideSnapIndicator()
-    }
-    
-    lastSnapLayout = null
   }
   
   dragHandle.addEventListener('mousedown', onMouseDown)

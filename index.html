@@ -109,14 +109,6 @@
     <div class="controls-container desktop-only">
       <!-- Combined Controls Row -->
       <div class="controls-row">
-        <div class="dropdown-selector">
-          <select id="model-dropdown">
-            <option value="castleton">Castleton Tower</option>
-            <option value="corona_arch">Corona Arch</option>
-            <option value="delicate_arch">Delicate Arch</option>
-            <option value="fisher">Fisher Towers</option>
-          </select>
-        </div>
         <div class="control-button-container">
           <button id="effects-button" class="control-button">Effects</button>
         </div>
@@ -147,6 +139,15 @@
           <button id="settings-close" class="settings-close-button">
             ×
           </button>
+        </div>
+        <div class="settings-dropdown-control">
+          <label for="model-dropdown">Model:</label>
+          <select id="model-dropdown">
+            <option value="castleton">Castleton Tower</option>
+            <option value="corona_arch">Corona Arch</option>
+            <option value="delicate_arch">Delicate Arch</option>
+            <option value="fisher">Fisher Towers</option>
+          </select>
         </div>
         <div class="settings-slider-control" id="point-size-control">
           <label for="point-size">Point Size:</label>
@@ -536,14 +537,6 @@
       </div>
     </div>
 
-    
-    <!-- Settings Panel Drag Target -->
-    <div id="settings-drag-target" class="settings-drag-target desktop-only" style="display: none;">
-      <div class="drag-target-indicator">
-        <div class="drag-target-icon">⚙️</div>
-        <div class="drag-target-text">1×6</div>
-      </div>
-    </div>
 
     <canvas id="canvas"></canvas>
     

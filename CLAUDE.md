@@ -561,6 +561,118 @@ const clampedY = Math.max(0, Math.min(newY, maxY))
 - **README.md**: Comprehensive overview integrated into main documentation
 - **CSS Architecture**: Documented override patterns and responsive layout strategies
 
+## Phase 12: Settings Panel Redesign & Collapse System Overhaul (January 2025)
+
+### Major UI/UX Restructuring
+- **Model Dropdown Integration**: Moved model selector from controls-row into settings panel as first element
+- **Vertical Layout Optimization**: Redesigned from 2×4 grid to 1×8 column layout for maximum compactness
+- **Collapse System Unification**: Standardized collapse behavior across both settings and effects panels
+- **Snapping System Removal**: Eliminated complex resize window snapping for simplified drag-only interaction
+
+### Technical Architecture Changes
+
+**Settings Panel Transformation**:
+```css
+/* From: Horizontal 2×4 Grid Layout */
+grid-template-columns: repeat(4, 1fr);
+grid-template-rows: auto auto auto;
+width: 1000px;
+
+/* To: Vertical 1×8 Column Layout */
+grid-template-columns: 1fr;
+grid-template-rows: auto repeat(8, auto);
+width: 264px;
+height: 320px;
+```
+
+**Panel Controls Hierarchy** (1×8 vertical organization):
+1. **Model Dropdown** - Scene selection (moved from controls-row)
+2. **Point Size Slider** - Individual point rendering size control
+3. **Sphere Radius Slider** - Sphere mode radius (conditional visibility)
+4. **Focal Length Slider** - Camera field of view control
+5. **Fog Density Slider** - Atmospheric depth effect
+6. **Sphere Mode Toggle** - Point/sphere rendering switch
+7. **Background Color Picker** - HSV color selection modal
+8. **Auto-Rotation Speed** - Bidirectional rotation control
+
+### Collapse System Redesign
+
+**Unified Collapse Behavior**:
+```css
+.settings-panel.collapsed,
+.effects-panel.collapsed {
+  height: auto !important;
+  min-height: auto !important;
+  overflow: hidden;
+}
+
+.settings-panel.collapsed > *:not(.settings-drag-handle),
+.effects-panel.collapsed .effects-panel-inner,
+.effects-panel.collapsed .effects-panel-footer,
+.effects-panel.collapsed .effects-resize-handle {
+  display: none !important;
+}
+```
+
+**Visual Feedback Enhancement**:
+- **Green Arrow Indicators**: 3× arrows (▼/▲) centered in header showing expand/collapse state
+- **Single-Click Interaction**: Click anywhere on header to toggle (avoiding close button)
+- **Drag Prevention**: Smart detection prevents collapse when dragging panels
+- **Position Stability**: No position jumping during collapse/expand operations
+
+### Interaction System Simplification
+
+**Removed Complex Features**:
+- ❌ **Resize Window Snapping**: Eliminated SettingsLayoutManager snap detection system
+- ❌ **Layout Switching**: Removed 2×3, 1×8, 3×2, 8×1 dynamic layout options
+- ❌ **Snap Zone Indicators**: Removed visual feedback for layout transitions
+- ❌ **Drag Target Elements**: Eliminated right-side 1×6 snap target
+- ❌ **localStorage Layout Persistence**: Simplified to single default layout
+- ❌ **Complex Positioning Logic**: Removed multi-layout positioning calculations
+
+**Retained Core Functionality**:
+- ✅ **Simple Drag System**: Clean drag-and-drop with viewport constraints
+- ✅ **Resize Handles**: Settings panel resize capability maintained
+- ✅ **Collapse/Expand**: Unified single-click header interaction
+- ✅ **Visual Feedback**: Green arrow state indicators
+- ✅ **Default Positioning**: Smart initial placement relative to controls
+
+### Problem-Solution Examples
+
+**Position Jumping on Collapse**:
+- **Problem**: Settings panel would reposition when collapsing due to layout manager interference
+- **Solution**: Modified SettingsLayoutManager to detect existing custom positioning and avoid repositioning
+- **Result**: Stable panel position during collapse/expand operations
+
+**Collapse Behavior Inconsistency**:
+- **Problem**: Settings panel showed empty background box when collapsed (unlike effects panel)
+- **Solution**: Unified CSS approach using `height: auto` and `display: none` for content
+- **Result**: Both panels collapse to show only drag handle with no empty background
+
+**Complex Snapping System**:
+- **Problem**: Multi-layout snapping system created UI complexity and maintenance overhead
+- **Solution**: Complete removal of snapping logic, simplified to single 1×8 layout
+- **Result**: ~200+ lines of code removed, much cleaner user experience
+
+### Performance & Code Quality Improvements
+
+**Code Reduction**:
+- **Removed Functions**: `setupSettingsDragTarget()`, complex `SettingsLayoutManager` methods
+- **Simplified CSS**: Eliminated layout-specific styling for unused grid configurations
+- **Reduced Event Handling**: Removed snap detection and indicator management
+- **Cleaner Architecture**: Single-purpose classes with clear responsibilities
+
+**User Experience Enhancements**:
+- **Predictable Behavior**: Single layout removes confusion about panel transformations
+- **Compact Design**: 264×320px panel maximizes screen real estate efficiency
+- **Intuitive Interaction**: Click-to-collapse matches modern UI expectations
+- **Visual Clarity**: Green arrows provide immediate state feedback
+
+### Documentation Integration
+- **CLAUDE.md**: Updated with comprehensive Phase 12 implementation details
+- **Code Comments**: Simplified functions with clear single-purpose documentation
+- **CSS Organization**: Cleaned layout-specific rules, maintained only essential styling
+
 ## Future Considerations
 - **Layered Auto-Rotation**: Enable auto-rotation during initial animation for spiral/helical motion effects (framework complete)
 - **Smart Chunk Prioritization**: Load closest/largest chunks first based on camera position

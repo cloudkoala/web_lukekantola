@@ -1322,9 +1322,9 @@ body, html {
 
 .desktop-only .settings-panel {
   position: fixed; /* Changed to fixed for dragging */
-  left: 50%; /* Center horizontally */
-  bottom: 40px; /* Position at bottom with margin */
-  transform: translateX(-50%); /* Center the panel */
+  left: calc(100% - 300px); /* Position near right edge */
+  top: 90px; /* Position near top */
+  transform: none; /* No transform needed */
   height: auto;
   max-height: none;
   overflow: visible;
@@ -1400,87 +1400,72 @@ body, html {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Fixed 3 columns */
-  grid-template-rows: auto auto auto; /* 3 rows: drag handle + 2 content rows */
+  grid-template-columns: 1fr; /* Single column */
+  grid-template-rows: auto repeat(8, auto); /* 1 row for drag handle + 8 rows for controls */
   gap: 0; /* Remove gap for tighter layout */
   position: relative;
-  width: 750px; /* Increased width to prevent text wrapping */
-  height: auto; /* Let content determine height */
+  width: 264px; /* Narrow width for single column */
+  height: 320px; /* Fixed height */
   box-sizing: border-box;
 }
 
-/* Settings Panel Layout Variations */
-.settings-panel.layout-2x3 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: auto auto auto;
-  width: 750px;
-  /* Ensure tight margins for default layout */
-  height: auto;
+/* Settings Panel Layout - Default 1x8 */
+.settings-panel.layout-1x8 {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto repeat(8, auto);
+  width: 264px;
+  height: 320px;
   padding: 0;
 }
 
-.settings-panel.layout-1x6 {
-  grid-template-columns: 1fr;
-  grid-template-rows: auto repeat(6, auto);
-  width: 300px;
-}
-
-.settings-panel.layout-3x2 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: auto auto auto auto;
-  width: 500px;
-}
-
-.settings-panel.layout-6x1 {
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: auto auto;
-  width: 900px;
-}
-
-/* Layout-specific optimizations */
-.settings-panel.layout-1x6 .settings-slider-control,
-.settings-panel.layout-1x6 .sphere-controls,
-.settings-panel.layout-1x6 .settings-color-control {
-  margin-bottom: 8px;
-  padding: 8px 12px;
-}
-
-.settings-panel.layout-6x1 .settings-slider-control,
-.settings-panel.layout-6x1 .sphere-controls,
-.settings-panel.layout-6x1 .settings-color-control {
-  font-size: 0.8rem;
-  padding: 6px 8px;
-}
-
-.settings-panel.layout-6x1 .settings-slider-control label,
-.settings-panel.layout-6x1 .sphere-controls label,
-.settings-panel.layout-6x1 .settings-color-control label {
-  font-size: 0.7rem;
-  margin-bottom: 2px;
-}
-
-/* Compact controls for horizontal layout */
-.settings-panel.layout-6x1 input[type="range"] {
-  height: 18px;
-}
-
-.settings-panel.layout-6x1 .settings-slider-control span,
-.settings-panel.layout-6x1 .sphere-controls span {
-  font-size: 0.6rem;
-}
-
-/* Enhanced spacing for vertical layout */
-.settings-panel.layout-1x6 .settings-slider-control:last-child {
-  margin-bottom: 0;
-}
-
-/* Settings controls - compact spacing for default layout */
-.settings-panel.layout-2x3 .settings-slider-control,
-.settings-panel.layout-2x3 .sphere-controls,
-.settings-panel.layout-2x3 .settings-color-control {
+/* Settings Dropdown Control */
+.settings-dropdown-control {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 3px;
   padding: 6px 10px;
   margin: 2px;
 }
+
+.settings-dropdown-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  white-space: nowrap;
+  min-width: 35px;
+}
+
+.settings-dropdown-control select {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 3px;
+  color: white;
+  font-size: 0.7rem;
+  font-family: monospace;
+  padding: 2px 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-dropdown-control select:hover {
+  border-color: rgba(0, 255, 0, 0.5);
+}
+
+.settings-dropdown-control select:focus {
+  outline: none;
+  border-color: #00ff00;
+}
+
+/* Settings controls - very compact spacing for narrow layout */
+.settings-panel.layout-1x8 .settings-slider-control,
+.settings-panel.layout-1x8 .sphere-controls,
+.settings-panel.layout-1x8 .settings-color-control,
+.settings-panel.layout-1x8 .settings-dropdown-control {
+  padding: 4px 8px;
+  margin: 1px 4px;
+}
+
 
 /* Auto-rotation control is now a normal grid item, no special spanning */
 
@@ -1733,7 +1718,8 @@ body, html {
 
 /* Panel collapsed states */
 .settings-panel.collapsed {
-  height: 20px !important;
+  height: auto !important;
+  min-height: auto !important;
   overflow: hidden;
 }
 
@@ -3500,7 +3486,8 @@ body, html {
   font-size: 0.6rem;
   font-family: 'Space Mono', monospace;
   font-weight: 600;
-  min-width: 80px;
+  min-width: 90px;
+  flex-shrink: 0;
 }
 
 .mobile-effect-parameters .parameter-control {
@@ -4959,11 +4946,13 @@ body, html {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.65rem;
   font-family: monospace;
-  min-width: 70px;
+  min-width: 90px;
+  flex-shrink: 0;
 }
 
 .effect-parameters-container .parameter-slider {
-  width: 80px;
+  flex: 1;
+  min-width: 80px;
   height: 2px;
 }
 
