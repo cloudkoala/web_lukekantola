@@ -2666,13 +2666,21 @@ export class OrbitalCameraSystem {
   private setupEffectsPanel(): void {
     console.log('🎯 Setting up EffectsPanel...')
     
-    // Check if DOM is ready
+    // Check if DOM is ready - check for child elements since main panel might be restructured
     const effectsPanelElement = document.getElementById('effects-panel')
-    if (!effectsPanelElement) {
-      console.warn('Effects panel element not found, delaying setup...')
+    const effectsChainElement = document.getElementById('effects-chain')
+    
+    if (!effectsChainElement) {
+      console.warn('Effects DOM not ready, delaying setup...', Date.now())
       setTimeout(() => this.setupEffectsPanel(), 100)
       return
     }
+    
+    if (!effectsPanelElement) {
+      console.warn('Effects panel element missing but children exist - DOM restructuring detected')
+    }
+    
+    console.log('Effects DOM ready, proceeding with setup...', Date.now())
     
     try {
       this.effectsPanel = new EffectsPanel(this.effectsChainManager)

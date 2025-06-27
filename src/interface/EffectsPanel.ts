@@ -922,6 +922,7 @@ export class EffectsPanel {
     
     // Store reference to search input for focus management
     this.addEffectModal.setAttribute('data-search-input', 'true')
+    console.log('Add effect modal successfully created:', !!this.addEffectModal)
     } catch (error) {
       console.error('Error creating add effect modal:', error)
       this.addEffectModal = null
@@ -929,8 +930,11 @@ export class EffectsPanel {
   }
   
   private showAddEffectModal(): void {
+    console.log('showAddEffectModal called, modal exists:', !!this.addEffectModal)
     if (this.addEffectModal) {
       this.addEffectModal.style.display = 'flex'
+      console.log('Modal display set to flex, current style:', this.addEffectModal.style.display)
+      console.log('Modal computed style:', window.getComputedStyle(this.addEffectModal).display)
       
       // Clear search and show all effects
       const searchInput = this.addEffectModal.querySelector('.add-effect-search') as HTMLInputElement
