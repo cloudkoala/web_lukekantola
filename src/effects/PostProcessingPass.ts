@@ -418,8 +418,9 @@ export class PostProcessingPass {
     
     // Check if any topographic effects are active
     const hasTopographicEffect = enabledEffects.some(effect => effect.type === 'topographic')
-    if (!hasTopographicEffect) {
+    if (!hasTopographicEffect && this.topographicWires.length > 0) {
       // Clear topographic wires and reset point colors if no topographic effects are active
+      console.log('Topographic: No topographic effects active, cleaning up wires')
       this.clearTopographicWires()
       this.resetPointColors()
     }
@@ -1347,6 +1348,14 @@ export class PostProcessingPass {
   // Chain management methods
   setEffectsChain(effects: EffectInstance[]): void {
     this.effectsChain = [...effects]
+    
+    // Immediately clear topographic wires if no topographic effects are active
+    const hasTopographicEffect = effects.some(effect => effect.enabled && effect.type === 'topographic')
+    if (!hasTopographicEffect && this.topographicWires.length > 0) {
+      console.log('Topographic: No topographic effects in chain, immediately clearing wires')
+      this.clearTopographicWires()
+      this.resetPointColors()
+    }
   }
   
   getEffectsChain(): EffectInstance[] {
@@ -1719,6 +1728,7 @@ export class PostProcessingPass {
     const minYThreshold = (effect.parameters.minY ?? 0) / 100 // Convert to 0-1
     const maxYThreshold = (effect.parameters.maxY ?? 100) / 100 // Convert to 0-1
     const wireOpacity = effect.parameters.wireOpacity ?? 0.8
+    const maxSegmentLength = effect.parameters.maxSegmentLength ?? 10.0
     
     // Handle animation
     let animationTime = 0
@@ -1734,7 +1744,7 @@ export class PostProcessingPass {
     
     if (generateWires) {
       // Generate actual wire geometry
-      this.generateTopographicWires(lineSpacing, animationTime, minYThreshold, maxYThreshold, wireOpacity)
+      this.generateTopographicWires(lineSpacing, lineWidth, maxSegmentLength, animationTime, minYThreshold, maxYThreshold, wireOpacity)
       
       // Reset point colors to original when using wires (don't apply point-based effect)
       this.pointClouds.forEach(pointCloud => {
@@ -1865,7 +1875,7 @@ export class PostProcessingPass {
     colorAttribute.needsUpdate = true
   }
   
-  private generateTopographicWires(lineSpacing: number, animationTime: number, minYThreshold: number, maxYThreshold: number, wireOpacity: number): void {
+  private generateTopographicWires(lineSpacing: number, lineWidth: number, maxSegmentLength: number, animationTime: number, minYThreshold: number, maxYThreshold: number, wireOpacity: number): void {
     // Clear existing wires first
     this.clearTopographicWires()
     
@@ -1912,7 +1922,8 @@ export class PostProcessingPass {
         if (lineY < effectiveMinY || lineY > effectiveMaxY) continue
         
         // Extract points at this elevation (within tolerance)
-        const tolerance = worldLineSpacing * 0.02 // 2% tolerance
+        // Decouple line width from line spacing - use independent tolerance based on lineWidth
+        const tolerance = (effectiveYRange * lineWidth) / 500 // Independent of line spacing
         const contourPoints: THREE.Vector3[] = []
         
         for (let i = 0; i < pointCount; i++) {
@@ -1928,13 +1939,13 @@ export class PostProcessingPass {
         
         // Create line geometry from contour points with proper loop separation
         if (contourPoints.length >= 2) {
-          this.createContourLineGeometryWithLoops(contourPoints, lineY, wireOpacity)
+          this.createContourLineGeometryWithLoops(contourPoints, lineY, maxSegmentLength, effectiveYRange, wireOpacity)
         }
       }
     })
   }
   
-  private createContourLineGeometryWithLoops(points: THREE.Vector3[], _elevation: number, wireOpacity: number): void {
+  private createContourLineGeometryWithLoops(points: THREE.Vector3[], _elevation: number, maxSegmentLength: number, effectiveYRange: number, wireOpacity: number): void {
     if (points.length < 2) return
     
     // Separate points into distinct loops using clustering
@@ -1943,7 +1954,7 @@ export class PostProcessingPass {
     // Create line geometry for each loop
     loops.forEach(loop => {
       if (loop.length >= 2) {
-        this.createSingleLoop(loop, wireOpacity)
+        this.createSingleLoop(loop, maxSegmentLength, effectiveYRange, wireOpacity)
       }
     })
   }
@@ -2008,7 +2019,7 @@ export class PostProcessingPass {
     return count > 0 ? totalDistance / count : 1.0
   }
   
-  private createSingleLoop(loop: THREE.Vector3[], wireOpacity: number): void {
+  private createSingleLoop(loop: THREE.Vector3[], maxSegmentLength: number, effectiveYRange: number, wireOpacity: number): void {
     if (loop.length < 2) return
     
     // Sort points by angle around the center to create a proper loop
@@ -2023,15 +2034,46 @@ export class PostProcessingPass {
       return angleA - angleB
     })
     
-    // Create line segments connecting adjacent points in the loop
+    // Create line segments connecting adjacent points in the loop - cull long segments
+    const maxWorldSegmentLength = (effectiveYRange * maxSegmentLength) / 100
     const linePoints: THREE.Vector3[] = []
+    let culledCount = 0
+    let totalSegments = 0
+    let longestSegment = 0
+    let shortestSegment = Infinity
+    
+    // Debug: log all segment distances first
+    const distances: number[] = []
+    for (let i = 0; i < sortedPoints.length; i++) {
+      const current = sortedPoints[i]
+      const next = sortedPoints[(i + 1) % sortedPoints.length]
+      const distance = current.distanceTo(next)
+      distances.push(distance)
+      longestSegment = Math.max(longestSegment, distance)
+      shortestSegment = Math.min(shortestSegment, distance)
+    }
+    
+    console.log(`Topographic Debug: effectiveYRange=${effectiveYRange.toFixed(3)}, maxSegmentLength=${maxSegmentLength}%, maxWorldLength=${maxWorldSegmentLength.toFixed(3)}`)
+    console.log(`Segment distances: min=${shortestSegment.toFixed(3)}, max=${longestSegment.toFixed(3)}, avg=${(distances.reduce((a,b) => a+b, 0)/distances.length).toFixed(3)}`)
+    
     for (let i = 0; i < sortedPoints.length; i++) {
       const current = sortedPoints[i]
       const next = sortedPoints[(i + 1) % sortedPoints.length] // Wrap around to close the loop
+      const distance = current.distanceTo(next)
+      totalSegments++
       
-      linePoints.push(current.clone())
-      linePoints.push(next.clone())
+      if (distance <= maxWorldSegmentLength) {
+        // Segment is within max length, keep it
+        linePoints.push(current.clone())
+        linePoints.push(next.clone())
+      } else {
+        // Segment too long, cull it (skip adding to linePoints)
+        culledCount++
+        console.log(`Culling segment ${i}: distance=${distance.toFixed(3)} > max=${maxWorldSegmentLength.toFixed(3)}`)
+      }
     }
+    
+    console.log(`Topographic: Processed ${totalSegments} segments, culled ${culledCount} (${((culledCount/totalSegments)*100).toFixed(1)}%)`)
     
     // Create line geometry
     const geometry = new THREE.BufferGeometry()
@@ -2065,6 +2107,8 @@ export class PostProcessingPass {
   private clearTopographicWires(): void {
     if (!this.mainScene) return
     
+    console.log(`Topographic: Clearing ${this.topographicWires.length} wire objects`)
+    
     // Remove all existing wire geometry from scene
     this.topographicWires.forEach(wire => {
       this.mainScene!.remove(wire)
@@ -2075,6 +2119,7 @@ export class PostProcessingPass {
     })
     
     this.topographicWires = []
+    console.log('Topographic: Wire cleanup complete')
   }
   
   private applyPointNetworkEffect(effect: EffectInstance): void {

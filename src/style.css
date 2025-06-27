@@ -784,7 +784,7 @@
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 80px;
   transition: all 0.3s ease;
 }
@@ -1236,16 +1236,18 @@ body, html {
   z-index: 998;
   pointer-events: none;
   display: grid;
-  grid-template-rows: auto auto auto auto; /* Dropdowns, buttons, settings panel, effects panel */
+  grid-template-rows: auto auto; /* Combined controls row, effects panel */
   row-gap: 8px;
   align-items: start;
 }
 
-.controls-container .dropdown-row {
+/* Combined Controls Row */
+.controls-container .controls-row {
   display: flex;
   flex-direction: row;
   gap: 8px;
   align-items: center;
+  pointer-events: auto; /* Enable clicks on controls row */
 }
 
 .controls-container .slider-row {
@@ -1305,13 +1307,6 @@ body, html {
   pointer-events: auto;
 }
 
-/* Control Buttons Row - Settings and Effects side by side */
-.desktop-only .control-buttons-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px; /* Force spacing from dropdowns above */
-  pointer-events: auto; /* Enable clicks on button row */
-}
 
 .desktop-only .control-button-container {
   position: static !important;
@@ -1326,16 +1321,35 @@ body, html {
 }
 
 .desktop-only .settings-panel {
-  grid-row: 3; /* Settings panel in third row */
+  position: fixed; /* Changed to fixed for dragging */
+  left: 50%; /* Center horizontally */
+  bottom: 40px; /* Position at bottom with margin */
+  transform: translateX(-50%); /* Center the panel */
+  height: auto;
+  max-height: none;
+  overflow: visible;
   display: none; /* Hidden by default */
+  z-index: 1000; /* Ensure it's above other elements when dragging */
 }
 
 .desktop-only .effects-panel {
-  grid-row: 4; /* Effects panel in fourth row (bottom) */
-  display: none; /* Hidden by default */
+  position: fixed !important; /* Changed to fixed for dragging */
+  left: 50% !important; /* Center horizontally */
+  bottom: 120px !important; /* Position above settings panel */
+  top: auto !important; /* Override any top positioning */
+  right: auto !important; /* Override any right positioning */
+  transform: translateX(-50%) !important; /* Center the panel */
+  display: none !important; /* Hidden by default */
+  z-index: 999 !important; /* Below settings panel */
+  padding: 0 !important; /* Remove padding to accommodate drag handle */
+  flex-direction: column !important; /* Ensure column layout for drag handle */
 }
 
-.desktop-only .settings-panel[style*="display: flex"],
+.desktop-only .settings-panel[style*="display: grid"],
+.desktop-only .settings-panel[style*="display: flex"] {
+  display: grid !important; /* Override when shown by JavaScript */
+}
+
 .desktop-only .effects-panel[style*="display: flex"] {
   display: flex !important; /* Override when shown by JavaScript */
 }
@@ -1347,7 +1361,7 @@ body, html {
   color: white;
   font-size: 0.7rem;
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  padding: 6px;
+  padding: 3px;
   outline: none;
   text-shadow: none;
   transition: all 0.3s ease;
@@ -1379,79 +1393,178 @@ body, html {
 .settings-panel {
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 8px;
-  padding: 15px;
+  border-radius: 6px;
+  padding: 0; /* Remove padding to accommodate drag handle */
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Fixed 3 columns */
+  grid-template-rows: auto auto auto; /* 3 rows: drag handle + 2 content rows */
+  gap: 0; /* Remove gap for tighter layout */
   position: relative;
-  width: fit-content;
-  max-width: 360px;
+  width: 750px; /* Increased width to prevent text wrapping */
+  height: auto; /* Let content determine height */
+  box-sizing: border-box;
 }
 
+/* Settings & Effects Drag Handle */
+.settings-drag-handle,
+.effects-drag-handle {
+  grid-column: 1 / -1; /* Span all columns */
+  grid-row: 1; /* First row */
+  background: rgba(0, 255, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+  border-radius: 6px 6px 0 0; /* Rounded top corners only */
+  padding: 0 8px; /* Remove vertical padding */
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Space between left content and close button */
+  cursor: grab;
+  user-select: none;
+  transition: background 0.2s ease;
+  height: 20px; /* Fixed height exactly 20px */
+  box-sizing: border-box;
+}
+
+.settings-drag-handle .drag-content,
+.effects-drag-handle .drag-content {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Reduced gap */
+}
+
+.settings-drag-handle:hover,
+.effects-drag-handle:hover {
+  background: rgba(0, 255, 0, 0.15);
+}
+
+.settings-drag-handle:active,
+.effects-drag-handle:active {
+  cursor: grabbing;
+  background: rgba(0, 255, 0, 0.2);
+}
+
+.drag-dots {
+  display: flex;
+  gap: 1px; /* Reduced gap between dots */
+  align-items: center;
+}
+
+.drag-dot {
+  width: 2px; /* Smaller dots */
+  height: 2px; /* Smaller dots */
+  background: rgba(0, 255, 0, 0.6);
+  border-radius: 50%;
+}
+
+.drag-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: 'Space Mono', monospace;
+  font-weight: 300; /* Lighter weight */
+  letter-spacing: 0.2px; /* Reduced letter spacing */
+}
+
+/* Effects Panel Resize Handle */
+.effects-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nw-resize;
+  background: rgba(0, 255, 0, 0.1);
+  border-radius: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.effects-resize-handle:hover {
+  background: rgba(0, 255, 0, 0.2);
+}
+
+.resize-grip {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-bottom: 6px solid rgba(0, 255, 0, 0.6);
+  transform: rotate(45deg);
+}
+
+/* Adjust settings controls spacing */
+.settings-slider-control,
+.settings-color-control,
+.sphere-controls {
+  padding: 6px 12px;
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+}
+
+.settings-slider-control:last-child,
+.settings-color-control:last-child,
+.sphere-controls:last-child {
+  border-bottom: none;
+  border-radius: 0 0 6px 6px; /* Rounded bottom corners for last item */
+}
 
 /* Settings Close Button */
 .settings-close-button {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 16px;
+  font-size: 10px; /* Smaller font */
   cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
+  padding: 1px 2px; /* Reduced padding */
+  height: 14px; /* Smaller height */
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  position: absolute;
-  top: -5px;
-  right: 8px; /* Moved to top right */
+  position: relative;
+  top: 0;
+  right: 0;
   flex-shrink: 0;
-  z-index: 10;
+  border-radius: 2px; /* Smaller border radius */
 }
 
 .settings-close-button:hover {
-  color: #00ff00;
-  text-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
-  transform: scale(1.2);
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
+  background: rgba(255, 68, 68, 0.1);
+  transform: scale(1.1);
 }
 
 .esc-hint {
-  font-size: 8px;
-  margin-left: 2px;
-  margin-top: -2px;
+  font-size: 6px; /* Smaller hint text */
+  margin-left: 1px; /* Reduced margin */
+  margin-top: -1px;
   opacity: 0.6;
   font-family: monospace;
 }
 
 
-/* Consolidated Settings Slider Control */
+/* Settings Slider Control - like parameter-control */
 .settings-slider-control {
-  background: transparent;
-  padding: 0;
-  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  width: fit-content;
-  pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 3px;
+  margin-bottom: 3px;
 }
 
 .settings-slider-control label {
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.7rem;
   font-family: monospace;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
+  font-weight: 300;
+  min-width: 80px; /* Increased to prevent wrapping */
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 .settings-slider-control input[type="range"] {
-  width: 100px;
+  width: 80px;
   height: 2px;
   background: rgba(0, 128, 0, 0.6);
   border-radius: 1px;
@@ -1480,28 +1593,24 @@ body, html {
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.6rem;
   font-family: monospace;
-  min-width: 40px;
+  min-width: 20px;
 }
 
 /* Settings Color Control */
 .settings-color-control {
-  background: transparent;
-  padding: 0;
-  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  width: fit-content;
-  pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  margin-bottom: 3px;
 }
 
 .settings-color-control label {
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.7rem;
   font-family: monospace;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
+  font-weight: 300;
+  min-width: 80px; /* Increased to prevent wrapping */
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 .color-picker-container {
@@ -1543,31 +1652,25 @@ body, html {
 
 /* Sphere Controls */
 .sphere-controls {
-  background: transparent;
-  padding: 0;
-  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  width: fit-content;
-  pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sphere-toggle-control,
-.settings-slider-control {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.sphere-toggle-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .sphere-controls label {
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.7rem;
   font-family: monospace;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-  min-width: 70px;
+  font-weight: 300;
+  min-width: 80px; /* Increased to prevent wrapping */
+  white-space: nowrap; /* Prevent text wrapping */
 }
 
 .sphere-toggle-checkbox {
@@ -4000,17 +4103,21 @@ body, html {
   background: rgba(0, 0, 0, 0.8);
   border: 1px solid rgba(0, 255, 0, 0.3);
   border-radius: 8px;
-  padding: 15px;
+  padding: 0;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
-  width: fit-content;
+  width: 360px;
+  height: 400px;
+  min-width: 280px;
+  min-height: 200px;
+  max-width: 600px;
+  max-height: 80vh;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-width: 360px;
   position: relative;
+  resize: none;
 }
 
 .effects-panel-header {
@@ -4118,10 +4225,23 @@ body, html {
   opacity: 0;
 }
 
+.effects-panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 15px;
+  padding-bottom: 0; /* Leave space for resize handle */
+}
+
 .effects-panel-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 15px;
 }
 
 

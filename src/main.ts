@@ -2816,20 +2816,18 @@ function setupSettingsButton() {
   const settingsButton = document.getElementById('settings-button') as HTMLButtonElement
   const settingsButtonContainer = settingsButton?.closest('.control-button-container') as HTMLElement
   const settingsPanel = document.getElementById('settings-panel') as HTMLElement
-  const settingsCloseButton = document.getElementById('settings-close') as HTMLButtonElement
   
   console.log('Settings button:', settingsButton)
   console.log('Settings panel:', settingsPanel)
-  console.log('Settings close button:', settingsCloseButton)
   
-  if (!settingsButton || !settingsPanel || !settingsButtonContainer || !settingsCloseButton) {
-    console.warn('Settings elements not found', { settingsButton, settingsPanel, settingsButtonContainer, settingsCloseButton })
+  if (!settingsButton || !settingsPanel || !settingsButtonContainer) {
+    console.warn('Settings elements not found', { settingsButton, settingsPanel, settingsButtonContainer })
     return
   }
   
   // Toggle settings panel
   settingsButton.addEventListener('click', () => {
-    const isVisible = settingsPanel.style.display === 'flex'
+    const isVisible = settingsPanel.style.display === 'grid'
     
     if (isVisible) {
       // Hide settings panel
@@ -2837,7 +2835,7 @@ function setupSettingsButton() {
       settingsButton.classList.remove('active')
     } else {
       // Show settings panel
-      settingsPanel.style.setProperty('display', 'flex', 'important')
+      settingsPanel.style.setProperty('display', 'grid', 'important')
       settingsButton.classList.add('active')
       
       // Check if effects panel is also open for expansion logic
@@ -2845,16 +2843,85 @@ function setupSettingsButton() {
     }
   })
   
-  // Close settings - hide panel, update button state
-  settingsCloseButton.addEventListener('click', (e) => {
-    console.log('Settings close button clicked!')
-    e.stopPropagation() // Prevent event bubbling
-    settingsPanel.style.setProperty('display', 'none', 'important')
-    settingsButton.classList.remove('active')
+  // Add close button functionality back
+  const settingsCloseButton = document.getElementById('settings-close') as HTMLButtonElement
+  if (settingsCloseButton) {
+    settingsCloseButton.addEventListener('click', (e) => {
+      e.stopPropagation() // Prevent event bubbling to drag handle
+      settingsPanel.style.setProperty('display', 'none', 'important')
+      settingsButton.classList.remove('active')
+      
+      // Force update of effects panel state if both were open
+      checkBothPanelsOpen()
+    })
+  }
+  
+  // Make settings panel draggable
+  setupSettingsPanelDrag(settingsPanel)
+}
+
+function setupSettingsPanelDrag(panel: HTMLElement) {
+  let isDragging = false
+  let dragOffset = { x: 0, y: 0 }
+  
+  const dragHandle = panel.querySelector('.settings-drag-handle') as HTMLElement
+  if (!dragHandle) return
+  
+  const onMouseDown = (e: MouseEvent) => {
+    // Only start drag on the drag content area, not the close button
+    const target = e.target as HTMLElement
+    if (target.closest('.settings-close-button')) {
+      return
+    }
     
-    // Force update of effects panel state if both were open
-    checkBothPanelsOpen()
-  })
+    isDragging = true
+    
+    // Get the actual position considering transform
+    const rect = panel.getBoundingClientRect()
+    dragOffset.x = e.clientX - rect.left
+    dragOffset.y = e.clientY - rect.top
+    
+    // Remove transform to use absolute positioning during drag
+    panel.style.transform = 'none'
+    panel.style.left = `${rect.left}px`
+    panel.style.top = `${rect.top}px`
+    panel.style.bottom = 'auto'
+    
+    dragHandle.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+    
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  
+  const onMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+    
+    const newX = e.clientX - dragOffset.x
+    const newY = e.clientY - dragOffset.y
+    
+    // Keep panel within viewport bounds
+    const maxX = window.innerWidth - panel.offsetWidth
+    const maxY = window.innerHeight - panel.offsetHeight
+    
+    const clampedX = Math.max(0, Math.min(newX, maxX))
+    const clampedY = Math.max(0, Math.min(newY, maxY))
+    
+    panel.style.left = `${clampedX}px`
+    panel.style.top = `${clampedY}px`
+  }
+  
+  const onMouseUp = () => {
+    if (!isDragging) return
+    
+    isDragging = false
+    dragHandle.style.cursor = 'grab'
+    document.body.style.userSelect = ''
+  }
+  
+  dragHandle.addEventListener('mousedown', onMouseDown)
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
 }
 
 // Effects button functionality
@@ -2976,6 +3043,136 @@ function setupEffectsButton() {
   } else {
     console.warn('Effects collapse arrow or collapsible not found:', { effectsCollapseArrow, effectsCollapsible })
   }
+  
+  // Make effects panel draggable
+  setupEffectsPanelDrag(effectsPanel)
+}
+
+function setupEffectsPanelDrag(panel: HTMLElement) {
+  let isDragging = false
+  let dragOffset = { x: 0, y: 0 }
+  
+  const dragHandle = panel.querySelector('.effects-drag-handle') as HTMLElement
+  if (!dragHandle) {
+    console.warn('Effects drag handle not found for panel:', panel.id)
+    return
+  }
+  
+  console.log('Effects panel drag setup complete for:', panel.id)
+  
+  const onMouseDown = (e: MouseEvent) => {
+    // Only start drag on the drag content area, not the close button
+    const target = e.target as HTMLElement
+    if (target.closest('.settings-close-button')) {
+      return
+    }
+    
+    isDragging = true
+    
+    // Get the actual position considering transform
+    const rect = panel.getBoundingClientRect()
+    dragOffset.x = e.clientX - rect.left
+    dragOffset.y = e.clientY - rect.top
+    
+    // Remove transform to use absolute positioning during drag - use !important to override CSS
+    panel.style.setProperty('transform', 'none', 'important')
+    panel.style.setProperty('left', `${rect.left}px`, 'important')
+    panel.style.setProperty('top', `${rect.top}px`, 'important')
+    panel.style.setProperty('bottom', 'auto', 'important')
+    
+    dragHandle.style.cursor = 'grabbing'
+    document.body.style.userSelect = 'none'
+    
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  
+  const onMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return
+    
+    const newX = e.clientX - dragOffset.x
+    const newY = e.clientY - dragOffset.y
+    
+    // Keep panel within viewport bounds
+    const maxX = window.innerWidth - panel.offsetWidth
+    const maxY = window.innerHeight - panel.offsetHeight
+    
+    const clampedX = Math.max(0, Math.min(newX, maxX))
+    const clampedY = Math.max(0, Math.min(newY, maxY))
+    
+    panel.style.setProperty('left', `${clampedX}px`, 'important')
+    panel.style.setProperty('top', `${clampedY}px`, 'important')
+  }
+  
+  const onMouseUp = () => {
+    if (!isDragging) return
+    
+    isDragging = false
+    dragHandle.style.cursor = 'grab'
+    document.body.style.userSelect = ''
+  }
+  
+  dragHandle.addEventListener('mousedown', onMouseDown)
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+  
+  // Setup resize functionality
+  setupEffectsPanelResize(panel)
+}
+
+function setupEffectsPanelResize(panel: HTMLElement) {
+  const resizeHandle = panel.querySelector('.effects-resize-handle') as HTMLElement
+  if (!resizeHandle) {
+    console.warn('Effects resize handle not found for panel:', panel.id)
+    return
+  }
+  
+  let isResizing = false
+  let startX = 0
+  let startY = 0
+  let startWidth = 0
+  let startHeight = 0
+  
+  const onResizeMouseDown = (e: MouseEvent) => {
+    isResizing = true
+    startX = e.clientX
+    startY = e.clientY
+    
+    const rect = panel.getBoundingClientRect()
+    startWidth = rect.width
+    startHeight = rect.height
+    
+    resizeHandle.style.cursor = 'nw-resize'
+    document.body.style.userSelect = 'none'
+    
+    e.preventDefault()
+    e.stopPropagation()
+  }
+  
+  const onResizeMouseMove = (e: MouseEvent) => {
+    if (!isResizing) return
+    
+    const deltaX = e.clientX - startX
+    const deltaY = e.clientY - startY
+    
+    const newWidth = Math.max(280, Math.min(600, startWidth + deltaX))
+    const newHeight = Math.max(200, Math.min(window.innerHeight * 0.8, startHeight + deltaY))
+    
+    panel.style.setProperty('width', `${newWidth}px`, 'important')
+    panel.style.setProperty('height', `${newHeight}px`, 'important')
+  }
+  
+  const onResizeMouseUp = () => {
+    if (!isResizing) return
+    
+    isResizing = false
+    resizeHandle.style.cursor = 'nw-resize'
+    document.body.style.userSelect = ''
+  }
+  
+  resizeHandle.addEventListener('mousedown', onResizeMouseDown)
+  document.addEventListener('mousemove', onResizeMouseMove)
+  document.addEventListener('mouseup', onResizeMouseUp)
 }
 
 // Helper function to hide all panels and reset button states

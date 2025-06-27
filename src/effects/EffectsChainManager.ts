@@ -567,7 +567,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
   {
     type: 'topographic',
     name: 'Topographic Lines',
-    defaultParameters: { intensity: 1.0, lineSpacing: 5.0, lineWidth: 2.0, animationSpeed: 0.0, generateWires: 0, minY: 0, maxY: 100, wireOpacity: 0.8 },
+    defaultParameters: { intensity: 1.0, lineSpacing: 5.0, lineWidth: 2.0, animationSpeed: 0.0, generateWires: 0, minY: 0, maxY: 100, wireOpacity: 0.8, maxSegmentLength: 2.0 },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       lineSpacing: { min: 1.0, max: 20.0, step: 0.5, label: 'Line Spacing' },
@@ -576,7 +576,8 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       generateWires: { min: 0, max: 1, step: 1, label: 'Generate Wire Geometry' },
       minY: { min: 0, max: 100, step: 1, label: 'Min Y Threshold (%)' },
       maxY: { min: 0, max: 100, step: 1, label: 'Max Y Threshold (%)' },
-      wireOpacity: { min: 0.1, max: 1.0, step: 0.05, label: 'Wire Opacity' }
+      wireOpacity: { min: 0.1, max: 1.0, step: 0.05, label: 'Wire Opacity' },
+      maxSegmentLength: { min: 0.5, max: 20.0, step: 0.5, label: 'Cull Long Segments (%)' }
     }
   },
   {

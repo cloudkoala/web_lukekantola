@@ -107,7 +107,8 @@
     
     <!-- Desktop Controls Container -->
     <div class="controls-container desktop-only">
-      <div class="dropdown-row">
+      <!-- Combined Controls Row -->
+      <div class="controls-row">
         <div class="dropdown-selector">
           <select id="model-dropdown">
             <option value="castleton">Castleton Tower</option>
@@ -116,24 +117,32 @@
             <option value="fisher">Fisher Towers</option>
           </select>
         </div>
-      </div>
-      
-      <!-- Control Buttons Row -->
-      <div class="control-buttons-row">
-        <div class="control-button-container">
-          <button id="settings-button" class="control-button">Settings</button>
-        </div>
         <div class="control-button-container">
           <button id="effects-button" class="control-button">Effects</button>
+        </div>
+        <div class="control-button-container">
+          <button id="settings-button" class="control-button">Settings</button>
         </div>
       </div>
       
       <!-- Settings Panel (replaces button when open) -->
       <div id="settings-panel" class="settings-panel" style="display: none;">
-        <button id="settings-close" class="settings-close-button">
-          ×<span class="esc-hint">esc</span>
-        </button>
-        
+        <div class="settings-drag-handle" id="settings-drag-handle">
+          <div class="drag-content">
+            <div class="drag-dots">
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+            </div>
+            <span class="drag-label">Settings</span>
+          </div>
+          <button id="settings-close" class="settings-close-button">
+            ×<span class="esc-hint">esc</span>
+          </button>
+        </div>
         <div class="settings-slider-control" id="point-size-control">
           <label for="point-size">Point Size:</label>
           <input type="range" id="point-size" min="0.001" max="0.2" step="0.001" value="0.001">
@@ -155,10 +164,11 @@
           <input type="range" id="fog-density" min="0" max="0.5" step="0.001" value="0.003">
           <span id="fog-density-value">0.003</span>
         </div>
-        <div class="settings-slider-control">
-          <label for="auto-rotation-speed">Rotation Speed:</label>
-          <input type="range" id="auto-rotation-speed" min="-2.0" max="2.0" step="0.01" value="0.0">
-          <span id="auto-rotation-speed-value">0.0</span>
+        <div class="sphere-controls">
+          <div class="sphere-toggle-control">
+            <label for="sphere-toggle">Sphere Mode:</label>
+            <input type="checkbox" id="sphere-toggle" class="sphere-toggle-checkbox" checked>
+          </div>
         </div>
         <div class="settings-color-control">
           <label for="background-color">Background Color:</label>
@@ -167,21 +177,33 @@
             <input type="color" id="background-color-picker" class="hidden-color-input" value="#1a0e17">
           </div>
         </div>
-        <div class="sphere-controls">
-          <div class="sphere-toggle-control">
-            <label for="sphere-toggle">Sphere Mode:</label>
-            <input type="checkbox" id="sphere-toggle" class="sphere-toggle-checkbox" checked>
-          </div>
+        <div class="settings-slider-control">
+          <label for="auto-rotation-speed">Rotation Speed:</label>
+          <input type="range" id="auto-rotation-speed" min="-2.0" max="2.0" step="0.01" value="0.0">
+          <span id="auto-rotation-speed-value">0.0</span>
         </div>
       </div>
       
       <!-- Effects Panel -->
       <div id="effects-panel" class="effects-panel" style="display: none;">
-        <button id="effects-close" class="settings-close-button">
-          ×<span class="esc-hint">esc</span>
-        </button>
+        <div class="effects-drag-handle" id="effects-drag-handle">
+          <div class="drag-content">
+            <div class="drag-dots">
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+              <div class="drag-dot"></div>
+            </div>
+            <span class="drag-label">Effects</span>
+          </div>
+          <button id="effects-close" class="settings-close-button">
+            ×<span class="esc-hint">esc</span>
+          </button>
+        </div>
         
-        <!-- Effects Panel (New Chaining System) -->
+        <!-- Effects Panel Content -->
         <div class="effects-panel-inner">
           <div class="effects-panel-header">
             <div class="effects-panel-title-row">
@@ -190,12 +212,8 @@
               <select id="effects-main-dropdown" class="effects-main-dropdown">
                 <option value="none">None</option>
               </select>
-              <button id="save-preset" class="save-preset-button" title="Save current effects as preset">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                  <polyline points="17,21 17,13 7,13 7,21"></polyline>
-                  <polyline points="7,3 7,8 15,8"></polyline>
-                </svg>
+              <button id="save-preset" class="save-preset-button" style="display: none;">
+                <!-- Hidden but present for EffectsPanel.ts -->
               </button>
             </div>
           </div>
@@ -214,6 +232,11 @@
               </div>
             </div>
           </div>
+        </div>
+        
+        <!-- Resize Handle -->
+        <div class="effects-resize-handle" id="effects-resize-handle">
+          <div class="resize-grip"></div>
         </div>
       </div>
     </div>

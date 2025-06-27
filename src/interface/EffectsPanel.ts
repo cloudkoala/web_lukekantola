@@ -769,6 +769,9 @@ export class EffectsPanel {
             // Switch to Custom and enable effects
             this.mainDropdown.value = 'custom'
             this.updateEffectsEnabled(true)
+            
+            // Scroll to bottom to show newly added effect
+            this.scrollToBottom()
           }
           effectGrid.appendChild(button)
           effectButtons.push({button, definition})
@@ -1566,6 +1569,40 @@ export class EffectsPanel {
       e.preventDefault()
       e.stopPropagation()
       return false
+    })
+  }
+
+  private scrollToBottom(): void {
+    // Scroll the effects chain container to show the newly added effect
+    const scrollContainer = () => {
+      // Find the actual scrollable containers
+      const containers = [
+        this.chainContainer,
+        this.chainContainer?.parentElement, // .effects-chain-container
+        document.getElementById('effects-panel-content'), // .effects-panel-content
+        this.mobileChainContainer,
+        this.panelElement
+      ].filter(Boolean)
+      
+      containers.forEach(container => {
+        if (container) {
+          console.log('Checking container:', container.id || container.className, 'scrollHeight:', container.scrollHeight, 'clientHeight:', container.clientHeight)
+          
+          // Only scroll if there's actually content to scroll
+          if (container.scrollHeight > container.clientHeight) {
+            console.log('Scrolling container:', container.id || container.className)
+            container.scrollTo({
+              top: container.scrollHeight + 100, // Add extra padding to ensure full scroll
+              behavior: 'smooth'
+            })
+          }
+        }
+      })
+    }
+    
+    // Use requestAnimationFrame to ensure the DOM has updated after refreshChain()
+    requestAnimationFrame(() => {
+      scrollContainer()
     })
   }
 }
