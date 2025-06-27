@@ -22,8 +22,8 @@ export class EffectsPanel {
   private addEffectModal: HTMLElement | null = null
   private collapseArrow: HTMLElement
   private panelCollapsible: HTMLElement
-  private mainDropdown: HTMLSelectElement
-  private savePresetButton: HTMLElement
+  private mainDropdown: HTMLSelectElement | null = null
+  private savePresetButton: HTMLElement | null = null
   private isCollapsed: boolean = false
   private expandedEffects: Set<string> = new Set() // Track which effects have expanded parameters
   
@@ -42,8 +42,8 @@ export class EffectsPanel {
     this.parametersContainer = document.getElementById('effect-parameters') as HTMLElement
     this.collapseArrow = document.getElementById('effects-panel-collapse') as HTMLElement
     this.panelCollapsible = document.getElementById('effects-panel-collapsible') as HTMLElement
-    this.mainDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement
-    this.savePresetButton = document.getElementById('save-preset') as HTMLElement
+    this.mainDropdown = document.getElementById('effects-main-dropdown') as HTMLSelectElement | null
+    this.savePresetButton = document.getElementById('save-preset') as HTMLElement | null
 
     // Removed debug logging
 
@@ -156,14 +156,16 @@ export class EffectsPanel {
     this.loadPresetsIntoDropdown()
     
     // Set up desktop dropdown change handler
-    this.mainDropdown.addEventListener('change', () => {
-      const value = this.mainDropdown.value
-      this.handleDropdownChange(value)
-      // Sync mobile dropdown
-      if (this.mobileMainDropdown) {
-        this.mobileMainDropdown.value = value
-      }
-    })
+    if (this.mainDropdown) {
+      this.mainDropdown.addEventListener('change', () => {
+        const value = this.mainDropdown!.value
+        this.handleDropdownChange(value)
+        // Sync mobile dropdown
+        if (this.mobileMainDropdown) {
+          this.mobileMainDropdown.value = value
+        }
+      })
+    }
     
     // Set up mobile dropdown change handler
     if (this.mobileMainDropdown) {
@@ -171,14 +173,18 @@ export class EffectsPanel {
         const value = this.mobileMainDropdown!.value
         this.handleDropdownChange(value)
         // Sync desktop dropdown
-        this.mainDropdown.value = value
+        if (this.mainDropdown) {
+          this.mainDropdown.value = value
+        }
       })
     }
     
     // Set up desktop save preset button
-    this.savePresetButton.addEventListener('click', () => {
-      this.showSavePresetDialog()
-    })
+    if (this.savePresetButton) {
+      this.savePresetButton.addEventListener('click', () => {
+        this.showSavePresetDialog()
+      })
+    }
     
     // Set up mobile save preset button
     if (this.mobileSavePresetButton) {
@@ -204,7 +210,9 @@ export class EffectsPanel {
       this.updateEffectsEnabled(true)
       
       // Switch dropdown to "Custom" since they now have a custom chain
-      this.mainDropdown.value = 'custom'
+      if (this.mainDropdown) {
+        this.mainDropdown.value = 'custom'
+      }
       
       // Expand the panel so users can see and edit the effect
       this.ensureExpanded()
@@ -664,11 +672,14 @@ export class EffectsPanel {
     this.loadPresetsIntoDropdown()
     
     // Select the newly saved preset
-    this.mainDropdown.value = name
+    if (this.mainDropdown) {
+      this.mainDropdown.value = name
+    }
   }
 
   private createAddEffectModal(): void {
-    // Check if mobile for responsive layout decisions
+    try {
+      // Check if mobile for responsive layout decisions
     const isMobile = document.body.classList.contains('touch-layout') || 
                      document.body.classList.contains('hybrid-layout') ||
                      window.matchMedia('(hover: none) and (pointer: coarse)').matches ||
@@ -775,7 +786,9 @@ export class EffectsPanel {
             this.hideAddEffectModal()
             
             // Switch to Custom and enable effects
-            this.mainDropdown.value = 'custom'
+            if (this.mainDropdown) {
+              this.mainDropdown.value = 'custom'
+            }
             this.updateEffectsEnabled(true)
             
             // Scroll to bottom to show newly added effect
@@ -878,11 +891,22 @@ export class EffectsPanel {
     // Position dropdown relative to the effects panel, or body for mobile
     if (isMobile) {
       // On mobile, append to body and position as full-screen modal
-      document.body.appendChild(this.addEffectModal)
-      this.addEffectModal.classList.add('mobile-modal')
+      if (document.body) {
+        document.body.appendChild(this.addEffectModal)
+        this.addEffectModal.classList.add('mobile-modal')
+      } else {
+        throw new Error('document.body is null')
+      }
     } else {
       // On desktop, append to panel as before
-      this.panelElement.appendChild(this.addEffectModal)
+      if (this.panelElement) {
+        this.panelElement.appendChild(this.addEffectModal)
+      } else {
+        // Fallback: append to body if panel not found
+        console.warn('panelElement is null, falling back to document.body')
+        document.body.appendChild(this.addEffectModal)
+        this.addEffectModal.classList.add('mobile-modal')
+      }
     }
     
     // Close dropdown when clicking outside
@@ -898,6 +922,10 @@ export class EffectsPanel {
     
     // Store reference to search input for focus management
     this.addEffectModal.setAttribute('data-search-input', 'true')
+    } catch (error) {
+      console.error('Error creating add effect modal:', error)
+      this.addEffectModal = null
+    }
   }
   
   private showAddEffectModal(): void {
@@ -962,33 +990,16 @@ export class EffectsPanel {
         container.appendChild(card)
       })
       
-      // Create container for action buttons
-      const actionButtonsContainer = document.createElement('div')
-      actionButtonsContainer.className = 'chain-action-buttons'
-      
-      // Add a "+" button at the end of the chain
-      const addButton = document.createElement('button')
-      addButton.className = 'add-effect-button chain-end'
-      addButton.innerHTML = `<span class="add-effect-icon">+</span>`
-      addButton.title = 'Add Effect'
-      addButton.onclick = () => this.showAddEffectModal()
-      actionButtonsContainer.appendChild(addButton)
-      
-      // Add a reset button (only show if there are effects)
-      if (effects.length > 0) {
-        const resetButton = document.createElement('button')
-        resetButton.className = 'reset-effects-button chain-end'
-        resetButton.innerHTML = `<span class="reset-effect-icon">↻</span>`
-        resetButton.title = 'Clear All Effects'
-        resetButton.onclick = () => this.clearAllEffects()
-        actionButtonsContainer.appendChild(resetButton)
-      }
-      
-      container.appendChild(actionButtonsContainer)
+      // Action buttons are now handled by the footer panel
     }
     
     // Update desktop container
-    updateContainer(this.chainContainer, this.mainDropdown)
+    if (this.mainDropdown) {
+      updateContainer(this.chainContainer, this.mainDropdown)
+    } else {
+      // Update without dropdown if it doesn't exist
+      this.updateChainDisplayWithoutDropdown(this.chainContainer, effects)
+    }
     
     // Update mobile container if it exists
     if (this.mobileChainContainer && this.mobileMainDropdown) {
@@ -1113,7 +1124,9 @@ export class EffectsPanel {
       // Switch to None if no effects remain
       const remainingEffects = this.chainManager.getEffectsChain()
       if (remainingEffects.length === 0) {
-        this.mainDropdown.value = 'none'
+        if (this.mainDropdown) {
+          this.mainDropdown.value = 'none'
+        }
         this.updateEffectsEnabled(false)
       }
     })
@@ -1194,6 +1207,31 @@ export class EffectsPanel {
       const selectedCard = this.chainContainer.querySelector(`[data-effect-id="${effectId}"]`)
       selectedCard?.classList.add('selected')
     }
+  }
+
+  private updateChainDisplayWithoutDropdown(container: HTMLElement, effects: EffectInstance[]): void {
+    // Clear existing chain display
+    container.innerHTML = ''
+    
+    if (effects.length === 0) {
+      // Show add effect button when empty
+      const addEffectButton = document.createElement('button')
+      addEffectButton.textContent = '+ Add Effect'
+      addEffectButton.className = 'add-effect-button'
+      addEffectButton.addEventListener('click', () => {
+        this.showAddEffectModal()
+      })
+      container.appendChild(addEffectButton)
+      return
+    }
+    
+    // Create effects chain display
+    effects.forEach((effect, index) => {
+      const card = this.createEffectCard(effect, index, '')
+      container.appendChild(card)
+    })
+    
+    // Action buttons for non-empty chain are handled by the footer panel
   }
 
   private updateParametersDisplay(): void {
@@ -1358,7 +1396,9 @@ export class EffectsPanel {
     this.expandedEffects.clear()
     
     // Set dropdown to "None"
-    this.mainDropdown.value = 'none'
+    if (this.mainDropdown) {
+      this.mainDropdown.value = 'none'
+    }
     if (this.mobileMainDropdown) {
       this.mobileMainDropdown.value = 'none'
     }

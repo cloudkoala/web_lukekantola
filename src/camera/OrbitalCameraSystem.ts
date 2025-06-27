@@ -2665,6 +2665,15 @@ export class OrbitalCameraSystem {
 
   private setupEffectsPanel(): void {
     console.log('🎯 Setting up EffectsPanel...')
+    
+    // Check if DOM is ready
+    const effectsPanelElement = document.getElementById('effects-panel')
+    if (!effectsPanelElement) {
+      console.warn('Effects panel element not found, delaying setup...')
+      setTimeout(() => this.setupEffectsPanel(), 100)
+      return
+    }
+    
     try {
       this.effectsPanel = new EffectsPanel(this.effectsChainManager)
       console.log('🎯 EffectsPanel created successfully:', !!this.effectsPanel)
