@@ -2685,6 +2685,7 @@ export class OrbitalCameraSystem {
     try {
       this.effectsPanel = new EffectsPanel(this.effectsChainManager)
       console.log('🎯 EffectsPanel created successfully:', !!this.effectsPanel)
+      console.log('🎯 EffectsPanel stored in orbitalCamera:', !!this.effectsPanel)
       
       // Set up effects chain updates to propagate to the PostProcessingPass
       this.effectsChainManager.onChainUpdated(() => {

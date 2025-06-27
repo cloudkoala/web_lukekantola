@@ -1718,9 +1718,11 @@ body, html {
 
 /* Panel collapsed states */
 .settings-panel.collapsed {
+  max-height: 20px !important;
+  overflow: hidden !important;
+  /* Override any drag/resize dimensions */
   height: auto !important;
   min-height: auto !important;
-  overflow: hidden;
 }
 
 .settings-panel.collapsed > *:not(.settings-drag-handle) {
@@ -1728,9 +1730,11 @@ body, html {
 }
 
 .effects-panel.collapsed {
+  max-height: 20px !important;
+  overflow: hidden !important;
+  /* Override any drag/resize dimensions */
   height: auto !important;
   min-height: auto !important;
-  overflow: hidden;
 }
 
 .effects-panel.collapsed .effects-panel-inner,

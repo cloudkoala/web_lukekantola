@@ -3410,16 +3410,35 @@ function setupEffectsPanelFooter() {
   
   // Add Effect button functionality
   addEffectButton.addEventListener('click', () => {
+    console.log('Footer Add Effect button clicked!')
     // Use the existing add effect modal from the EffectsPanel
     const effectsPanel = orbitalCamera.getEffectsPanel()
+    console.log('Effects panel found:', !!effectsPanel)
+    console.log('orbitalCamera exists:', !!orbitalCamera)
+    
+    if (!effectsPanel) {
+      console.warn('Effects panel not ready yet, trying again in 100ms...')
+      setTimeout(() => {
+        const retryPanel = orbitalCamera.getEffectsPanel()
+        console.log('Retry - Effects panel found:', !!retryPanel)
+        if (retryPanel) {
+          ;(retryPanel as any).showAddEffectModal()
+        }
+      }, 100)
+      return
+    }
+    
     if (effectsPanel) {
       // Check if modal is already open
       const modal = document.querySelector('.add-effect-dropdown') as HTMLElement
+      console.log('Modal found:', !!modal, 'display:', modal?.style.display)
       if (modal && modal.style.display === 'flex') {
         // Modal is open, close it
+        console.log('Closing modal')
         ;(effectsPanel as any).hideAddEffectModal()
       } else {
         // Modal is closed, open it
+        console.log('Opening modal')
         ;(effectsPanel as any).showAddEffectModal()
       }
     }

@@ -38,6 +38,11 @@ export class EffectsPanel {
     
     // Get desktop DOM elements
     this.panelElement = document.getElementById('effects-panel') as HTMLElement
+    
+    // Handle missing effects-panel element (might be restructured by drag system)
+    if (!this.panelElement) {
+      console.warn('effects-panel element not found, will append modal to body')
+    }
     this.chainContainer = document.getElementById('effects-chain') as HTMLElement
     this.parametersContainer = document.getElementById('effect-parameters') as HTMLElement
     this.collapseArrow = document.getElementById('effects-panel-collapse') as HTMLElement
@@ -248,7 +253,8 @@ export class EffectsPanel {
     const presets = this.getSavedPresets()
     
     // Helper function to populate a dropdown
-    const populateDropdown = (dropdown: HTMLSelectElement) => {
+    const populateDropdown = (dropdown: HTMLSelectElement | null) => {
+      if (!dropdown) return
       // Clear existing options except "None"
       while (dropdown.children.length > 1) {
         dropdown.removeChild(dropdown.lastChild!)
@@ -290,8 +296,10 @@ export class EffectsPanel {
       dropdown.appendChild(effectsGroup)
     }
     
-    // Populate desktop dropdown
-    populateDropdown(this.mainDropdown)
+    // Populate desktop dropdown (only if it exists)
+    if (this.mainDropdown) {
+      populateDropdown(this.mainDropdown)
+    }
     
     // Populate mobile dropdown if it exists
     if (this.mobileMainDropdown) {
@@ -900,12 +908,29 @@ export class EffectsPanel {
     } else {
       // On desktop, append to panel as before
       if (this.panelElement) {
+        console.log('Appending modal to panelElement:', this.panelElement.id)
         this.panelElement.appendChild(this.addEffectModal)
       } else {
         // Fallback: append to body if panel not found
         console.warn('panelElement is null, falling back to document.body')
-        document.body.appendChild(this.addEffectModal)
-        this.addEffectModal.classList.add('mobile-modal')
+        console.log('document exists:', !!document)
+        console.log('document.body exists:', !!document.body)
+        console.log('document.documentElement exists:', !!document.documentElement)
+        
+        if (document.body) {
+          document.body.appendChild(this.addEffectModal)
+          this.addEffectModal.classList.add('mobile-modal')
+          console.log('Modal appended to document.body')
+        } else if (document.documentElement) {
+          console.warn('Using document.documentElement as fallback')
+          document.documentElement.appendChild(this.addEffectModal)
+          this.addEffectModal.classList.add('mobile-modal')
+        } else {
+          console.error('No suitable parent element found!')
+          // Don't throw error, just set modal to null
+          this.addEffectModal = null
+          return
+        }
       }
     }
     
@@ -925,16 +950,66 @@ export class EffectsPanel {
     console.log('Add effect modal successfully created:', !!this.addEffectModal)
     } catch (error) {
       console.error('Error creating add effect modal:', error)
+      console.error('Stack trace:', error.stack)
       this.addEffectModal = null
     }
   }
   
   private showAddEffectModal(): void {
-    console.log('showAddEffectModal called, modal exists:', !!this.addEffectModal)
     if (this.addEffectModal) {
       this.addEffectModal.style.display = 'flex'
-      console.log('Modal display set to flex, current style:', this.addEffectModal.style.display)
-      console.log('Modal computed style:', window.getComputedStyle(this.addEffectModal).display)
+      
+      // Position modal to the right of the effects panel
+      this.addEffectModal.style.position = 'fixed'
+      this.addEffectModal.style.zIndex = '10000'
+      
+      // Find the effects panel or fall back to a good position
+      const effectsPanel = document.getElementById('effects-panel') || 
+                          document.querySelector('.effects-panel') as HTMLElement ||
+                          this.chainContainer?.closest('.effects-panel') as HTMLElement
+      
+      if (effectsPanel) {
+        const panelRect = effectsPanel.getBoundingClientRect()
+        
+        // Ensure modal is attached to document.body for proper positioning
+        if (this.addEffectModal.parentElement !== document.body && document.body) {
+          document.body.appendChild(this.addEffectModal)
+        }
+        
+        // Clear any existing positioning that might interfere
+        this.addEffectModal.style.margin = '0'
+        this.addEffectModal.style.transform = 'none'
+        this.addEffectModal.style.position = 'fixed'
+        
+        // Force a layout calculation to get accurate modal dimensions
+        this.addEffectModal.offsetHeight
+        const modalRect = this.addEffectModal.getBoundingClientRect()
+        const modalWidth = modalRect.width || 400
+        const modalHeight = modalRect.height || 500
+        
+        // Calculate position to the right of the effects panel
+        let finalLeft = panelRect.right + 10
+        let finalTop = panelRect.top
+        
+        // Adjust if modal goes off right edge
+        if (finalLeft + modalWidth > window.innerWidth) {
+          finalLeft = window.innerWidth - modalWidth - 10
+        }
+        
+        // Adjust if modal goes off bottom edge
+        if (finalTop + modalHeight > window.innerHeight) {
+          finalTop = window.innerHeight - modalHeight - 10
+        }
+        
+        // Apply final positioning
+        this.addEffectModal.style.left = `${finalLeft}px`
+        this.addEffectModal.style.top = `${finalTop}px`
+      } else {
+        // Fallback to right side of screen
+        this.addEffectModal.style.right = '20px'
+        this.addEffectModal.style.top = '20px'
+        this.addEffectModal.style.transform = 'none'
+      }
       
       // Clear search and show all effects
       const searchInput = this.addEffectModal.querySelector('.add-effect-search') as HTMLInputElement
@@ -980,7 +1055,12 @@ export class EffectsPanel {
           <span class="add-effect-icon">+</span>
           <span class="add-effect-text">Add Effect</span>
         `
-        addButton.onclick = () => this.showAddEffectModal()
+        addButton.onclick = (e) => {
+          console.log('Main empty state Add Effect button clicked!')
+          e.preventDefault()
+          e.stopPropagation()
+          this.showAddEffectModal()
+        }
         container.appendChild(addButton)
         
         // Ensure panel is expanded when showing Add Effect button
@@ -1222,7 +1302,10 @@ export class EffectsPanel {
       const addEffectButton = document.createElement('button')
       addEffectButton.textContent = '+ Add Effect'
       addEffectButton.className = 'add-effect-button'
-      addEffectButton.addEventListener('click', () => {
+      addEffectButton.addEventListener('click', (e) => {
+        console.log('Empty state Add Effect button clicked!')
+        e.preventDefault()
+        e.stopPropagation()
         this.showAddEffectModal()
       })
       container.appendChild(addEffectButton)
