@@ -787,8 +787,8 @@
 
 
 
-/* Mobile Preset Selector */
-.mobile-preset-selector {
+/* Mobile Model Selector */
+.mobile-model-selector {
   position: fixed;
   bottom: 12px;
   right: 80px;
@@ -800,7 +800,7 @@
   pointer-events: auto;
 }
 
-.preset-label {
+.model-label {
   color: #888888;
   font-family: 'Space Mono', monospace;
   font-size: 0.5rem;
@@ -808,7 +808,7 @@
   text-align: right;
 }
 
-.preset-dropdown {
+.model-dropdown {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid #00ff00;
   border-radius: 8px;
@@ -824,7 +824,7 @@
   transition: all 0.3s ease;
 }
 
-.preset-dropdown:hover {
+.model-dropdown:hover {
   background: rgba(0, 255, 0, 0.1);
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
@@ -840,7 +840,38 @@
   display: none;
 }
 
-.share-button {
+/* Desktop gallery button matches capture button styling */
+.gallery-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 255, 0, 0.1);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.gallery-button:hover {
+  background: rgba(0, 255, 0, 0.2);
+  border-color: rgba(0, 255, 0, 0.6);
+  color: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 255, 0, 0.2);
+}
+
+.gallery-button svg {
+  flex-shrink: 0;
+}
+
+/* Mobile scene action buttons use unified square dark styling */
+.mobile-scene-actions .capture-button,
+.mobile-scene-actions .gallery-button {
   width: 44px;
   height: 44px;
   background: rgba(0, 0, 0, 0.7);
@@ -853,43 +884,56 @@
   justify-content: center;
   transition: none;
   font-family: 'Space Mono', monospace;
+  outline: none;
 }
 
-.share-button:not(.active):not(:hover) {
+.mobile-scene-actions .capture-button:not(.active):not(:hover),
+.mobile-scene-actions .gallery-button:not(.active):not(:hover) {
   background: rgba(0, 0, 0, 0.7);
   box-shadow: none;
 }
 
-.share-button:hover:not(.active):not(:focus) {
+.mobile-scene-actions .capture-button:hover:not(.active):not(:focus),
+.mobile-scene-actions .gallery-button:hover:not(.active):not(:focus) {
   background: rgba(0, 255, 0, 0.1);
   border-color: #00ff00;
   box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
 }
 
-.share-button.active {
+.mobile-scene-actions .capture-button.active,
+.mobile-scene-actions .gallery-button.active {
   background: rgba(0, 255, 0, 0.2);
   box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
 }
 
-.share-button:active {
+.mobile-scene-actions .capture-button:active,
+.mobile-scene-actions .gallery-button:active {
   transform: scale(0.95);
 }
 
-.preset-name {
+.mobile-scene-actions .capture-button svg,
+.mobile-scene-actions .gallery-button svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.model-name {
   color: white;
 }
 
-.preset-arrow {
+.model-arrow {
   color: white;
   font-size: 0.5rem;
   transition: transform 0.2s ease;
 }
 
-.preset-dropdown.open .preset-arrow {
+.model-dropdown.open .model-arrow {
   transform: rotate(180deg);
 }
 
-.preset-dropdown-menu {
+.model-dropdown-menu {
   position: absolute;
   bottom: 100%;
   right: 0;
@@ -904,7 +948,7 @@
   backdrop-filter: blur(10px);
 }
 
-.preset-option {
+.model-option {
   padding: 8px 12px;
   color: white;
   font-family: 'Space Mono', monospace;
@@ -914,15 +958,15 @@
   border-bottom: 1px solid rgba(0, 255, 0, 0.2);
 }
 
-.preset-option:last-child {
+.model-option:last-child {
   border-bottom: none;
 }
 
-.preset-option:hover {
+.model-option:hover {
   background: rgba(0, 255, 0, 0.1);
 }
 
-.preset-option.active {
+.model-option.active {
   background: rgba(0, 255, 0, 0.2);
   color: #00ff00;
 }
@@ -3340,6 +3384,11 @@ body, html {
     display: block;
   }
   
+  /* Show mobile scene actions with flex layout */
+  .mobile-scene-actions.mobile-only {
+    display: flex;
+  }
+  
   .desktop-only {
     display: none;
   }
@@ -4659,9 +4708,7 @@ body, html {
   flex-wrap: wrap;
 }
 
-.capture-scene-button,
-.share-scene-button,
-.gallery-button {
+.capture-scene-button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4677,9 +4724,7 @@ body, html {
   outline: none;
 }
 
-.capture-scene-button:hover,
-.share-scene-button:hover,
-.gallery-button:hover {
+.capture-scene-button:hover {
   background: rgba(0, 255, 0, 0.2);
   border-color: rgba(0, 255, 0, 0.6);
   color: rgba(255, 255, 255, 1);
@@ -4687,14 +4732,11 @@ body, html {
   box-shadow: 0 2px 8px rgba(0, 255, 0, 0.2);
 }
 
-.capture-scene-button svg,
-.share-scene-button svg,
-.gallery-button svg {
+.capture-scene-button svg {
   flex-shrink: 0;
 }
 
-.capture-feedback,
-.share-feedback {
+.capture-feedback {
   position: absolute;
   top: -40px;
   left: 50%;
@@ -4714,57 +4756,19 @@ body, html {
   20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-/* Mobile Capture, Share, and Gallery Buttons */
-.mobile-capture-button,
-.mobile-share-button,
-.mobile-gallery-button {
+/* Mobile Scene Actions Container */
+.mobile-scene-actions {
   position: fixed;
+  bottom: 12px;
+  right: 12px;
   z-index: 800;
-  transition: all 0.3s ease;
+  display: none; /* Hidden by default */
+  flex-direction: column;
+  gap: 12px;
+  transition: none;
 }
 
-.mobile-capture-button {
-  bottom: 60px;
-  right: 12px;
-}
 
-.mobile-share-button {
-  bottom: 120px;
-  right: 12px;
-}
-
-.mobile-gallery-button {
-  bottom: 180px;
-  right: 12px;
-}
-
-.mobile-capture-button .capture-button,
-.mobile-share-button .share-button,
-.mobile-gallery-button .gallery-button {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: rgba(0, 255, 0, 0.15);
-  border: 1px solid rgba(0, 255, 0, 0.4);
-  color: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
-  backdrop-filter: blur(10px);
-}
-
-.mobile-capture-button .capture-button:hover,
-.mobile-share-button .share-button:hover,
-.mobile-gallery-button .gallery-button:hover {
-  background: rgba(0, 255, 0, 0.25);
-  border-color: rgba(0, 255, 0, 0.7);
-  color: rgba(255, 255, 255, 1);
-  transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
-}
 
 /* Gallery Modal */
 .gallery-modal {
@@ -4794,13 +4798,11 @@ body, html {
 }
 
 .gallery-header {
-  padding: 20px;
+  padding: 10px;
   border-bottom: 1px solid rgba(0, 255, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 15px;
 }
 
 .gallery-header h2 {
@@ -4810,51 +4812,6 @@ body, html {
   margin: 0;
 }
 
-.gallery-controls {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  flex-wrap: wrap;
-}
-
-.gallery-search-input {
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.8);
-  padding: 8px 12px;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.8rem;
-  outline: none;
-  width: 200px;
-}
-
-.gallery-search-input:focus {
-  border-color: rgba(0, 255, 0, 0.6);
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.gallery-filters {
-  display: flex;
-  gap: 10px;
-}
-
-.gallery-filter-select {
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.8);
-  padding: 8px 12px;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.8rem;
-  outline: none;
-  cursor: pointer;
-}
-
-.gallery-filter-select:focus {
-  border-color: rgba(0, 255, 0, 0.6);
-  background: rgba(0, 0, 0, 0.7);
-}
 
 .gallery-close-button {
   background: none;
@@ -4874,9 +4831,35 @@ body, html {
   padding: 10px 20px;
   border-bottom: 1px solid rgba(0, 255, 0, 0.2);
   background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.gallery-search-input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  outline: none;
+  flex: 1;
+  max-width: 300px;
+}
+
+.gallery-search-input:focus {
+  border-color: rgba(0, 255, 0, 0.6);
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.gallery-count-container {
   color: rgba(255, 255, 255, 0.7);
   font-family: 'Space Mono', monospace;
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .gallery-grid-container {
@@ -5034,17 +5017,20 @@ body, html {
   }
   
   .gallery-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .gallery-controls {
+    padding: 6px;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
   }
   
+  .gallery-header h2 {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  
   .gallery-search-input {
-    width: 100%;
-    margin-bottom: 10px;
+    max-width: none;
+    flex: 1;
   }
   
   .gallery-grid {

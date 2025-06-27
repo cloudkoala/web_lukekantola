@@ -195,6 +195,132 @@ The system follows a 4-tier fallback approach:
 
 For detailed technical specifications, see the "Initial Page Load Process" section in `CLAUDE.md`.
 
+## Mobile vs Desktop Implementations
+
+The application provides distinct, optimized experiences for mobile and desktop devices through sophisticated capability detection and responsive design patterns.
+
+### Platform Detection
+
+**Multi-Modal Detection System**:
+```typescript
+// Primary detection logic
+const hasTouch = navigator.maxTouchPoints > 0
+const hasHover = window.matchMedia('(hover: hover)').matches  
+const hasFinePointer = window.matchMedia('(pointer: fine)').matches
+
+// Device classification
+if (hasTouch && !hasHover) {
+  body.classList.add('touch-layout')    // Pure touch (phones/tablets)
+} else if (!hasTouch && hasHover && hasFinePointer) {
+  body.classList.add('mouse-layout')    // Desktop computers
+} else {
+  body.classList.add('hybrid-layout')   // Hybrid devices (tablets with keyboards)
+}
+```
+
+### Key Differences
+
+| Feature | Desktop | Mobile |
+|---------|---------|---------|
+| **Input Method** | Mouse + Keyboard | Touch Gestures |
+| **UI Layout** | Collapsible panels | Slide-up panels |
+| **Control Precision** | Fine adjustment (mouse wheel) | Touch-optimized sliders |
+| **Navigation** | Hover effects + shortcuts | Tap interactions |
+| **Performance** | Higher quality rendering | Optimized for battery/memory |
+| **Screen Space** | Multiple simultaneous panels | Modal/overlay approach |
+
+### Desktop Implementation Highlights
+
+**Advanced Control Systems**:
+- **Precise Camera Controls**: Mouse wheel fine adjustment, modifier key support
+- **Hover Effects**: Rich visual feedback and enhanced interactions  
+- **Keyboard Shortcuts**: ESC, Ctrl+S, Ctrl+R for power users
+- **Multi-Panel Layout**: Settings, effects, camera info simultaneously visible
+- **Real-time Monitoring**: FPS counter, camera position display, performance stats
+
+**Desktop-Specific Features**:
+- Drag & drop effect reordering
+- Tooltips with detailed information
+- Context-sensitive cursor states
+- Advanced color picker with precise controls
+- Full-featured effects chain management
+
+### Mobile Implementation Highlights
+
+**Touch-Optimized Interface**:
+- **Gesture Recognition**: Pinch-to-zoom, two-finger pan, tap/long-press detection
+- **Strategic Button Placement**: Core controls (bottom-left), scene actions (bottom-right)
+- **Slide-Up Panels**: Space-efficient modal approach for complex controls
+- **Touch-Safe Design**: 44px minimum touch targets, prevention of accidental zoom
+
+**Mobile-Specific Features**:
+- Progressive disclosure UI patterns
+- Horizontal scrolling effect chains  
+- Virtual keyboard awareness
+- Device orientation handling
+- Battery/performance optimizations
+
+### Implementation Architecture
+
+**Shared Core Logic**:
+Both platforms use the same underlying systems for 3D rendering, effects processing, and state management. Only the interface layer adapts to device capabilities.
+
+**Responsive CSS Structure**:
+```css
+/* Base styles apply to all devices */
+.control-button { /* shared styles */ }
+
+/* Desktop enhancements */
+@media (hover: hover) and (pointer: fine) {
+  .control-button:hover { /* hover effects */ }
+  .desktop-only { display: block; }
+}
+
+/* Mobile optimizations */  
+@media (hover: none) and (pointer: coarse) {
+  .mobile-only { display: block; }
+  .desktop-only { display: none; }
+  button { min-height: 44px; } /* touch targets */
+}
+```
+
+**Synchronized State Management**:
+```typescript
+// Desktop and mobile controls stay synchronized
+updatePointSize(value: number): void {
+  // Update system state
+  this.pointSize = value
+  
+  // Update desktop UI
+  const desktopSlider = document.querySelector('#point-size') as HTMLInputElement
+  if (desktopSlider) desktopSlider.value = value.toString()
+  
+  // Update mobile UI
+  const mobileCard = document.getElementById('mobile-point-size-card') as HTMLElement
+  if (mobileCard && (mobileCard as any).updateValue) {
+    (mobileCard as any).updateValue(value.toString())
+  }
+}
+```
+
+### Agent Orientation Quick Reference
+
+**For Desktop Development**: See [`DESKTOP.md`](./DESKTOP.md)
+- Advanced control panel systems
+- Mouse interaction patterns  
+- Keyboard shortcuts implementation
+- Performance monitoring setup
+- Hover effects and animations
+
+**For Mobile Development**: See [`MOBILE.md`](./MOBILE.md)  
+- Touch gesture recognition
+- Slide-up panel systems
+- Mobile-optimized controls
+- Performance optimizations for mobile
+- Responsive design patterns
+
+**Platform Detection**: Both files include complete device detection logic and CSS media queries for implementing responsive features.
+
 ## Development Guidelines
 
 ### Adding New Sliders

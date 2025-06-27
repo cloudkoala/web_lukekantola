@@ -1914,15 +1914,15 @@ function createPanelManager() {
         const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
         const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
         const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
-        const shareButtonContainer = document.getElementById('mobile-share-button') as HTMLElement
-        const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
+        const sceneActionsContainer = document.getElementById('mobile-scene-actions') as HTMLElement
+        const modelSelector = document.getElementById('mobile-model-selector') as HTMLElement
         const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
         
         if (cameraButtonContainer) cameraButtonContainer.style.bottom = `${defaultPosition}px`
         if (effectsButtonContainer) effectsButtonContainer.style.bottom = `${defaultPosition}px`
         if (settingsButtonContainer) settingsButtonContainer.style.bottom = `${defaultPosition}px`
-        if (shareButtonContainer) shareButtonContainer.style.bottom = `${defaultPosition}px`
-        if (presetSelector) presetSelector.style.bottom = `${defaultPosition}px`
+        if (sceneActionsContainer) sceneActionsContainer.style.bottom = `${defaultPosition}px`
+        if (modelSelector) modelSelector.style.bottom = `${defaultPosition}px`
         if (trashIcon) trashIcon.style.bottom = `${defaultTrashPosition}px`
         return
       }
@@ -1951,8 +1951,8 @@ function createPanelManager() {
       const cameraButtonContainer = document.getElementById('mobile-camera-reset') as HTMLElement
       const effectsButtonContainer = document.getElementById('mobile-effects-button') as HTMLElement
       const settingsButtonContainer = document.getElementById('mobile-settings-button') as HTMLElement
-      const shareButtonContainer = document.getElementById('mobile-share-button') as HTMLElement
-      const presetSelector = document.getElementById('mobile-preset-selector') as HTMLElement
+      const sceneActionsContainer = document.getElementById('mobile-scene-actions') as HTMLElement
+      const modelSelector = document.getElementById('mobile-model-selector') as HTMLElement
       const trashIcon = document.getElementById('mobile-trash-icon') as HTMLElement
       
       if (cameraButtonContainer) {
@@ -1964,11 +1964,11 @@ function createPanelManager() {
       if (settingsButtonContainer) {
         settingsButtonContainer.style.bottom = `${buttonBottomPosition}px`
       }
-      if (shareButtonContainer) {
-        shareButtonContainer.style.bottom = `${buttonBottomPosition}px`
+      if (sceneActionsContainer) {
+        sceneActionsContainer.style.bottom = `${buttonBottomPosition}px`
       }
-      if (presetSelector) {
-        presetSelector.style.bottom = `${buttonBottomPosition}px`
+      if (modelSelector) {
+        modelSelector.style.bottom = `${buttonBottomPosition}px`
       }
       if (trashIcon) {
         trashIcon.style.bottom = `${trashBottomPosition}px`
@@ -2521,10 +2521,83 @@ function setupMobileSettings() {
   setTimeout(() => {
     setMobileButtonPositions()
     updateSettingsButtonVisibility()
+    setupMobileModelSelector()
   }, 50)
 }
 
-
+// Mobile model selector functionality
+function setupMobileModelSelector() {
+  const mobileModelDropdown = document.getElementById('mobile-model-dropdown') as HTMLElement
+  const mobileModelMenu = document.getElementById('mobile-model-dropdown-menu') as HTMLElement
+  const mobileModelName = document.getElementById('mobile-model-name') as HTMLElement
+  const desktopModelDropdown = document.getElementById('model-dropdown') as HTMLSelectElement
+  
+  if (!mobileModelDropdown || !mobileModelMenu || !mobileModelName || !desktopModelDropdown) {
+    console.warn('Mobile model selector elements not found')
+    return
+  }
+  
+  // Model options from desktop dropdown
+  const models = [
+    { value: 'castleton', name: 'Castleton Tower' },
+    { value: 'corona_arch', name: 'Corona Arch' },
+    { value: 'delicate_arch', name: 'Delicate Arch' },
+    { value: 'fisher', name: 'Fisher Towers' }
+  ]
+  
+  // Populate mobile dropdown menu
+  mobileModelMenu.innerHTML = ''
+  models.forEach(model => {
+    const option = document.createElement('div')
+    option.className = 'model-option'
+    option.textContent = model.name
+    option.dataset.value = model.value
+    
+    option.addEventListener('click', () => {
+      // Update mobile display
+      mobileModelName.textContent = model.name
+      
+      // Sync with desktop dropdown
+      desktopModelDropdown.value = model.value
+      desktopModelDropdown.dispatchEvent(new Event('change'))
+      
+      // Close menu
+      mobileModelMenu.style.display = 'none'
+      mobileModelDropdown.classList.remove('open')
+    })
+    
+    mobileModelMenu.appendChild(option)
+  })
+  
+  // Toggle dropdown
+  mobileModelDropdown.addEventListener('click', () => {
+    const isOpen = mobileModelMenu.style.display === 'block'
+    mobileModelMenu.style.display = isOpen ? 'none' : 'block'
+    mobileModelDropdown.classList.toggle('open', !isOpen)
+  })
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!mobileModelDropdown.contains(e.target as Node)) {
+      mobileModelMenu.style.display = 'none'
+      mobileModelDropdown.classList.remove('open')
+    }
+  })
+  
+  // Sync with desktop model changes
+  desktopModelDropdown.addEventListener('change', () => {
+    const selectedModel = models.find(m => m.value === desktopModelDropdown.value)
+    if (selectedModel) {
+      mobileModelName.textContent = selectedModel.name
+    }
+  })
+  
+  // Initialize with current desktop selection
+  const currentModel = models.find(m => m.value === desktopModelDropdown.value)
+  if (currentModel) {
+    mobileModelName.textContent = currentModel.name
+  }
+}
 
 // Settings button functionality
 function setupSettingsButton() {
