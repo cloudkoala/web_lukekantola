@@ -2842,7 +2842,8 @@ function setupSettingsButton() {
   
   // Toggle settings panel
   settingsButton.addEventListener('click', () => {
-    const isVisible = settingsPanel.style.display === 'grid'
+    const computedDisplay = window.getComputedStyle(settingsPanel).display
+    const isVisible = computedDisplay === 'grid'
     
     if (isVisible) {
       // Hide settings panel
@@ -2907,6 +2908,13 @@ function setupSettingsButton() {
   
   // Make settings panel draggable
   setupSettingsPanelDrag(settingsPanel)
+  
+  // Set button as active by default on desktop (since panel is visible by default)
+  if (document.body.classList.contains('desktop-only') || (!document.body.classList.contains('touch-layout') && !document.body.classList.contains('mobile-only'))) {
+    settingsButton.classList.add('active')
+    // Explicitly ensure the panel is visible on desktop
+    settingsPanel.style.setProperty('display', 'grid', 'important')
+  }
 }
 
 
@@ -2944,23 +2952,23 @@ class SettingsLayoutManager {
       
       // Calculate center position between controls-row right edge and viewport right edge
       const availableSpace = viewportWidth - controlsRightEdge
-      const panelWidth = 264
+      const panelWidth = 320
       const centeredLeft = controlsRightEdge + (availableSpace - panelWidth) / 2
       
-      this.panel.style.setProperty('left', `${centeredLeft}px`, 'important')
-      this.panel.style.setProperty('top', '90px', 'important') // Align with controls-container top
+      this.panel.style.setProperty('left', '12px', 'important') // Far left positioning
+      this.panel.style.setProperty('top', '200px', 'important') // 200px from top
       this.panel.style.setProperty('transform', 'none', 'important')
       this.panel.style.setProperty('bottom', 'auto', 'important')
-      this.panel.style.setProperty('height', 'auto', 'important')
-      this.panel.style.setProperty('width', '264px', 'important')
+      this.panel.style.setProperty('height', '320px', 'important')
+      this.panel.style.setProperty('width', '320px', 'important')
     } else {
-      // Fallback to original positioning if controls not found
-      this.panel.style.setProperty('left', '50%', 'important')
-      this.panel.style.setProperty('bottom', '40px', 'important')
-      this.panel.style.setProperty('transform', 'translateX(-50%)', 'important')
-      this.panel.style.setProperty('top', 'auto', 'important')
-      this.panel.style.setProperty('height', 'auto', 'important')
-      this.panel.style.setProperty('width', '264px', 'important')
+      // Fallback positioning if controls not found
+      this.panel.style.setProperty('left', '12px', 'important') // Far left positioning
+      this.panel.style.setProperty('top', '200px', 'important') // 200px from top
+      this.panel.style.setProperty('transform', 'none', 'important')
+      this.panel.style.setProperty('bottom', 'auto', 'important')
+      this.panel.style.setProperty('height', '320px', 'important')
+      this.panel.style.setProperty('width', '320px', 'important')
     }
   }
 }
@@ -3114,23 +3122,14 @@ function setupEffectsButton() {
     return
   }
   
-  // Set effects panel max-width to not extend past controls-row
-  const controlsRow = document.querySelector('.controls-row') as HTMLElement
-  if (controlsRow) {
-    const controlsRect = controlsRow.getBoundingClientRect()
-    const controlsRightEdge = controlsRect.right
-    const maxAllowedWidth = controlsRightEdge - 12 - 20 // 12px left position + 20px margin
-    
-    if (maxAllowedWidth > 280) {
-      effectsPanel.style.setProperty('max-width', `${Math.min(maxAllowedWidth, 350)}px`, 'important')
-    } else {
-      effectsPanel.style.setProperty('max-width', '280px', 'important')
-    }
-  }
+  // Set effects panel width to 320px to match settings panel
+  effectsPanel.style.setProperty('width', '320px', 'important')
+  effectsPanel.style.setProperty('max-width', '320px', 'important')
   
   // Toggle effects panel
   effectsButton.addEventListener('click', () => {
-    const isVisible = effectsPanel.style.display === 'flex'
+    const computedDisplay = window.getComputedStyle(effectsPanel).display
+    const isVisible = computedDisplay === 'flex'
     
     if (isVisible) {
       // Hide effects panel
@@ -3270,6 +3269,11 @@ function setupEffectsButton() {
   
   // Setup footer buttons
   setupEffectsPanelFooter()
+  
+  // Set button as active by default on desktop (since panel is visible by default)
+  if (document.body.classList.contains('desktop-only') || (!document.body.classList.contains('touch-layout') && !document.body.classList.contains('mobile-only'))) {
+    effectsButton.classList.add('active')
+  }
 }
 
 function setupEffectsPanelDrag(panel: HTMLElement) {
@@ -3617,12 +3621,7 @@ async function setupSceneDropdown() {
   console.log('Scene dropdown setup complete')
 }
 
-// Global ESC key handler to close panels
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    hideAllPanels()
-  }
-})
+// ESC key handler removed - panels stay open
 
 // Setup auto-rotation speed control (desktop)
 function setupAutoRotationControl() {

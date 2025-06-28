@@ -1322,24 +1322,24 @@ body, html {
 
 .desktop-only .settings-panel {
   position: fixed; /* Changed to fixed for dragging */
-  left: calc(100% - 300px); /* Position near right edge */
-  top: 90px; /* Position near top */
+  left: 12px; /* Far left positioning */
+  top: 200px; /* 200px from top */
   transform: none; /* No transform needed */
   height: auto;
   max-height: none;
   overflow: visible;
-  display: none; /* Hidden by default */
+  display: grid; /* Visible by default on desktop */
   z-index: 1000; /* Ensure it's above other elements when dragging */
 }
 
 .desktop-only .effects-panel {
   position: fixed !important; /* Changed to fixed for dragging */
-  left: 12px !important; /* Top left positioning */
-  top: 150px !important; /* Just below the model dropdown */
+  left: 12px !important; /* Far left positioning */
+  top: 560px !important; /* 40px below settings panel (200px + 320px + 40px) */
   bottom: auto !important; /* Override any bottom positioning */
   right: auto !important; /* Override any right positioning */
   transform: none !important; /* No transform needed for top-left positioning */
-  display: none !important; /* Hidden by default */
+  display: flex !important; /* Visible by default on desktop */
   z-index: 999 !important; /* Below settings panel */
   padding: 0 !important; /* Remove padding to accommodate drag handle */
   flex-direction: column !important; /* Ensure column layout for drag handle */
@@ -1404,8 +1404,8 @@ body, html {
   grid-template-rows: auto repeat(8, auto); /* 1 row for drag handle + 8 rows for controls */
   gap: 0; /* Remove gap for tighter layout */
   position: relative;
-  width: 264px; /* Narrow width for single column */
-  height: 320px; /* Fixed height */
+  width: 320px; /* Same width as effects panel */
+  height: 320px; /* Same height as effects panel */
   box-sizing: border-box;
 }
 
@@ -1413,7 +1413,7 @@ body, html {
 .settings-panel.layout-1x8 {
   grid-template-columns: 1fr;
   grid-template-rows: auto repeat(8, auto);
-  width: 264px;
+  width: 320px;
   height: 320px;
   padding: 0;
 }
@@ -1585,6 +1585,8 @@ body, html {
 .effects-drag-handle .drag-content {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   gap: 4px; /* Reduced gap */
 }
 
@@ -1599,7 +1601,14 @@ body, html {
   background: rgba(0, 255, 0, 0.2);
 }
 
-.drag-dots {
+.drag-left-group {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Gap between dots and label */
+}
+
+.drag-dots-left,
+.drag-dots-right {
   display: flex;
   gap: 1px; /* Reduced gap between dots */
   align-items: center;
@@ -4310,7 +4319,7 @@ body, html {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
   width: 320px;
-  height: 400px;
+  height: 600px;
   min-width: 280px;
   min-height: 200px;
   max-width: 600px;
@@ -5261,6 +5270,23 @@ body, html {
     display: none !important;
   }
   .mobile-gallery-button.mobile-only {
+    display: none !important;
+  }
+  
+  /* Hide settings and effects buttons ONLY on desktop */
+  .settings-button,
+  .effects-button {
+    display: none !important;
+  }
+  
+  /* Hide controls-row on desktop */
+  .controls-row {
+    display: none !important;
+  }
+  
+  /* Hide close buttons on desktop */
+  .settings-close-button,
+  .effects-close {
     display: none !important;
   }
 }
