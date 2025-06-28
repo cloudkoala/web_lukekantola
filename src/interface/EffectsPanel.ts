@@ -130,6 +130,10 @@ export class EffectsPanel {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
       this.collapseArrow.classList.add('collapsed')
+      // Set initial collapsed width with !important
+      this.panelElement.style.setProperty('width', '120px', 'important')
+      this.panelElement.style.setProperty('min-width', '120px', 'important')
+      this.panelElement.style.setProperty('max-width', '120px', 'important')
     }
     
     // Mobile elements don't have collapsed state - always visible
@@ -143,10 +147,18 @@ export class EffectsPanel {
       this.panelCollapsible.classList.add('collapsed')
       this.panelElement.classList.add('collapsed')
       this.collapseArrow.classList.add('collapsed')
+      // Explicitly set width for collapsed state with !important
+      this.panelElement.style.setProperty('width', '120px', 'important')
+      this.panelElement.style.setProperty('min-width', '120px', 'important')
+      this.panelElement.style.setProperty('max-width', '120px', 'important')
     } else {
       this.panelCollapsible.classList.remove('collapsed')
       this.panelElement.classList.remove('collapsed')
       this.collapseArrow.classList.remove('collapsed')
+      // Reset to default width with !important
+      this.panelElement.style.setProperty('width', '320px', 'important')
+      this.panelElement.style.setProperty('min-width', '320px', 'important')
+      this.panelElement.style.setProperty('max-width', '600px', 'important')
     }
   }
 

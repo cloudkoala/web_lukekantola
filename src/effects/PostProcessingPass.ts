@@ -1008,7 +1008,6 @@ export class PostProcessingPass {
     // Update dithering passes
     this.asciiDitheringPass.setSize(width, height)
     this.halftoneDitheringPass.setSize(width, height)
-    this.topographicDitheringPass.setSize(width, height)
     this.engravingPass.setSize(width, height)
     this.circlePackingPass.setSize(width, height)
     this.gaussianBlurPass.setSize(width, height)
@@ -1038,7 +1037,6 @@ export class PostProcessingPass {
     // Dispose dithering passes
     this.asciiDitheringPass.dispose()
     this.halftoneDitheringPass.dispose()
-    this.topographicDitheringPass.dispose()
     this.engravingPass.dispose()
     this.circlePackingPass.dispose()
     this.gaussianBlurPass.dispose()
