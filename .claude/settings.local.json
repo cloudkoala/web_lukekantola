@@ -15,7 +15,8 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:sparkjs.dev)",
       "WebFetch(domain:threejs.org)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run typecheck:*)"
     ],
     "deny": []
   }

@@ -502,7 +502,19 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       backgroundColorG: 0.0,
       backgroundColorB: 0.0,
       pixelateSize: 12,
-      posterizeLevels: 8
+      posterizeLevels: 8,
+      // Physics simulation parameters
+      useVerletPhysics: 1,
+      gravity: 0.1,
+      damping: 0.98,
+      substeps: 3,
+      physicsIterations: 15,
+      // Spatial optimization parameters
+      useSpatialHashGrid: 0,
+      usePhysicsPlacement: 0,
+      // Animation parameters
+      animatePhysics: 0,
+      animationSpeed: 1.0
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -518,7 +530,19 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       backgroundColorG: { min: 0, max: 1, step: 0.01, label: 'Background Green' },
       backgroundColorB: { min: 0, max: 1, step: 0.01, label: 'Background Blue' },
       pixelateSize: { min: 2, max: 50, step: 1, label: 'Pixelate Size' },
-      posterizeLevels: { min: 2, max: 32, step: 1, label: 'Posterize Levels' }
+      posterizeLevels: { min: 2, max: 32, step: 1, label: 'Posterize Levels' },
+      // Physics simulation parameter definitions
+      useVerletPhysics: { min: 0, max: 1, step: 1, label: 'Enable Verlet Physics', type: 'boolean' },
+      gravity: { min: 0, max: 1.0, step: 0.01, label: 'Gravity Strength' },
+      damping: { min: 0.8, max: 1.0, step: 0.01, label: 'Velocity Damping' },
+      substeps: { min: 1, max: 10, step: 1, label: 'Physics Substeps' },
+      physicsIterations: { min: 5, max: 50, step: 1, label: 'Physics Iterations' },
+      // Spatial optimization parameter definitions
+      useSpatialHashGrid: { min: 0, max: 1, step: 1, label: 'Use Spatial Hash Grid', type: 'boolean' },
+      usePhysicsPlacement: { min: 0, max: 1, step: 1, label: 'Physics-Based Placement', type: 'boolean' },
+      // Animation parameter definitions
+      animatePhysics: { min: 0, max: 1, step: 1, label: 'Animate Physics', type: 'boolean' },
+      animationSpeed: { min: 0.1, max: 3.0, step: 0.1, label: 'Animation Speed' }
     }
   },
   {

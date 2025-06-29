@@ -23,6 +23,7 @@ export class PostProcessingPass {
   private sphereMeshes: THREE.InstancedMesh[] = []
   private originalDrawRanges: Map<THREE.BufferGeometry, { start: number, count: number }> = new Map()
   private animationStartTime: number = 0
+  private lastFrameTime: number = performance.now()
   
   // Point Network effect state
   private pointVelocities: Map<THREE.BufferGeometry, Float32Array> = new Map()
@@ -837,7 +838,24 @@ export class PostProcessingPass {
         this.circlePackingPass.backgroundColorB = effect.parameters.backgroundColorB ?? 0.0
         this.circlePackingPass.pixelateSize = effect.parameters.pixelateSize ?? 8
         this.circlePackingPass.posterizeLevels = effect.parameters.posterizeLevels ?? 8
-        this.circlePackingPass.render(renderer, inputTexture, outputTarget || undefined)
+        // Physics simulation parameters
+        this.circlePackingPass.useVerletPhysics = Boolean(effect.parameters.useVerletPhysics ?? 1)
+        this.circlePackingPass.gravity = Number(effect.parameters.gravity ?? 0.1)
+        this.circlePackingPass.damping = Number(effect.parameters.damping ?? 0.98)
+        this.circlePackingPass.substeps = Number(effect.parameters.substeps ?? 3)
+        this.circlePackingPass.physicsIterations = Number(effect.parameters.physicsIterations ?? 15)
+        // Spatial optimization parameters
+        this.circlePackingPass.useSpatialHashGrid = Boolean(effect.parameters.useSpatialHashGrid ?? 0)
+        this.circlePackingPass.usePhysicsPlacement = Boolean(effect.parameters.usePhysicsPlacement ?? 0)
+        // Animation parameters
+        this.circlePackingPass.animatePhysics = Boolean(effect.parameters.animatePhysics ?? 0)
+        this.circlePackingPass.animationSpeed = Number(effect.parameters.animationSpeed ?? 1.0)
+        // Calculate deltaTime for animation
+        const currentTime = performance.now()
+        const deltaTime = currentTime - this.lastFrameTime
+        this.lastFrameTime = currentTime
+        
+        this.circlePackingPass.render(renderer, inputTexture, outputTarget || undefined, deltaTime)
         return
         break
       case 'engraving':

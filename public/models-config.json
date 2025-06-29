@@ -13,7 +13,7 @@
       "defaultFocalLength": 30,
       "highQualityPosition": {
         "cameraPosition": { "x": 0.13, "y": 2.24, "z": 2.0 },
-        "target": { "x": -0.13, "y": 0.87, "z": -0.29 },
+        "target": { "x": -0.13, "y": 1.23, "z": 0.04 },
         "focalLength": 85
       },
       "loadingAnimation": {

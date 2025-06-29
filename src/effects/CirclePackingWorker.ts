@@ -6,6 +6,11 @@ interface CircleData {
   y: number
   radius: number
   color: [number, number, number]
+  // Physics properties for Verlet integration
+  prevX?: number
+  prevY?: number
+  mass?: number
+  pinned?: boolean
 }
 
 interface WorkerMessage {
@@ -24,6 +29,12 @@ interface GenerateCirclesParams {
   pixelateSize: number
   posterizeLevels: number
   randomSeed: number
+  // Physics simulation parameters
+  useVerletPhysics: boolean
+  gravity: number
+  damping: number
+  substeps: number
+  physicsIterations: number
 }
 
 // QuadTree implementation for efficient spatial collision detection
@@ -334,7 +345,12 @@ class CirclePackingWorkerImpl {
       maxCircleSize,
       circleSpacing,
       pixelateSize,
-      posterizeLevels
+      posterizeLevels,
+      useVerletPhysics,
+      gravity,
+      damping,
+      substeps,
+      physicsIterations
     } = params
     
     const circles: CircleData[] = []
@@ -378,9 +394,15 @@ class CirclePackingWorkerImpl {
       
       this.sendProgress(`Generated ${smallCircles.length} small circles`, 85)
       
-      // Phase 4: Apply force-based relaxation
-      this.sendProgress('Applying force-based relaxation...', 90)
-      const relaxedCircles = this.applyForceBasedRelaxation(circles, width, height, circleSpacing)
+      // Phase 4: Apply physics simulation
+      let relaxedCircles: CircleData[]
+      if (useVerletPhysics) {
+        this.sendProgress('Applying Verlet physics simulation...', 90)
+        relaxedCircles = this.applyVerletPhysicsSimulation(circles, width, height, circleSpacing, gravity, damping, substeps, physicsIterations)
+      } else {
+        this.sendProgress('Applying force-based relaxation...', 90)
+        relaxedCircles = this.applyForceBasedRelaxation(circles, width, height, circleSpacing)
+      }
       
       this.sendProgress('Circle generation complete!', 100)
       
@@ -582,6 +604,148 @@ class CirclePackingWorkerImpl {
     }
     
     return relaxedCircles
+  }
+  
+  // Verlet integration physics simulation (adapted from sphere-drawings)
+  private applyVerletPhysicsSimulation(circles: CircleData[], width: number, height: number, circleSpacing: number, gravity: number, damping: number, substeps: number, physicsIterations: number): CircleData[] {
+    const physicsCircles = circles.map(circle => ({
+      ...circle,
+      prevX: circle.prevX ?? circle.x,
+      prevY: circle.prevY ?? circle.y,
+      mass: Math.PI * circle.radius * circle.radius, // mass = π × radius²
+      pinned: false
+    }))
+    
+    const fixedTimeStep = 0.016 // ~60 FPS timestep
+    const substepDelta = fixedTimeStep / substeps
+    
+    for (let iteration = 0; iteration < physicsIterations; iteration++) {
+      for (let substep = 0; substep < substeps; substep++) {
+        this.verletIntegrationStep(physicsCircles, width, height, substepDelta, gravity, damping)
+        this.resolveCollisions(physicsCircles, circleSpacing)
+        this.constrainToBounds(physicsCircles, width, height)
+      }
+      
+      // Send progress updates during physics simulation
+      if (iteration % 3 === 0) {
+        const progress = 90 + (iteration / physicsIterations) * 10
+        this.sendProgress(`Physics iteration ${iteration + 1}/${physicsIterations}`, progress)
+      }
+    }
+    
+    return physicsCircles
+  }
+  
+  // Verlet integration step: position = position + velocity + acceleration
+  private verletIntegrationStep(circles: CircleData[], width: number, height: number, deltaTime: number, gravity: number, damping: number): void {
+    for (const circle of circles) {
+      if (circle.pinned) continue
+      
+      // Calculate current velocity from position difference
+      const velocityX = circle.x - (circle.prevX ?? circle.x)
+      const velocityY = circle.y - (circle.prevY ?? circle.y)
+      
+      // Store current position as previous
+      circle.prevX = circle.x
+      circle.prevY = circle.y
+      
+      // Apply gravity
+      const gravityForce = gravity * deltaTime * deltaTime
+      
+      // Apply damping to velocity
+      const dampedVelX = velocityX * damping
+      const dampedVelY = velocityY * damping
+      
+      // Verlet integration: newPosition = currentPosition + velocity + acceleration
+      circle.x += dampedVelX
+      circle.y += dampedVelY + gravityForce
+      
+      // Add slight random force to prevent perfect symmetry
+      circle.x += (Math.random() - 0.5) * 0.01
+      circle.y += (Math.random() - 0.5) * 0.01
+    }
+  }
+  
+  // Mass-based collision resolution (from sphere-drawings physics)
+  private resolveCollisions(circles: CircleData[], circleSpacing: number): void {
+    for (let i = 0; i < circles.length; i++) {
+      for (let j = i + 1; j < circles.length; j++) {
+        const circle1 = circles[i]
+        const circle2 = circles[j]
+        
+        const dx = circle2.x - circle1.x
+        const dy = circle2.y - circle1.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const minDistance = (circle1.radius + circle2.radius) * circleSpacing
+        
+        if (distance < minDistance && distance > 0) {
+          // Calculate overlap
+          const overlap = minDistance - distance
+          
+          // Normalize collision vector
+          const normalX = dx / distance
+          const normalY = dy / distance
+          
+          // Mass-based separation (heavier circles move less)
+          const totalMass = (circle1.mass ?? 1) + (circle2.mass ?? 1)
+          const mass1Ratio = (circle2.mass ?? 1) / totalMass
+          const mass2Ratio = (circle1.mass ?? 1) / totalMass
+          
+          // Separate circles based on mass ratios
+          const separationX = normalX * overlap * 0.5
+          const separationY = normalY * overlap * 0.5
+          
+          if (!circle1.pinned) {
+            circle1.x -= separationX * mass1Ratio
+            circle1.y -= separationY * mass1Ratio
+          }
+          
+          if (!circle2.pinned) {
+            circle2.x += separationX * mass2Ratio
+            circle2.y += separationY * mass2Ratio
+          }
+        }
+      }
+    }
+  }
+  
+  // Constrain circles to stay within bounds with bouncing
+  private constrainToBounds(circles: CircleData[], width: number, height: number): void {
+    for (const circle of circles) {
+      const margin = circle.radius
+      
+      // Left boundary
+      if (circle.x < margin) {
+        circle.x = margin
+        if (circle.prevX !== undefined && circle.prevX < circle.x) {
+          circle.prevX = circle.x + (circle.x - circle.prevX) * 0.8 // Bounce with damping
+        }
+      }
+      
+      // Right boundary
+      if (circle.x > width - margin) {
+        circle.x = width - margin
+        if (circle.prevX !== undefined && circle.prevX > circle.x) {
+          circle.prevX = circle.x + (circle.x - circle.prevX) * 0.8
+        }
+      }
+      
+      // Top boundary
+      if (circle.y < margin) {
+        circle.y = margin
+        if (circle.prevY !== undefined && circle.prevY < circle.y) {
+          circle.prevY = circle.y + (circle.y - circle.prevY) * 0.8
+        }
+      }
+      
+      // Bottom boundary
+      if (circle.y > height - margin) {
+        circle.y = height - margin
+        if (circle.prevY !== undefined && circle.prevY > circle.y) {
+          circle.prevY = circle.y + (circle.y - circle.prevY) * 0.8
+        }
+      }
+    }
   }
 }
 

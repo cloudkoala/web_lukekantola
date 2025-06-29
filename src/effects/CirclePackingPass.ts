@@ -1,11 +1,17 @@
 import * as THREE from 'three'
 import { QuadTree } from './QuadTree'
+import { SpatialHashGrid } from './SpatialHashGrid'
 
 interface CircleData {
   x: number
   y: number
   radius: number
   color: [number, number, number]
+  // Physics properties for Verlet integration
+  prevX?: number
+  prevY?: number
+  mass?: number
+  pinned?: boolean
 }
 
 
@@ -163,10 +169,29 @@ export class CirclePackingPass {
   public pixelateSize: number = 8 // Size of pixelation blocks (2-50)
   public posterizeLevels: number = 8 // Number of posterization levels (2-32)
   
+  // Physics simulation parameters
+  public useVerletPhysics: boolean = true // Enable Verlet integration physics
+  public gravity: number = 0.1 // Gravity force for physics simulation
+  public damping: number = 0.98 // Velocity damping factor (0-1)
+  public substeps: number = 3 // Physics substeps per iteration
+  public physicsIterations: number = 15 // Number of physics iterations
+  
+  // Spatial optimization parameters
+  public useSpatialHashGrid: boolean = false // Use spatial hash grid instead of QuadTree
+  public usePhysicsPlacement: boolean = false // Use physics-based bouncing ball placement
+  public animatePhysics: boolean = false // Show real-time physics animation
+  public animationSpeed: number = 1.0 // Speed multiplier for physics animation
+  
   // Pre-computed circle data
   private circles: CircleData[] = []
   private needsRecompute: boolean = true
   private circleDataTexture: THREE.DataTexture | null = null
+  
+  // Real-time physics animation state
+  private isAnimating: boolean = false
+  private animationStartTime: number = 0
+  private animationDuration: number = 5000 // 5 seconds
+  private spatialStructure: QuadTree | SpatialHashGrid | null = null
   
   // WebWorker support for parallel processing
   private worker: Worker | null = null
@@ -184,7 +209,12 @@ export class CirclePackingPass {
     colorTolerance: this.colorTolerance,
     randomSeed: this.randomSeed,
     pixelateSize: this.pixelateSize,
-    posterizeLevels: this.posterizeLevels
+    posterizeLevels: this.posterizeLevels,
+    useVerletPhysics: this.useVerletPhysics,
+    gravity: this.gravity,
+    damping: this.damping,
+    substeps: this.substeps,
+    physicsIterations: this.physicsIterations
     // Note: background colors don't need recompute, they're handled by shader
   }
   
@@ -325,7 +355,12 @@ export class CirclePackingPass {
       circleSpacing: this.circleSpacing,
       pixelateSize: this.pixelateSize,
       posterizeLevels: this.posterizeLevels,
-      randomSeed: this.randomSeed
+      randomSeed: this.randomSeed,
+      useVerletPhysics: this.useVerletPhysics,
+      gravity: this.gravity,
+      damping: this.damping,
+      substeps: this.substeps,
+      physicsIterations: this.physicsIterations
     }
     
     this.worker.postMessage({
@@ -357,54 +392,88 @@ export class CirclePackingPass {
   // Smart circle packing with progressive rendering support
   private generateCirclePacking(originalImageData: ImageData, width: number, height: number): CircleData[] {
     const circles: CircleData[] = []
-    const quadTree = new QuadTree({ x: 0, y: 0, width, height }, 15)
-    const spacing = this.circleSpacing * 2.0
     
+    // Choose spatial data structure based on user preference
+    const spatialStructure = this.useSpatialHashGrid 
+      ? new SpatialHashGrid(width, height, this.maxCircleSize * 0.5)
+      : new QuadTree({ x: 0, y: 0, width, height }, 15)
+    
+    const spacing = this.circleSpacing * 2.0
     const startTime = performance.now()
+    
+    // Use physics-based placement if enabled
+    if (this.usePhysicsPlacement) {
+      console.log('Using physics-based bouncing ball placement system')
+      return this.generatePhysicsBasedCirclePacking(originalImageData, width, height, spatialStructure)
+    }
     
     // Multi-scale hierarchical placement: Large → Medium → Small
     
     // Phase 1: Generate large circles from uniform color blocks (backgrounds)
     console.log('Phase 1: Generating large circles from color blocks...')
-    const largeCircles = this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, quadTree)
+    const largeCircles = spatialStructure instanceof QuadTree 
+      ? this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, spatialStructure)
+      : this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, spatialStructure as any)
     console.log('Generated large circles:', largeCircles.length, `(${Math.round(performance.now() - startTime)}ms)`)
     
     for (const circle of largeCircles) {
       circles.push(circle)
-      quadTree.insert(circle)
+      if (spatialStructure instanceof QuadTree) {
+        spatialStructure.insert(circle)
+      } else {
+        spatialStructure.insert(circle)
+      }
     }
     
     // Phase 2: Generate medium circles for feature areas
     console.log('Phase 2: Generating medium circles for features...')
     const phase2StartTime = performance.now()
-    const mediumCircles = this.generateMediumCircles(originalImageData, width, height, quadTree, spacing)
+    const mediumCircles = spatialStructure instanceof QuadTree
+      ? this.generateMediumCircles(originalImageData, width, height, spatialStructure, spacing)
+      : this.generateMediumCircles(originalImageData, width, height, spatialStructure as any, spacing)
     console.log('Generated medium circles:', mediumCircles.length, `(${Math.round(performance.now() - phase2StartTime)}ms)`)
     
     for (const circle of mediumCircles) {
       circles.push(circle)
-      quadTree.insert(circle)
+      if (spatialStructure instanceof QuadTree) {
+        spatialStructure.insert(circle)
+      } else {
+        spatialStructure.insert(circle)
+      }
     }
     
     // Phase 3: Generate medium-small circles for intermediate gaps
     console.log('Phase 3: Generating medium-small circles for intermediate gaps...')
     const phase3StartTime = performance.now()
-    const mediumSmallCircles = this.generateMediumSmallCircles(originalImageData, width, height, quadTree, spacing)
+    const mediumSmallCircles = spatialStructure instanceof QuadTree
+      ? this.generateMediumSmallCircles(originalImageData, width, height, spatialStructure, spacing)
+      : this.generateMediumSmallCircles(originalImageData, width, height, spatialStructure as any, spacing)
     console.log('Generated medium-small circles:', mediumSmallCircles.length, `(${Math.round(performance.now() - phase3StartTime)}ms)`)
     
     for (const circle of mediumSmallCircles) {
       circles.push(circle)
-      quadTree.insert(circle)
+      if (spatialStructure instanceof QuadTree) {
+        spatialStructure.insert(circle)
+      } else {
+        spatialStructure.insert(circle)
+      }
     }
     
     // Phase 4: Fill remaining space with small detail circles using Poisson sampling
     console.log('Phase 4: Filling final gaps with small detail circles...')
     const phase4StartTime = performance.now()
-    const smallCircles = this.generateSmallCircles(originalImageData, width, height, quadTree, spacing)
+    const smallCircles = spatialStructure instanceof QuadTree
+      ? this.generateSmallCircles(originalImageData, width, height, spatialStructure, spacing)
+      : this.generateSmallCircles(originalImageData, width, height, spatialStructure as any, spacing)
     console.log('Generated small circles:', smallCircles.length, `(${Math.round(performance.now() - phase4StartTime)}ms)`)
     
     for (const circle of smallCircles) {
       circles.push(circle)
-      quadTree.insert(circle)
+      if (spatialStructure instanceof QuadTree) {
+        spatialStructure.insert(circle)
+      } else {
+        spatialStructure.insert(circle)
+      }
     }
     
     // Phase 5: Apply force-based relaxation to eliminate micro-overlaps
@@ -949,13 +1018,160 @@ export class CirclePackingPass {
     return color
   }
 
-  // Apply force-based relaxation to eliminate overlaps and improve distribution
+  // Apply physics-based relaxation using Verlet integration or fallback to force-based
   private applyForceBasedRelaxation(circles: CircleData[], width: number, height: number): CircleData[] {
+    if (this.useVerletPhysics) {
+      return this.applyVerletPhysicsSimulation(circles, width, height)
+    } else {
+      return this.applySimpleForceRelaxation(circles, width, height)
+    }
+  }
+  
+  // New Verlet integration physics simulation
+  private applyVerletPhysicsSimulation(circles: CircleData[], width: number, height: number): CircleData[] {
+    const physicsCircles = circles.map(circle => ({
+      ...circle,
+      prevX: circle.prevX ?? circle.x,
+      prevY: circle.prevY ?? circle.y,
+      mass: Math.PI * circle.radius * circle.radius, // mass = π × radius²
+      pinned: false
+    }))
+    
+    const fixedTimeStep = 0.016 // ~60 FPS timestep
+    const substepDelta = fixedTimeStep / this.substeps
+    
+    console.log(`Verlet physics: ${this.physicsIterations} iterations, ${this.substeps} substeps`)
+    
+    for (let iteration = 0; iteration < this.physicsIterations; iteration++) {
+      for (let substep = 0; substep < this.substeps; substep++) {
+        this.verletIntegrationStep(physicsCircles, width, height, substepDelta)
+        this.resolveCollisions(physicsCircles)
+        this.constrainToBounds(physicsCircles, width, height)
+      }
+    }
+    
+    return physicsCircles
+  }
+  
+  // Verlet integration step: position = position + velocity + acceleration
+  private verletIntegrationStep(circles: CircleData[], width: number, height: number, deltaTime: number): void {
+    for (const circle of circles) {
+      if (circle.pinned) continue
+      
+      // Calculate current velocity from position difference
+      const velocityX = circle.x - (circle.prevX ?? circle.x)
+      const velocityY = circle.y - (circle.prevY ?? circle.y)
+      
+      // Store current position as previous
+      circle.prevX = circle.x
+      circle.prevY = circle.y
+      
+      // Apply gravity
+      const gravityForce = this.gravity * deltaTime * deltaTime
+      
+      // Apply damping to velocity
+      const dampedVelX = velocityX * this.damping
+      const dampedVelY = velocityY * this.damping
+      
+      // Verlet integration: newPosition = currentPosition + velocity + acceleration
+      circle.x += dampedVelX
+      circle.y += dampedVelY + gravityForce
+      
+      // Add slight random force to prevent perfect symmetry
+      circle.x += (Math.random() - 0.5) * 0.01
+      circle.y += (Math.random() - 0.5) * 0.01
+    }
+  }
+  
+  // Mass-based collision resolution
+  private resolveCollisions(circles: CircleData[]): void {
+    for (let i = 0; i < circles.length; i++) {
+      for (let j = i + 1; j < circles.length; j++) {
+        const circle1 = circles[i]
+        const circle2 = circles[j]
+        
+        const dx = circle2.x - circle1.x
+        const dy = circle2.y - circle1.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const minDistance = (circle1.radius + circle2.radius) * this.circleSpacing
+        
+        if (distance < minDistance && distance > 0) {
+          // Calculate overlap
+          const overlap = minDistance - distance
+          
+          // Normalize collision vector
+          const normalX = dx / distance
+          const normalY = dy / distance
+          
+          // Mass-based separation (heavier circles move less)
+          const totalMass = (circle1.mass ?? 1) + (circle2.mass ?? 1)
+          const mass1Ratio = (circle2.mass ?? 1) / totalMass
+          const mass2Ratio = (circle1.mass ?? 1) / totalMass
+          
+          // Separate circles based on mass ratios
+          const separationX = normalX * overlap * 0.5
+          const separationY = normalY * overlap * 0.5
+          
+          if (!circle1.pinned) {
+            circle1.x -= separationX * mass1Ratio
+            circle1.y -= separationY * mass1Ratio
+          }
+          
+          if (!circle2.pinned) {
+            circle2.x += separationX * mass2Ratio
+            circle2.y += separationY * mass2Ratio
+          }
+        }
+      }
+    }
+  }
+  
+  // Constrain circles to stay within bounds
+  private constrainToBounds(circles: CircleData[], width: number, height: number): void {
+    for (const circle of circles) {
+      const margin = circle.radius
+      
+      // Left boundary
+      if (circle.x < margin) {
+        circle.x = margin
+        if (circle.prevX !== undefined && circle.prevX < circle.x) {
+          circle.prevX = circle.x + (circle.x - circle.prevX) * 0.8 // Bounce with damping
+        }
+      }
+      
+      // Right boundary
+      if (circle.x > width - margin) {
+        circle.x = width - margin
+        if (circle.prevX !== undefined && circle.prevX > circle.x) {
+          circle.prevX = circle.x + (circle.x - circle.prevX) * 0.8
+        }
+      }
+      
+      // Top boundary
+      if (circle.y < margin) {
+        circle.y = margin
+        if (circle.prevY !== undefined && circle.prevY < circle.y) {
+          circle.prevY = circle.y + (circle.y - circle.prevY) * 0.8
+        }
+      }
+      
+      // Bottom boundary
+      if (circle.y > height - margin) {
+        circle.y = height - margin
+        if (circle.prevY !== undefined && circle.prevY > circle.y) {
+          circle.prevY = circle.y + (circle.y - circle.prevY) * 0.8
+        }
+      }
+    }
+  }
+  
+  // Original simple force-based relaxation (fallback)
+  private applySimpleForceRelaxation(circles: CircleData[], width: number, height: number): CircleData[] {
     const relaxedCircles = circles.map(circle => ({ ...circle })) // Deep copy
     const iterations = Math.min(10, Math.max(3, Math.floor(circles.length / 50))) // Adaptive iterations
     const dampingFactor = 0.5 // Reduce movement over time
     
-    console.log(`Applying ${iterations} relaxation iterations to ${circles.length} circles`)
+    console.log(`Applying ${iterations} simple force relaxation iterations to ${circles.length} circles`)
     
     for (let iteration = 0; iteration < iterations; iteration++) {
       const forces: Array<{fx: number, fy: number}> = []
@@ -1044,6 +1260,265 @@ export class CirclePackingPass {
     }
     
     return relaxedCircles
+  }
+  
+  // Physics-based bouncing ball placement system (inspired by sphere-drawings)
+  private generatePhysicsBasedCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: QuadTree | SpatialHashGrid): CircleData[] {
+    const circles: CircleData[] = []
+    const maxCircles = Math.floor(this.packingDensity * 2) // Adjust density for physics placement
+    
+    console.log(`Physics placement: generating ${maxCircles} circles with bouncing ball simulation`)
+    
+    // Spawn circles from the top with random initial velocities
+    for (let i = 0; i < maxCircles; i++) {
+      const circle = this.createBouncingBall(originalImageData, width, height, i)
+      if (circle) {
+        // Simulate bouncing ball physics until it settles
+        const settledCircle = this.simulateBouncingBall(circle, circles, width, height, spatialStructure)
+        if (settledCircle) {
+          circles.push(settledCircle)
+          
+          // Update spatial structure for collision detection
+          if (spatialStructure instanceof SpatialHashGrid) {
+            spatialStructure.clear()
+            for (const c of circles) {
+              spatialStructure.insert(c)
+            }
+          } else {
+            spatialStructure.insert(settledCircle)
+          }
+        }
+      }
+    }
+    
+    console.log(`Physics placement complete: ${circles.length} circles settled`)
+    
+    // Apply final Verlet physics simulation for polish
+    if (this.useVerletPhysics) {
+      return this.applyVerletPhysicsSimulation(circles, width, height)
+    }
+    
+    return circles
+  }
+  
+  // Create a bouncing ball with physics properties
+  private createBouncingBall(originalImageData: ImageData, width: number, height: number, index: number): CircleData | null {
+    // Deterministic spawn positions across the top
+    const spawnX = ((index % 10) + 1) * (width / 11) + (Math.random() - 0.5) * 20
+    const spawnY = -50 // Start above the screen
+    
+    // Random size based on configuration
+    const radius = this.minCircleSize + Math.random() * (this.maxCircleSize - this.minCircleSize)
+    
+    // Sample color from a random position in the image for color variety
+    const sampleX = Math.max(0, Math.min(width - 1, Math.floor(spawnX)))
+    const sampleY = Math.max(0, Math.min(height - 1, Math.floor(height * Math.random())))
+    const pixelIndex = (sampleY * width + sampleX) * 4
+    
+    let color: [number, number, number] = [
+      originalImageData.data[pixelIndex] / 255,
+      originalImageData.data[pixelIndex + 1] / 255,
+      originalImageData.data[pixelIndex + 2] / 255
+    ]
+    
+    // Prevent pure black circles
+    const brightness = color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114
+    if (brightness < 0.1) {
+      const factor = 0.1 / Math.max(brightness, 0.001)
+      color = [
+        Math.min(1.0, color[0] * factor + 0.05),
+        Math.min(1.0, color[1] * factor + 0.05),
+        Math.min(1.0, color[2] * factor + 0.05)
+      ]
+    }
+    
+    return {
+      x: spawnX,
+      y: spawnY,
+      radius,
+      color,
+      prevX: spawnX + (Math.random() - 0.5) * 2, // Small initial velocity
+      prevY: spawnY - Math.random() * 2,
+      mass: Math.PI * radius * radius,
+      pinned: false
+    }
+  }
+  
+  // Simulate bouncing ball physics until it settles
+  private simulateBouncingBall(ball: CircleData, existingCircles: CircleData[], width: number, height: number, spatialStructure: QuadTree | SpatialHashGrid): CircleData | null {
+    const maxSimulationSteps = 200 // Prevent infinite loops
+    const settleThreshold = 0.1 // Velocity threshold for "settled"
+    
+    for (let step = 0; step < maxSimulationSteps; step++) {
+      // Verlet integration step
+      const velocityX = ball.x - (ball.prevX ?? ball.x)
+      const velocityY = ball.y - (ball.prevY ?? ball.y)
+      
+      ball.prevX = ball.x
+      ball.prevY = ball.y
+      
+      // Apply gravity and damping
+      const gravity = this.gravity * 0.5 // Reduced gravity for settling
+      ball.x += velocityX * this.damping
+      ball.y += velocityY * this.damping + gravity
+      
+      // Boundary collisions with bouncing
+      if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius
+        if (ball.prevX !== undefined) {
+          ball.prevX = ball.x + (ball.x - ball.prevX) * 0.6 // Bounce with energy loss
+        }
+      }
+      if (ball.x + ball.radius > width) {
+        ball.x = width - ball.radius
+        if (ball.prevX !== undefined) {
+          ball.prevX = ball.x + (ball.x - ball.prevX) * 0.6
+        }
+      }
+      if (ball.y + ball.radius > height) {
+        ball.y = height - ball.radius
+        if (ball.prevY !== undefined) {
+          ball.prevY = ball.y + (ball.y - ball.prevY) * 0.6 // Bounce with energy loss
+        }
+      }
+      
+      // Circle collisions
+      const hasCollision = this.resolveBouncingBallCollisions(ball, existingCircles, spatialStructure)
+      
+      // Check if ball has settled (low velocity and on ground or resting on other circles)
+      const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY)
+      const isNearGround = ball.y + ball.radius >= height - 5
+      const isResting = speed < settleThreshold && (isNearGround || hasCollision)
+      
+      if (isResting) {
+        // Ball has settled, return final position
+        return {
+          x: ball.x,
+          y: ball.y,
+          radius: ball.radius,
+          color: ball.color,
+          mass: ball.mass
+        }
+      }
+    }
+    
+    // Failed to settle within time limit, reject this ball
+    return null
+  }
+  
+  // Resolve collisions for bouncing ball
+  private resolveBouncingBallCollisions(ball: CircleData, existingCircles: CircleData[], spatialStructure: QuadTree | SpatialHashGrid): boolean {
+    let hasCollision = false
+    
+    // Get nearby circles for collision detection
+    const nearby = spatialStructure instanceof SpatialHashGrid 
+      ? spatialStructure.getNearbyCircles(ball.x, ball.y, ball.radius + this.circleSpacing)
+      : existingCircles // Fallback to checking all circles for QuadTree
+    
+    for (const other of nearby) {
+      const dx = ball.x - other.x
+      const dy = ball.y - other.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const minDistance = ball.radius + other.radius + this.circleSpacing
+      
+      if (distance < minDistance && distance > 0) {
+        hasCollision = true
+        
+        // Collision response: bounce ball away from other circle
+        const overlap = minDistance - distance
+        const normalX = dx / distance
+        const normalY = dy / distance
+        
+        // Move ball away from collision
+        ball.x += normalX * overlap
+        ball.y += normalY * overlap
+        
+        // Bounce velocity (reverse velocity component along collision normal)
+        if (ball.prevX !== undefined && ball.prevY !== undefined) {
+          const velocityX = ball.x - ball.prevX
+          const velocityY = ball.y - ball.prevY
+          
+          // Reflect velocity along collision normal with energy loss
+          const dotProduct = velocityX * normalX + velocityY * normalY
+          ball.prevX = ball.x - (velocityX - 2 * dotProduct * normalX) * 0.7 // 30% energy loss
+          ball.prevY = ball.y - (velocityY - 2 * dotProduct * normalY) * 0.7
+        }
+      }
+    }
+    
+    return hasCollision
+  }
+  
+  // Start real-time physics animation
+  public startPhysicsAnimation(originalImageData: ImageData, width: number, height: number): void {
+    if (this.isAnimating) return // Already animating
+    
+    console.log('Starting real-time physics animation!')
+    
+    // Create spatial structure for animation
+    this.spatialStructure = this.useSpatialHashGrid 
+      ? new SpatialHashGrid(width, height, this.maxCircleSize * 0.5)
+      : new QuadTree({ x: 0, y: 0, width, height }, 15)
+    
+    // Initialize circles with physics properties
+    this.circles = []
+    const maxCircles = Math.floor(this.packingDensity * 0.5) // Fewer circles for better animation performance
+    
+    for (let i = 0; i < maxCircles; i++) {
+      const circle = this.createBouncingBall(originalImageData, width, height, i)
+      if (circle) {
+        this.circles.push(circle)
+      }
+    }
+    
+    // Start animation
+    this.isAnimating = true
+    this.animationStartTime = performance.now()
+    console.log(`Animation started with ${this.circles.length} circles`)
+  }
+  
+  // Update physics animation (called every frame)
+  public updatePhysicsAnimation(deltaTime: number, width: number, height: number): boolean {
+    if (!this.isAnimating || !this.spatialStructure) return false
+    
+    const elapsed = performance.now() - this.animationStartTime
+    if (elapsed > this.animationDuration) {
+      this.isAnimating = false
+      console.log('Animation completed!')
+      return false
+    }
+    
+    // Apply physics step with animation speed multiplier
+    const physicsStep = deltaTime * this.animationSpeed * 0.001 // Convert to seconds
+    
+    // Clear spatial structure for this frame
+    if (this.spatialStructure instanceof SpatialHashGrid) {
+      this.spatialStructure.clear()
+      for (const circle of this.circles) {
+        this.spatialStructure.insert(circle)
+      }
+    }
+    
+    // Apply one frame of physics simulation
+    this.verletIntegrationStep(this.circles, width, height, physicsStep)
+    this.resolveCollisions(this.circles)
+    this.constrainToBounds(this.circles, width, height)
+    
+    // Update shader with new positions
+    this.updateCircleDataInShader()
+    
+    return true // Continue animating
+  }
+  
+  // Stop animation
+  public stopPhysicsAnimation(): void {
+    this.isAnimating = false
+    console.log('Animation stopped')
+  }
+  
+  // Check if currently animating
+  public isPhysicsAnimating(): boolean {
+    return this.isAnimating
   }
   
   // Find optimal squares within color blocks with collision detection
@@ -1627,7 +2102,12 @@ export class CirclePackingPass {
       colorTolerance: this.colorTolerance,
       randomSeed: this.randomSeed,
       pixelateSize: this.pixelateSize,
-      posterizeLevels: this.posterizeLevels
+      posterizeLevels: this.posterizeLevels,
+      useVerletPhysics: this.useVerletPhysics,
+      gravity: this.gravity,
+      damping: this.damping,
+      substeps: this.substeps,
+      physicsIterations: this.physicsIterations
     }
     
     const changed = Object.keys(currentParams).some(key => 
@@ -1662,7 +2142,7 @@ export class CirclePackingPass {
     }
   }
 
-  render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null) {
+  render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null, deltaTime: number = 16) {
     if (!this.enabled) {
       // If disabled, just copy input to output
       if (outputTarget) {
@@ -1694,6 +2174,27 @@ export class CirclePackingPass {
         quad.geometry.dispose()
       }
       return
+    }
+    
+    // Handle real-time physics animation
+    if (this.animatePhysics && this.usePhysicsPlacement) {
+      const targetWidth = this.renderTarget.width
+      const targetHeight = this.renderTarget.height
+      
+      // Start animation if not already running and we need to recompute
+      if (!this.isAnimating && this.needsRecompute) {
+        this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
+          .then(imageData => {
+            this.startPhysicsAnimation(imageData, imageData.width, imageData.height)
+            this.needsRecompute = false
+          })
+          .catch(console.error)
+      }
+      
+      // Update animation if running
+      if (this.isAnimating) {
+        this.updatePhysicsAnimation(deltaTime, targetWidth, targetHeight)
+      }
     }
     
     // Check if parameters changed and trigger recompute
