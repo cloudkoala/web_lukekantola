@@ -826,26 +826,30 @@ export class PostProcessingPass {
         this.circlePackingPass.enabled = effect.enabled
         this.circlePackingPass.intensity = effect.parameters.intensity ?? 0.8
         this.circlePackingPass.packingDensity = effect.parameters.packingDensity ?? 18
-        this.circlePackingPass.colorLevels = effect.parameters.colorLevels ?? 8
         this.circlePackingPass.minCircleSize = effect.parameters.minCircleSize ?? 0.3
         this.circlePackingPass.maxCircleSize = effect.parameters.maxCircleSize ?? 8.0
         this.circlePackingPass.circleSpacing = effect.parameters.circleSpacing ?? 1.2
-        this.circlePackingPass.colorTolerance = effect.parameters.colorTolerance ?? 0.15
         this.circlePackingPass.randomSeed = effect.parameters.randomSeed ?? 42
-        this.circlePackingPass.blackBackground = effect.parameters.blackBackground ?? 1
-        this.circlePackingPass.backgroundColorR = effect.parameters.backgroundColorR ?? 0.0
-        this.circlePackingPass.backgroundColorG = effect.parameters.backgroundColorG ?? 0.0
-        this.circlePackingPass.backgroundColorB = effect.parameters.backgroundColorB ?? 0.0
-        this.circlePackingPass.pixelateSize = effect.parameters.pixelateSize ?? 8
-        this.circlePackingPass.posterizeLevels = effect.parameters.posterizeLevels ?? 8
+        // Handle background opacity (0.0 = transparent, 1.0 = fully opaque)
+        const backgroundOpacity = Number(effect.parameters.backgroundOpacity ?? 1.0)
+        this.circlePackingPass.blackBackground = backgroundOpacity
+        
+        // Handle backgroundColor parameter (integer color value)
+        const backgroundColor = Number(effect.parameters.backgroundColor ?? 0)
+        // Convert integer color (0-16777215) to RGB
+        const r = ((backgroundColor >> 16) & 255) / 255
+        const g = ((backgroundColor >> 8) & 255) / 255
+        const b = (backgroundColor & 255) / 255
+        this.circlePackingPass.backgroundColorR = r
+        this.circlePackingPass.backgroundColorG = g
+        this.circlePackingPass.backgroundColorB = b
         // Physics simulation parameters
         this.circlePackingPass.useVerletPhysics = Boolean(effect.parameters.useVerletPhysics ?? 1)
         this.circlePackingPass.gravity = Number(effect.parameters.gravity ?? 0.1)
         this.circlePackingPass.damping = Number(effect.parameters.damping ?? 0.98)
         this.circlePackingPass.substeps = Number(effect.parameters.substeps ?? 3)
         this.circlePackingPass.physicsIterations = Number(effect.parameters.physicsIterations ?? 15)
-        // Spatial optimization parameters
-        this.circlePackingPass.useSpatialHashGrid = Boolean(effect.parameters.useSpatialHashGrid ?? 0)
+        // Spatial optimization parameters - always use SpatialHashGrid now
         this.circlePackingPass.usePhysicsPlacement = Boolean(effect.parameters.usePhysicsPlacement ?? 0)
         // Animation parameters
         this.circlePackingPass.animatePhysics = Boolean(effect.parameters.animatePhysics ?? 0)

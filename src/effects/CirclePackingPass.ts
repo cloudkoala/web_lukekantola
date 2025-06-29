@@ -155,19 +155,15 @@ export class CirclePackingPass {
   // Circle packing parameters
   public enabled: boolean = false
   public intensity: number = 0.8
-  public packingDensity: number = 18 // Number of circles per color region
-  public colorLevels: number = 8 // Posterization levels
+  public packingDensity: number = 18 // Number of circles to generate
   public minCircleSize: number = 0.3 // Minimum circle radius (0-1)
   public maxCircleSize: number = 8.0 // Maximum circle radius
   public circleSpacing: number = 1.2 // Spacing multiplier between circles
-  public colorTolerance: number = 0.15 // How similar colors need to be to group (0-1)
   public randomSeed: number = 42 // For consistent random circle placement
   public blackBackground: number = 1 // Whether to use black background
   public backgroundColorR: number = 0.0 // Custom background red component (0-1)
   public backgroundColorG: number = 0.0 // Custom background green component (0-1)
   public backgroundColorB: number = 0.0 // Custom background blue component (0-1)
-  public pixelateSize: number = 8 // Size of pixelation blocks (2-50)
-  public posterizeLevels: number = 8 // Number of posterization levels (2-32)
   
   // Physics simulation parameters
   public useVerletPhysics: boolean = true // Enable Verlet integration physics
@@ -176,8 +172,7 @@ export class CirclePackingPass {
   public substeps: number = 3 // Physics substeps per iteration
   public physicsIterations: number = 15 // Number of physics iterations
   
-  // Spatial optimization parameters
-  public useSpatialHashGrid: boolean = false // Use spatial hash grid instead of QuadTree
+  // Placement and animation parameters
   public usePhysicsPlacement: boolean = false // Use physics-based bouncing ball placement
   public animatePhysics: boolean = false // Show real-time physics animation
   public animationSpeed: number = 1.0 // Speed multiplier for physics animation
@@ -202,19 +197,18 @@ export class CirclePackingPass {
   // Track parameter changes to trigger recompute
   private lastParameters = {
     packingDensity: this.packingDensity,
-    colorLevels: this.colorLevels,
     minCircleSize: this.minCircleSize,
     maxCircleSize: this.maxCircleSize,
     circleSpacing: this.circleSpacing,
-    colorTolerance: this.colorTolerance,
     randomSeed: this.randomSeed,
-    pixelateSize: this.pixelateSize,
-    posterizeLevels: this.posterizeLevels,
     useVerletPhysics: this.useVerletPhysics,
     gravity: this.gravity,
     damping: this.damping,
     substeps: this.substeps,
-    physicsIterations: this.physicsIterations
+    physicsIterations: this.physicsIterations,
+    usePhysicsPlacement: this.usePhysicsPlacement,
+    animatePhysics: this.animatePhysics,
+    animationSpeed: this.animationSpeed
     // Note: background colors don't need recompute, they're handled by shader
   }
   
@@ -389,635 +383,95 @@ export class CirclePackingPass {
     }
   }
   
-  // Smart circle packing with progressive rendering support
+  // Simplified circle packing with physics-based placement
   private generateCirclePacking(originalImageData: ImageData, width: number, height: number): CircleData[] {
-    const circles: CircleData[] = []
-    
-    // Choose spatial data structure based on user preference
-    const spatialStructure = this.useSpatialHashGrid 
-      ? new SpatialHashGrid(width, height, this.maxCircleSize * 0.5)
-      : new QuadTree({ x: 0, y: 0, width, height }, 15)
-    
-    const spacing = this.circleSpacing * 2.0
     const startTime = performance.now()
     
-    // Use physics-based placement if enabled
+    // Always use spatial hash grid for best performance
+    const spatialStructure = new SpatialHashGrid(width, height, this.maxCircleSize * 0.5)
+    
+    // Use physics-based placement if enabled, otherwise use simple random placement
     if (this.usePhysicsPlacement) {
       console.log('Using physics-based bouncing ball placement system')
       return this.generatePhysicsBasedCirclePacking(originalImageData, width, height, spatialStructure)
+    } else {
+      console.log('Using simple random placement with physics relaxation')
+      return this.generateSimpleCirclePacking(originalImageData, width, height, spatialStructure)
     }
-    
-    // Multi-scale hierarchical placement: Large → Medium → Small
-    
-    // Phase 1: Generate large circles from uniform color blocks (backgrounds)
-    console.log('Phase 1: Generating large circles from color blocks...')
-    const largeCircles = spatialStructure instanceof QuadTree 
-      ? this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, spatialStructure)
-      : this.generateLargeCirclesFromColorBlocks(originalImageData, width, height, spatialStructure as any)
-    console.log('Generated large circles:', largeCircles.length, `(${Math.round(performance.now() - startTime)}ms)`)
-    
-    for (const circle of largeCircles) {
-      circles.push(circle)
-      if (spatialStructure instanceof QuadTree) {
-        spatialStructure.insert(circle)
-      } else {
-        spatialStructure.insert(circle)
-      }
-    }
-    
-    // Phase 2: Generate medium circles for feature areas
-    console.log('Phase 2: Generating medium circles for features...')
-    const phase2StartTime = performance.now()
-    const mediumCircles = spatialStructure instanceof QuadTree
-      ? this.generateMediumCircles(originalImageData, width, height, spatialStructure, spacing)
-      : this.generateMediumCircles(originalImageData, width, height, spatialStructure as any, spacing)
-    console.log('Generated medium circles:', mediumCircles.length, `(${Math.round(performance.now() - phase2StartTime)}ms)`)
-    
-    for (const circle of mediumCircles) {
-      circles.push(circle)
-      if (spatialStructure instanceof QuadTree) {
-        spatialStructure.insert(circle)
-      } else {
-        spatialStructure.insert(circle)
-      }
-    }
-    
-    // Phase 3: Generate medium-small circles for intermediate gaps
-    console.log('Phase 3: Generating medium-small circles for intermediate gaps...')
-    const phase3StartTime = performance.now()
-    const mediumSmallCircles = spatialStructure instanceof QuadTree
-      ? this.generateMediumSmallCircles(originalImageData, width, height, spatialStructure, spacing)
-      : this.generateMediumSmallCircles(originalImageData, width, height, spatialStructure as any, spacing)
-    console.log('Generated medium-small circles:', mediumSmallCircles.length, `(${Math.round(performance.now() - phase3StartTime)}ms)`)
-    
-    for (const circle of mediumSmallCircles) {
-      circles.push(circle)
-      if (spatialStructure instanceof QuadTree) {
-        spatialStructure.insert(circle)
-      } else {
-        spatialStructure.insert(circle)
-      }
-    }
-    
-    // Phase 4: Fill remaining space with small detail circles using Poisson sampling
-    console.log('Phase 4: Filling final gaps with small detail circles...')
-    const phase4StartTime = performance.now()
-    const smallCircles = spatialStructure instanceof QuadTree
-      ? this.generateSmallCircles(originalImageData, width, height, spatialStructure, spacing)
-      : this.generateSmallCircles(originalImageData, width, height, spatialStructure as any, spacing)
-    console.log('Generated small circles:', smallCircles.length, `(${Math.round(performance.now() - phase4StartTime)}ms)`)
-    
-    for (const circle of smallCircles) {
-      circles.push(circle)
-      if (spatialStructure instanceof QuadTree) {
-        spatialStructure.insert(circle)
-      } else {
-        spatialStructure.insert(circle)
-      }
-    }
-    
-    // Phase 5: Apply force-based relaxation to eliminate micro-overlaps
-    console.log('Phase 5: Applying force-based relaxation...')
-    const phase5StartTime = performance.now()
-    const relaxedCircles = this.applyForceBasedRelaxation(circles, width, height)
-    console.log('Force relaxation completed:', `(${Math.round(performance.now() - phase5StartTime)}ms)`)
-    
-    const totalTime = Math.round(performance.now() - startTime)
-    console.log(`Circle packing complete: ${relaxedCircles.length} circles in ${totalTime}ms`)
-    console.log(`Performance: ${Math.round(relaxedCircles.length / (totalTime / 1000))} circles/second`)
-    
-    return relaxedCircles
   }
   
-  // Your brilliant idea: pixelate → posterize → detect uniform blocks → place large circles
-  private generateLargeCirclesFromColorBlocks(imageData: ImageData, width: number, height: number, quadTree: QuadTree): CircleData[] {
-    // Use quadTree parameter to avoid TypeScript warning
-    void quadTree;
+  // Simple circle placement for non-physics mode
+  private generateSimpleCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
+    const maxCircles = this.packingDensity
+    const maxAttempts = maxCircles * 100 // Limit attempts to prevent infinite loops
     
-    try {
-      // Step 1: Create pixelated version using user-controlled pixel size
-      console.log('Pixelating with pixel size:', this.pixelateSize)
-      const pixelatedData = this.pixelateImage(imageData, width, height, this.pixelateSize)
+    console.log(`Generating ${maxCircles} circles with simple placement`)
+    
+    for (let attempt = 0; attempt < maxAttempts && circles.length < maxCircles; attempt++) {
+      // Random position
+      const x = Math.random() * width
+      const y = Math.random() * height
       
-      // Step 2: Posterize to create distinct color regions using user-controlled levels
-      console.log('Posterizing with', this.posterizeLevels, 'levels')
-      const posterizedData = this.posterizeImageData(pixelatedData)
+      // Random size within range
+      const radius = this.minCircleSize + Math.random() * (this.maxCircleSize - this.minCircleSize)
       
-      // Step 3: Find uniform color blocks and their sizes
-      console.log('Finding uniform color blocks')
-      const colorBlocks = this.findUniformColorBlocks(posterizedData, width, height, this.pixelateSize)
-      console.log('Found color blocks:', colorBlocks.length)
+      // Check for collisions using spatial hash grid
+      const nearbyCircles = spatialStructure.getNearbyCircles(x, y, radius + this.circleSpacing)
+      let hasCollision = false
       
-      // Step 4: Extract optimal squares from color blocks with collision-aware placement
-      // Sort blocks by area and edge strength for better placement priority
-      const sortedBlocks = colorBlocks.sort((a, b) => {
-        const areaCompare = (b.width * b.height) - (a.width * a.height)
-        if (Math.abs(areaCompare) > 100) return areaCompare
-        return a.edgeStrength - b.edgeStrength // Lower edge strength = more uniform = higher priority
-      })
-      
-      for (const block of sortedBlocks) {
-        // Skip tiny blocks that can't fit meaningful circles
-        const blockArea = block.width * block.height
-        if (blockArea < this.minCircleSize * this.minCircleSize * 4) continue
-        
-        // Adaptive sizing based on block characteristics and edge strength
-        const baseSize = Math.min(block.width, block.height) * 0.8
-        const edgeFactor = Math.max(0.3, 1.0 - block.edgeStrength * 2)
-        const adaptiveMaxSize = Math.min(this.maxCircleSize, baseSize * edgeFactor)
-        
-        const squares = this.findOptimalSquaresInBlockWithCollision(block, adaptiveMaxSize, quadTree)
-        console.log(`Block at (${Math.floor(block.centerX)},${Math.floor(block.centerY)}) size ${Math.floor(block.width)}x${Math.floor(block.height)} edge:${block.edgeStrength.toFixed(2)} → ${squares.length} squares`)
-        
-        for (const square of squares) {
-          const radius = Math.min(square.size / 2, adaptiveMaxSize)
-          
-          // Sample original color at square center for natural color
-          const centerX = Math.max(0, Math.min(width - 1, Math.floor(square.centerX)))
-          const centerY = Math.max(0, Math.min(height - 1, Math.floor(square.centerY)))
-          const pixelIndex = (centerY * width + centerX) * 4
-          
-          // Bounds check for imageData access
-          if (pixelIndex >= 0 && pixelIndex + 3 < imageData.data.length) {
-            let color: [number, number, number] = [
-              imageData.data[pixelIndex] / 255,
-              imageData.data[pixelIndex + 1] / 255,
-              imageData.data[pixelIndex + 2] / 255
-            ]
-            
-            // Prevent pure black circles
-            const brightness = color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114
-            if (brightness < 0.1) {
-              const factor = 0.1 / Math.max(brightness, 0.001)
-              color = [
-                Math.min(1.0, color[0] * factor + 0.05),
-                Math.min(1.0, color[1] * factor + 0.05),
-                Math.min(1.0, color[2] * factor + 0.05)
-              ]
-            }
-            
-            const newCircle = {
-              x: square.centerX,
-              y: square.centerY,
-              radius: radius,
-              color: color
-            }
-            
-            circles.push(newCircle)
-            quadTree.insert(newCircle) // Add to spatial grid for collision detection
-          }
+      for (const existing of nearbyCircles) {
+        const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
+        if (distance < radius + existing.radius + this.circleSpacing) {
+          hasCollision = true
+          break
         }
       }
-    } catch (error) {
-      console.error('Error in generateLargeCirclesFromColorBlocks:', error)
-      // Fall back to empty array if there's an error
-    }
-    
-    return circles
-  }
-
-  // Generate medium-sized circles for feature areas (intermediate scale)
-  private generateMediumCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
-    void spacing; // Currently unused but reserved for future enhancement
-    const circles: CircleData[] = []
-    
-    // Create a coarser pixelation for medium-scale features
-    const mediumPixelSize = Math.max(this.pixelateSize * 2, 16)
-    const mediumPosterizeLevels = Math.max(this.posterizeLevels / 2, 4)
-    
-    console.log(`Medium circles: pixelSize=${mediumPixelSize}, posterizeLevels=${mediumPosterizeLevels}`)
-    
-    try {
-      // Step 1: Create medium-scale pixelated version
-      const pixelatedData = this.pixelateImage(originalImageData, width, height, mediumPixelSize)
       
-      // Step 2: Posterize with fewer levels for broader color grouping
-      const posterizedData = this.posterizeImageDataWithLevels(pixelatedData, mediumPosterizeLevels)
-      
-      // Step 3: Find medium-scale color blocks
-      const colorBlocks = this.findUniformColorBlocks(posterizedData, width, height, mediumPixelSize)
-      
-      // Filter blocks by size - medium blocks only (not too large, not too small)
-      const mediumBlocks = colorBlocks.filter(block => {
-        const blockArea = block.width * block.height
-        const minArea = (this.maxCircleSize * 0.5) ** 2 * Math.PI * 4 // Min area for medium circles
-        const maxArea = (this.maxCircleSize * 0.8) ** 2 * Math.PI * 16 // Max area for medium circles
-        return blockArea >= minArea && blockArea <= maxArea
-      })
-      
-      console.log(`Found ${mediumBlocks.length} medium-scale blocks from ${colorBlocks.length} total blocks`)
-      
-      // Sort by edge strength - prioritize moderately complex areas
-      const sortedBlocks = mediumBlocks.sort((a, b) => {
-        // Target moderate edge strength (0.2-0.6 range)
-        const aScore = Math.abs(a.edgeStrength - 0.4)
-        const bScore = Math.abs(b.edgeStrength - 0.4)
-        return aScore - bScore
-      })
-      
-      // Generate circles from medium blocks
-      for (const block of sortedBlocks.slice(0, Math.floor(this.packingDensity / 4))) {
-        const baseSize = Math.min(block.width, block.height) * 0.6
-        const edgeFactor = Math.max(0.4, 1.0 - Math.abs(block.edgeStrength - 0.4))
-        const adaptiveMaxSize = Math.min(this.maxCircleSize * 0.7, baseSize * edgeFactor)
-        
-        // Use simplified placement for medium circles
-        const squares = this.generateMediumSquaresInBlock(block, adaptiveMaxSize, quadTree)
-        
-        for (const square of squares) {
-          const radius = square.size / 2
-          
-          // Sample color with area averaging
-          const color = this.sampleAreaColor(originalImageData, square.centerX, square.centerY, radius, width, height)
-          
-          const newCircle = {
-            x: square.centerX,
-            y: square.centerY,
-            radius: radius,
-            color: color
-          }
-          
-          circles.push(newCircle)
-          quadTree.insert(newCircle)
-        }
+      // Skip if too close to edges
+      if (x - radius < 0 || x + radius > width || y - radius < 0 || y + radius > height) {
+        hasCollision = true
       }
-    } catch (error) {
-      console.error('Error in generateMediumCircles:', error)
-    }
-    
-    return circles
-  }
-
-  // Generate squares for medium circles with simpler placement strategy
-  private generateMediumSquaresInBlock(block: {centerX: number, centerY: number, width: number, height: number, color: [number, number, number], edgeStrength: number}, maxCircleSize: number, quadTree: QuadTree): Array<{centerX: number, centerY: number, size: number}> {
-    const squares: Array<{centerX: number, centerY: number, size: number}> = []
-    
-    // Try center placement first
-    const maxRadiusFromCollision = this.getMaxRadiusWithQuadTree(
-      block.centerX, 
-      block.centerY, 
-      quadTree, 
-      block.width, 
-      block.height, 
-      this.circleSpacing
-    )
-    
-    const maxRadiusFromBounds = Math.min(block.width, block.height) * 0.4
-    const finalRadius = Math.min(maxRadiusFromBounds, maxRadiusFromCollision, maxCircleSize)
-    
-    if (finalRadius >= this.minCircleSize * 2) { // Medium circles should be at least 2x minimum
-      squares.push({
-        centerX: block.centerX,
-        centerY: block.centerY,
-        size: finalRadius * 2
-      })
-    }
-    
-    return squares
-  }
-
-  // Posterize with custom levels (separate from instance variable)
-  private posterizeImageDataWithLevels(imageData: ImageData, levels: number): ImageData {
-    const posterizedData = new ImageData(imageData.width, imageData.height)
-    
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      // Posterize RGB channels
-      posterizedData.data[i] = Math.floor(imageData.data[i] / 255 * levels) / levels * 255     // R
-      posterizedData.data[i + 1] = Math.floor(imageData.data[i + 1] / 255 * levels) / levels * 255 // G
-      posterizedData.data[i + 2] = Math.floor(imageData.data[i + 2] / 255 * levels) / levels * 255 // B
-      posterizedData.data[i + 3] = imageData.data[i + 3] // Alpha
       
-      // Prevent pure black
-      const brightness = (posterizedData.data[i] * 0.299 + posterizedData.data[i + 1] * 0.587 + posterizedData.data[i + 2] * 0.114) / 255
-      if (brightness < 0.05) {
-        posterizedData.data[i] = Math.max(posterizedData.data[i], 25)
-        posterizedData.data[i + 1] = Math.max(posterizedData.data[i + 1], 25)
-        posterizedData.data[i + 2] = Math.max(posterizedData.data[i + 2], 25)
-      }
-    }
-    
-    return posterizedData
-  }
-
-  // Generate medium-small circles to fill intermediate gaps (Phase 3)
-  private generateMediumSmallCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
-    // Use quadTree parameter to avoid TypeScript warning  
-    void quadTree;
-    const circles: CircleData[] = []
-    
-    console.log('Starting medium-small circle generation with targeted gap filling')
-    
-    // Use a hybrid approach: structured sampling + Poisson for better coverage
-    const targetDensity = Math.floor(this.packingDensity * 0.4) // 40% of total density for this phase
-    const minDistance = spacing * 1.5 // Less strict than small circles
-    const maxAttempts = targetDensity * 30
-    void maxAttempts; // Reserved for future enhancement
-    
-    // Phase 3A: Grid-based sampling for systematic coverage
-    const gridSpacing = Math.max(20, this.minCircleSize * 3)
-    
-    for (let y = gridSpacing; y < height - gridSpacing; y += gridSpacing) {
-      for (let x = gridSpacing; x < width - gridSpacing; x += gridSpacing) {
-        // Add some randomness to grid positions to avoid rigid patterns
-        const jitterX = (Math.random() - 0.5) * gridSpacing * 0.6
-        const jitterY = (Math.random() - 0.5) * gridSpacing * 0.6
-        const candidateX = x + jitterX
-        const candidateY = y + jitterY
+      if (!hasCollision) {
+        // Sample color from original image
+        const pixelX = Math.max(0, Math.min(width - 1, Math.floor(x)))
+        const pixelY = Math.max(0, Math.min(height - 1, Math.floor(y)))
+        const pixelIndex = (pixelY * width + pixelX) * 4
         
-        // Ensure position is within bounds
-        if (candidateX < 0 || candidateX >= width || candidateY < 0 || candidateY >= height) continue
+        let color: [number, number, number] = [
+          originalImageData.data[pixelIndex] / 255,
+          originalImageData.data[pixelIndex + 1] / 255,
+          originalImageData.data[pixelIndex + 2] / 255
+        ]
         
-        // Check collision with existing circles
-        const maxPossibleRadius = this.getMaxRadiusWithQuadTree(candidateX, candidateY, quadTree, width, height, spacing)
-        
-        // Use strict collision detection to prevent overlaps
-        if (maxPossibleRadius < this.minCircleSize) continue
-        
-        // Size for medium-small circles: 50-80% of max circle size
-        const localComplexity = this.calculateLocalComplexity(originalImageData, candidateX, candidateY, width, height)
-        const complexityFactor = Math.max(0.4, 1.0 - localComplexity * 0.8)
-        
-        const targetRadius = Math.min(
-          maxPossibleRadius,
-          this.maxCircleSize * 0.65 * complexityFactor // Medium-small range
-        )
-        
-        if (targetRadius >= this.minCircleSize) {
-          const color = this.sampleAreaColor(originalImageData, candidateX, candidateY, targetRadius, width, height)
-          
-          const newCircle = {
-            x: candidateX,
-            y: candidateY,
-            radius: targetRadius,
-            color: color
-          }
-          
-          circles.push(newCircle)
-          quadTree.insert(newCircle)
-        }
-      }
-    }
-    
-    // Phase 3B: Poisson sampling for remaining gaps
-    const remainingTarget = Math.max(0, targetDensity - circles.length)
-    if (remainingTarget > 0) {
-      const sampler = new PoissonDiskSampler(width, height, minDistance, 20)
-      const candidatePoints = sampler.generatePoints()
-      
-      let poissonCount = 0
-      for (const point of candidatePoints) {
-        if (poissonCount >= remainingTarget) break
-        
-        const x = point[0]
-        const y = point[1]
-        
-        const maxPossibleRadius = this.getMaxRadiusWithQuadTree(x, y, quadTree, width, height, spacing)
-        // Use strict collision detection to prevent overlaps
-        if (maxPossibleRadius < this.minCircleSize) continue
-        
-        const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
-        const complexityFactor = Math.max(0.4, 1.0 - localComplexity * 0.8)
-        
-        const radius = Math.min(
-          maxPossibleRadius,
-          this.maxCircleSize * 0.65 * complexityFactor
-        )
-        
-        if (radius >= this.minCircleSize) {
-          // Double-check for overlaps before adding
-          const nearbyCircles = quadTree.getNearbyCircles(x, y, radius)
-          let hasOverlap = false
-          for (const existing of nearbyCircles) {
-            const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
-            if (distance < radius + existing.radius + spacing * 0.1) { // Small buffer
-              hasOverlap = true
-              break
-            }
-          }
-          
-          if (!hasOverlap) {
-            const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
-            
-            const newCircle = { x, y, radius, color }
-            circles.push(newCircle)
-            quadTree.insert(newCircle)
-            poissonCount++
-          }
-        }
-      }
-    }
-    
-    console.log(`Created ${circles.length} medium-small circles (grid: ${circles.length - (circles.length - targetDensity)}, poisson: ${Math.min(circles.length, targetDensity)})`)
-    return circles
-  }
-  
-  // Fill remaining space with Poisson Disk Sampling for natural distribution
-  private generateSmallCircles(originalImageData: ImageData, width: number, height: number, quadTree: QuadTree, spacing: number): CircleData[] {
-    const circles: CircleData[] = []
-    
-    console.log('Starting small circle generation with Poisson Disk Sampling')
-    
-    // Calculate minimum distance based on density and spacing (smaller circles, tighter packing)
-    const densityFactor = Math.max(0.1, (101 - this.packingDensity) / 100)
-    const minDistance = Math.max(this.minCircleSize * 1.5, spacing * densityFactor * 0.8)
-    
-    // Generate Poisson-distributed candidate points (more attempts for final details)
-    // Increase attempts for smaller circles to ensure better coverage
-    const attemptMultiplier = Math.max(1, Math.floor(10 / Math.max(this.minCircleSize, 1)))
-    const maxAttempts = Math.min(80, 40 * attemptMultiplier)
-    const sampler = new PoissonDiskSampler(width, height, minDistance, maxAttempts)
-    const candidatePoints = sampler.generatePoints()
-    
-    // Limit to remaining density budget (30% of total for final small circles)
-    const maxSmallCircles = Math.floor(this.packingDensity * 0.3)
-    
-    console.log(`Generated ${candidatePoints.length} Poisson candidate points`)
-    
-    // Convert valid candidate points to circles (limited count for final details)
-    let smallCircleCount = 0
-    for (const point of candidatePoints) {
-      if (smallCircleCount >= maxSmallCircles) break
-      
-      const x = point[0]
-      const y = point[1]
-      
-      // Check collision with existing circles using spatial grid
-      // Use tighter spacing for small circles to allow better packing
-      const smallCircleSpacing = spacing * 0.5
-      const maxPossibleRadius = this.getMaxRadiusWithQuadTree(x, y, quadTree, width, height, smallCircleSpacing)
-      
-      // Use strict collision detection to prevent overlaps
-      if (maxPossibleRadius < this.minCircleSize) continue
-      
-      // Size circles based on local image complexity (smaller range for detail preservation)
-      const localComplexity = this.calculateLocalComplexity(originalImageData, x, y, width, height)
-      const complexityFactor = Math.max(0.2, 1.0 - localComplexity * 1.2)
-      
-      const radius = Math.min(
-        maxPossibleRadius, 
-        this.maxCircleSize * 0.35 * complexityFactor // Smaller circles for final details
-      )
-      
-      if (radius >= this.minCircleSize) {
-        // Double-check for overlaps before adding
-        const nearbyCircles = quadTree.getNearbyCircles(x, y, radius)
-        let hasOverlap = false
-        for (const existing of nearbyCircles) {
-          const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
-          if (distance < radius + existing.radius + smallCircleSpacing * 0.1) { // Small buffer
-            hasOverlap = true
-            break
-          }
-        }
-        
-        if (!hasOverlap) {
-          // Sample color from original image with area averaging for better color representation
-          const color = this.sampleAreaColor(originalImageData, x, y, radius, width, height)
-          
-          const newCircle = { x, y, radius, color }
-          circles.push(newCircle)
-          quadTree.insert(newCircle) // Update spatial grid for collision detection
-          smallCircleCount++
-        }
-      }
-    }
-    
-    console.log(`Created ${circles.length} small circles from ${candidatePoints.length} candidates`)
-    return circles
-  }
-
-  // Calculate local image complexity using edge density and saliency
-  private calculateLocalComplexity(imageData: ImageData, centerX: number, centerY: number, width: number, height: number): number {
-    const sampleRadius = 10 // Sample area around point
-    let edgeStrengthSum = 0
-    let saliencySum = 0
-    let sampleCount = 0
-    
-    for (let dy = -sampleRadius; dy <= sampleRadius; dy += 2) {
-      for (let dx = -sampleRadius; dx <= sampleRadius; dx += 2) {
-        const x = Math.round(centerX + dx)
-        const y = Math.round(centerY + dy)
-        
-        if (x >= 1 && x < width - 1 && y >= 1 && y < height - 1) {
-          edgeStrengthSum += this.calculateEdgeStrength(imageData, x, y, width, height)
-          saliencySum += this.calculateSaliency(imageData, x, y, width, height)
-          sampleCount++
-        }
-      }
-    }
-    
-    if (sampleCount === 0) return 0
-    
-    const edgeComplexity = edgeStrengthSum / sampleCount
-    const saliencyScore = saliencySum / sampleCount
-    
-    // Combine edge complexity and saliency (higher saliency = more complex)
-    return (edgeComplexity * 0.7) + (saliencyScore * 0.3)
-  }
-
-  // Simple saliency detection based on color contrast and local features
-  private calculateSaliency(imageData: ImageData, x: number, y: number, width: number, height: number): number {
-    if (x <= 2 || x >= width - 3 || y <= 2 || y >= height - 3) return 0
-    
-    const centerIdx = (y * width + x) * 4
-    const centerColor = [
-      imageData.data[centerIdx],
-      imageData.data[centerIdx + 1], 
-      imageData.data[centerIdx + 2]
-    ]
-    
-    // Calculate contrast with surrounding areas
-    let totalContrast = 0
-    let sampleCount = 0
-    const radius = 3
-    
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        if (dx === 0 && dy === 0) continue // Skip center
-        
-        const sx = x + dx
-        const sy = y + dy
-        
-        if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-          const sampleIdx = (sy * width + sx) * 4
-          const sampleColor = [
-            imageData.data[sampleIdx],
-            imageData.data[sampleIdx + 1],
-            imageData.data[sampleIdx + 2]
+        // Prevent pure black circles
+        const brightness = color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114
+        if (brightness < 0.1) {
+          const factor = 0.1 / Math.max(brightness, 0.001)
+          color = [
+            Math.min(1.0, color[0] * factor + 0.05),
+            Math.min(1.0, color[1] * factor + 0.05),
+            Math.min(1.0, color[2] * factor + 0.05)
           ]
-          
-          // Calculate perceptual color difference (simplified CIE76)
-          const deltaE = Math.sqrt(
-            Math.pow(centerColor[0] - sampleColor[0], 2) +
-            Math.pow(centerColor[1] - sampleColor[1], 2) +
-            Math.pow(centerColor[2] - sampleColor[2], 2)
-          )
-          
-          totalContrast += deltaE / 255 // Normalize to 0-1 range
-          sampleCount++
         }
-      }
-    }
-    
-    if (sampleCount === 0) return 0
-    
-    const avgContrast = totalContrast / sampleCount
-    
-    // Add brightness-based saliency (very bright or very dark areas are salient)
-    const brightness = (centerColor[0] * 0.299 + centerColor[1] * 0.587 + centerColor[2] * 0.114) / 255
-    const brightnessSaliency = Math.abs(brightness - 0.5) * 2 // 0 at middle gray, 1 at extremes
-    
-    // Combine contrast and brightness saliency
-    return Math.min(1.0, (avgContrast * 0.8) + (brightnessSaliency * 0.2))
-  }
-
-  // Sample color from an area around the point for better color representation
-  private sampleAreaColor(imageData: ImageData, centerX: number, centerY: number, radius: number, width: number, height: number): [number, number, number] {
-    const sampleRadius = Math.max(1, Math.floor(radius * 0.5))
-    let r = 0, g = 0, b = 0, count = 0
-    
-    for (let dy = -sampleRadius; dy <= sampleRadius; dy++) {
-      for (let dx = -sampleRadius; dx <= sampleRadius; dx++) {
-        const x = Math.max(0, Math.min(width - 1, Math.floor(centerX + dx)))
-        const y = Math.max(0, Math.min(height - 1, Math.floor(centerY + dy)))
-        const pixelIndex = (y * width + x) * 4
         
-        r += imageData.data[pixelIndex]
-        g += imageData.data[pixelIndex + 1]
-        b += imageData.data[pixelIndex + 2]
-        count++
+        const newCircle = { x, y, radius, color }
+        circles.push(newCircle)
+        spatialStructure.insert(newCircle)
       }
     }
     
-    if (count === 0) {
-      // Fallback to center pixel
-      const pixelX = Math.max(0, Math.min(width - 1, Math.floor(centerX)))
-      const pixelY = Math.max(0, Math.min(height - 1, Math.floor(centerY)))
-      const pixelIndex = (pixelY * width + pixelX) * 4
-      return [
-        imageData.data[pixelIndex] / 255,
-        imageData.data[pixelIndex + 1] / 255,
-        imageData.data[pixelIndex + 2] / 255
-      ]
+    console.log(`Simple placement: generated ${circles.length} circles`)
+    
+    // Apply physics relaxation if enabled
+    if (this.useVerletPhysics) {
+      return this.applyVerletPhysicsSimulation(circles, width, height)
+    } else {
+      return this.applySimpleForceRelaxation(circles, width, height)
     }
-    
-    let color: [number, number, number] = [r / count / 255, g / count / 255, b / count / 255]
-    
-    // Prevent pure black circles
-    const brightness = color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114
-    if (brightness < 0.1) {
-      const factor = 0.1 / Math.max(brightness, 0.001)
-      color = [
-        Math.min(1.0, color[0] * factor + 0.05),
-        Math.min(1.0, color[1] * factor + 0.05),
-        Math.min(1.0, color[2] * factor + 0.05)
-      ]
-    }
-    
-    return color
   }
-
+  
   // Apply physics-based relaxation using Verlet integration or fallback to force-based
   private applyForceBasedRelaxation(circles: CircleData[], width: number, height: number): CircleData[] {
     if (this.useVerletPhysics) {
@@ -2095,19 +1549,18 @@ export class CirclePackingPass {
   private checkParameterChanges(): boolean {
     const currentParams = {
       packingDensity: this.packingDensity,
-      colorLevels: this.colorLevels,
       minCircleSize: this.minCircleSize,
       maxCircleSize: this.maxCircleSize,
       circleSpacing: this.circleSpacing,
-      colorTolerance: this.colorTolerance,
       randomSeed: this.randomSeed,
-      pixelateSize: this.pixelateSize,
-      posterizeLevels: this.posterizeLevels,
       useVerletPhysics: this.useVerletPhysics,
       gravity: this.gravity,
       damping: this.damping,
       substeps: this.substeps,
-      physicsIterations: this.physicsIterations
+      physicsIterations: this.physicsIterations,
+      usePhysicsPlacement: this.usePhysicsPlacement,
+      animatePhysics: this.animatePhysics,
+      animationSpeed: this.animationSpeed
     }
     
     const changed = Object.keys(currentParams).some(key => 
@@ -2123,7 +1576,12 @@ export class CirclePackingPass {
   }
 
   private getGlobalBackgroundColor(renderer: THREE.WebGLRenderer): [number, number, number] {
-    // Try to get the global scene background color
+    // Use the user-selected background color if available
+    if (this.backgroundColorR !== undefined && this.backgroundColorG !== undefined && this.backgroundColorB !== undefined) {
+      return [this.backgroundColorR, this.backgroundColorG, this.backgroundColorB]
+    }
+    
+    // Fallback: Try to get the global scene background color
     const domElement = renderer.domElement
     const canvas = domElement
     const context = canvas.getContext('webgl2') || canvas.getContext('webgl')
@@ -2361,23 +1819,16 @@ export class CirclePackingPass {
           }
         }
         
-        // Blend between base and circles
+        // Blend between base and circles with background opacity
         vec3 finalColor;
-        if (blackBackground > 0.5) {
-          // Background mode: solid circles on solid global background color
-          if (insideCircle) {
-            finalColor = circleColor;
-          } else {
-            // Use the global scene background color as solid background
-            finalColor = vec3(globalBackgroundR, globalBackgroundG, globalBackgroundB);
-          }
+        vec3 backgroundColorVec = vec3(globalBackgroundR, globalBackgroundG, globalBackgroundB);
+        
+        if (insideCircle) {
+          // Circle is present - always show circle color
+          finalColor = circleColor;
         } else {
-          // Normal mode: solid circles over original image
-          if (insideCircle) {
-            finalColor = mix(originalColor.rgb, circleColor, intensity);
-          } else {
-            finalColor = originalColor.rgb;
-          }
+          // No circle - blend between original image and selected background color based on opacity
+          finalColor = mix(originalColor.rgb, backgroundColorVec, blackBackground);
         }
         
         gl_FragColor = vec4(finalColor, 1.0);

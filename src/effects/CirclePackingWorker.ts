@@ -26,8 +26,6 @@ interface GenerateCirclesParams {
   minCircleSize: number
   maxCircleSize: number
   circleSpacing: number
-  pixelateSize: number
-  posterizeLevels: number
   randomSeed: number
   // Physics simulation parameters
   useVerletPhysics: boolean
@@ -344,8 +342,6 @@ class CirclePackingWorkerImpl {
       minCircleSize,
       maxCircleSize,
       circleSpacing,
-      pixelateSize,
-      posterizeLevels,
       useVerletPhysics,
       gravity,
       damping,
@@ -361,16 +357,8 @@ class CirclePackingWorkerImpl {
     this.sendProgress('Starting circle generation...', 0)
     
     try {
-      // Phase 1: Generate large circles from uniform color blocks
-      this.sendProgress('Generating large circles from color blocks...', 10)
-      const largeCircles = this.generateLargeCirclesFromColorBlocks(imageData, width, height, pixelateSize, posterizeLevels)
-      
-      for (const circle of largeCircles) {
-        circles.push(circle)
-        this.quadTree.insert(circle)
-      }
-      
-      this.sendProgress(`Generated ${largeCircles.length} large circles`, 30)
+      // Phase 1: Generate initial circles using physics-based placement
+      this.sendProgress('Generating initial circles...', 10)
       
       // Phase 2: Generate medium circles
       this.sendProgress('Generating medium circles...', 40)
@@ -431,28 +419,6 @@ class CirclePackingWorkerImpl {
   // Simplified implementations of the circle generation methods
   // (These would be extracted from the main CirclePackingPass)
   
-  private generateLargeCirclesFromColorBlocks(imageData: ImageData, width: number, height: number, pixelSize: number, posterizeLevels: number): CircleData[] {
-    // Use parameters to avoid TypeScript warnings
-    void pixelSize; void posterizeLevels;
-    // Simplified implementation - this would contain the actual logic from the main class
-    const circles: CircleData[] = []
-    
-    // Create a few large circles for demonstration
-    for (let i = 0; i < Math.min(20, Math.floor(width * height / 10000)); i++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const radius = Math.random() * 30 + 10
-      
-      const pixelIndex = Math.floor(y) * width + Math.floor(x)
-      const r = imageData.data[pixelIndex * 4] / 255
-      const g = imageData.data[pixelIndex * 4 + 1] / 255
-      const b = imageData.data[pixelIndex * 4 + 2] / 255
-      
-      circles.push({ x, y, radius, color: [r, g, b] })
-    }
-    
-    return circles
-  }
   
   private generateMediumCircles(imageData: ImageData, width: number, height: number, spacing: number, maxCircleSize: number, minCircleSize: number, packingDensity: number): CircleData[] {
     const circles: CircleData[] = []
