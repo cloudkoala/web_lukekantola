@@ -854,6 +854,10 @@ export class PostProcessingPass {
         // Animation parameters
         this.circlePackingPass.animatePhysics = Boolean(effect.parameters.animatePhysics ?? 0)
         this.circlePackingPass.animationSpeed = Number(effect.parameters.animationSpeed ?? 1.0)
+        // Progressive growth parameters
+        this.circlePackingPass.enableProgressiveGrowth = Boolean(effect.parameters.enableProgressiveGrowth ?? 1)
+        this.circlePackingPass.growthRate = Number(effect.parameters.growthRate ?? 0.5)
+        this.circlePackingPass.startSizeMultiplier = Number(effect.parameters.startSizeMultiplier ?? 0.3)
         // Calculate deltaTime for animation
         const currentTime = performance.now()
         const deltaTime = currentTime - this.lastFrameTime

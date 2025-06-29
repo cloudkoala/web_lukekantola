@@ -12,6 +12,10 @@ interface CircleData {
   prevY?: number
   mass?: number
   pinned?: boolean
+  // Progressive growth properties
+  targetRadius?: number // Final desired radius
+  currentRadius?: number // Current animated radius
+  growthStartTime?: number // When this circle started growing
 }
 
 
@@ -177,6 +181,11 @@ export class CirclePackingPass {
   public animatePhysics: boolean = false // Show real-time physics animation
   public animationSpeed: number = 1.0 // Speed multiplier for physics animation
   
+  // Progressive growth parameters
+  public enableProgressiveGrowth: boolean = true // Enable circles to grow over time
+  public growthRate: number = 0.5 // Growth speed (0.1 = slow, 2.0 = fast)
+  public startSizeMultiplier: number = 0.3 // Initial size as fraction of target (0.1-1.0)
+  
   // Pre-computed circle data
   private circles: CircleData[] = []
   private needsRecompute: boolean = true
@@ -187,6 +196,10 @@ export class CirclePackingPass {
   private animationStartTime: number = 0
   private animationDuration: number = 5000 // 5 seconds
   private spatialStructure: QuadTree | SpatialHashGrid | null = null
+  
+  // Progressive growth state
+  private growthStartTime: number = 0
+  private lastGrowthUpdate: number = 0
   
   // WebWorker support for parallel processing
   private worker: Worker | null = null
@@ -310,6 +323,10 @@ export class CirclePackingPass {
     this.isGenerating = false
     this.generationProgress = 100
     this.needsRecompute = false
+    
+    // Initialize progressive growth for all circles
+    this.initializeProgressiveGrowth()
+    
     this.updateCircleDataInShader()
     console.log(`WebWorker completed: ${circles.length} circles generated`)
   }
@@ -400,40 +417,39 @@ export class CirclePackingPass {
     }
   }
   
-  // Simple circle placement for non-physics mode
+  // Adaptive circle placement with proper packing logic
   private generateSimpleCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
-    const maxCircles = this.packingDensity
-    const maxAttempts = maxCircles * 100 // Limit attempts to prevent infinite loops
+    const totalAttempts = this.packingDensity * 50 // Use packing density as attempt multiplier, not target count
     
-    console.log(`Generating ${maxCircles} circles with simple placement`)
+    console.log(`Attempting to pack circles with ${totalAttempts} placement attempts`)
     
-    for (let attempt = 0; attempt < maxAttempts && circles.length < maxCircles; attempt++) {
+    // Track consecutive failures to detect when packing is saturated
+    let consecutiveFailures = 0
+    const maxConsecutiveFailures = Math.min(1000, totalAttempts * 0.1)
+    
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
       // Random position
       const x = Math.random() * width
       const y = Math.random() * height
       
-      // Random size within range
-      const radius = this.minCircleSize + Math.random() * (this.maxCircleSize - this.minCircleSize)
+      // Calculate optimal radius for this position (adaptive sizing)
+      const optimalRadius = this.calculateOptimalRadius(x, y, spatialStructure, width, height)
       
-      // Check for collisions using spatial hash grid
-      const nearbyCircles = spatialStructure.getNearbyCircles(x, y, radius + this.circleSpacing)
-      let hasCollision = false
-      
-      for (const existing of nearbyCircles) {
-        const distance = Math.sqrt((x - existing.x) ** 2 + (y - existing.y) ** 2)
-        if (distance < radius + existing.radius + this.circleSpacing) {
-          hasCollision = true
+      // Skip if no valid radius can fit
+      if (optimalRadius < this.minCircleSize) {
+        consecutiveFailures++
+        if (consecutiveFailures > maxConsecutiveFailures) {
+          console.log(`Stopping circle generation - packing saturated after ${circles.length} circles`)
           break
         }
+        continue
       }
       
-      // Skip if too close to edges
-      if (x - radius < 0 || x + radius > width || y - radius < 0 || y + radius > height) {
-        hasCollision = true
-      }
+      // Reset failure counter on successful placement
+      consecutiveFailures = 0
       
-      if (!hasCollision) {
+      if (this.isValidCirclePosition(x, y, optimalRadius, spatialStructure, width, height)) {
         // Sample color from original image
         const pixelX = Math.max(0, Math.min(width - 1, Math.floor(x)))
         const pixelY = Math.max(0, Math.min(height - 1, Math.floor(y)))
@@ -456,7 +472,20 @@ export class CirclePackingPass {
           ]
         }
         
-        const newCircle = { x, y, radius, color }
+        // Initialize circle with progressive growth properties
+        const currentTime = performance.now()
+        const initialRadius = this.enableProgressiveGrowth ? 
+          optimalRadius * this.startSizeMultiplier : optimalRadius
+        
+        const newCircle: CircleData = { 
+          x, 
+          y, 
+          radius: initialRadius, 
+          color,
+          targetRadius: optimalRadius,
+          currentRadius: initialRadius,
+          growthStartTime: currentTime
+        }
         circles.push(newCircle)
         spatialStructure.insert(newCircle)
       }
@@ -470,6 +499,31 @@ export class CirclePackingPass {
     } else {
       return this.applySimpleForceRelaxation(circles, width, height)
     }
+  }
+
+  // Calculate the optimal (largest possible) radius at a given position
+  private calculateOptimalRadius(x: number, y: number, spatialStructure: SpatialHashGrid, width: number, height: number): number {
+    // Start with maximum possible radius and work down
+    const maxPossibleRadius = Math.min(this.maxCircleSize, 
+      Math.min(x, y, width - x, height - y)) // Distance to nearest edge
+    
+    // Use spatial hash grid to find the largest radius that doesn't collide
+    const optimalRadius = spatialStructure.getMaxRadiusAt(x, y, this.circleSpacing, {width, height})
+    
+    // Clamp to user-defined range
+    return Math.max(this.minCircleSize, Math.min(maxPossibleRadius, optimalRadius))
+  }
+
+  // Check if a circle can be placed at the given position without collisions
+  private isValidCirclePosition(x: number, y: number, radius: number, spatialStructure: SpatialHashGrid, width: number, height: number): boolean {
+    // Check boundary constraints
+    if (x - radius < 0 || x + radius > width || y - radius < 0 || y + radius > height) {
+      return false
+    }
+    
+    // Check for collisions with existing circles
+    const collision = spatialStructure.checkCollision({x, y, radius, color: [0,0,0]}, this.circleSpacing)
+    return collision === null
   }
   
   // Apply physics-based relaxation using Verlet integration or fallback to force-based
@@ -973,6 +1027,70 @@ export class CirclePackingPass {
   // Check if currently animating
   public isPhysicsAnimating(): boolean {
     return this.isAnimating
+  }
+
+  // Update progressive growth for all circles
+  private updateProgressiveGrowth(deltaTime: number): void {
+    if (!this.circles || this.circles.length === 0) return
+    
+    const currentTime = performance.now()
+    let needsUpdate = false
+    
+    for (const circle of this.circles) {
+      // Skip if growth properties aren't set
+      if (!circle.targetRadius || !circle.currentRadius || !circle.growthStartTime) continue
+      
+      // Skip if already at target size
+      if (circle.currentRadius >= circle.targetRadius) continue
+      
+      // Calculate growth progress
+      const elapsedTime = currentTime - circle.growthStartTime
+      const growthProgress = Math.min(1.0, elapsedTime * this.growthRate * 0.001) // Convert to seconds
+      
+      // Smooth easing function (ease-out)
+      const easedProgress = 1 - Math.pow(1 - growthProgress, 3)
+      
+      // Calculate new radius
+      const initialRadius = circle.targetRadius * this.startSizeMultiplier
+      const newRadius = initialRadius + (circle.targetRadius - initialRadius) * easedProgress
+      
+      // Update radius if changed significantly
+      if (Math.abs(newRadius - circle.currentRadius) > 0.1) {
+        circle.currentRadius = newRadius
+        circle.radius = newRadius // Update actual radius used by shader
+        needsUpdate = true
+      }
+    }
+    
+    // Update shader data if any circles grew
+    if (needsUpdate) {
+      this.updateCircleDataInShader()
+    }
+  }
+
+  // Initialize progressive growth properties for all circles
+  private initializeProgressiveGrowth(): void {
+    if (!this.enableProgressiveGrowth || !this.circles) return
+    
+    const currentTime = performance.now()
+    this.growthStartTime = currentTime
+    
+    for (let i = 0; i < this.circles.length; i++) {
+      const circle = this.circles[i]
+      
+      // Set target radius (current radius is the intended final size)
+      circle.targetRadius = circle.radius
+      
+      // Set starting radius (reduced by startSizeMultiplier)
+      const startRadius = circle.radius * this.startSizeMultiplier
+      circle.radius = startRadius
+      circle.currentRadius = startRadius
+      
+      // Stagger growth start times for visual variety (0-500ms random delay)
+      circle.growthStartTime = currentTime + Math.random() * 500
+    }
+    
+    console.log(`Progressive growth initialized for ${this.circles.length} circles`)
   }
   
   // Find optimal squares within color blocks with collision detection
@@ -1653,6 +1771,11 @@ export class CirclePackingPass {
       if (this.isAnimating) {
         this.updatePhysicsAnimation(deltaTime, targetWidth, targetHeight)
       }
+      
+      // Update progressive growth if enabled
+      if (this.enableProgressiveGrowth) {
+        this.updateProgressiveGrowth(deltaTime)
+      }
     }
     
     // Check if parameters changed and trigger recompute
@@ -1679,6 +1802,10 @@ export class CirclePackingPass {
             // Fallback to main thread
             this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
             this.needsRecompute = false
+            
+            // Initialize progressive growth for all circles
+            this.initializeProgressiveGrowth()
+            
             this.updateCircleDataInShader()
           }
         })

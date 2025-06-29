@@ -507,7 +507,11 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       usePhysicsPlacement: 1,
       // Animation parameters
       animatePhysics: 1,
-      animationSpeed: 1.0
+      animationSpeed: 1.0,
+      // Progressive growth parameters
+      enableProgressiveGrowth: 1,
+      growthRate: 0.5,
+      startSizeMultiplier: 0.3
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -522,13 +526,17 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       useVerletPhysics: { min: 0, max: 1, step: 1, label: 'Enable Verlet Physics', type: 'boolean' },
       gravity: { min: 0, max: 1.0, step: 0.01, label: 'Gravity Strength' },
       damping: { min: 0.8, max: 1.0, step: 0.01, label: 'Velocity Damping' },
-      substeps: { min: 1, max: 10, step: 1, label: 'Physics Substeps' },
-      physicsIterations: { min: 5, max: 50, step: 1, label: 'Physics Iterations' },
+      substeps: { min: 1, max: 40, step: 1, label: 'Physics Substeps' },
+      physicsIterations: { min: 5, max: 200, step: 1, label: 'Physics Iterations' },
       // Spatial optimization parameter definitions
       usePhysicsPlacement: { min: 0, max: 1, step: 1, label: 'Physics-Based Placement', type: 'boolean' },
       // Animation parameter definitions
       animatePhysics: { min: 0, max: 1, step: 1, label: 'Animate Physics', type: 'boolean' },
-      animationSpeed: { min: 0.1, max: 3.0, step: 0.1, label: 'Animation Speed' }
+      animationSpeed: { min: 0.1, max: 3.0, step: 0.1, label: 'Animation Speed' },
+      // Progressive growth parameter definitions
+      enableProgressiveGrowth: { min: 0, max: 1, step: 1, label: 'Enable Progressive Growth', type: 'boolean' },
+      growthRate: { min: 0.1, max: 2.0, step: 0.1, label: 'Growth Rate' },
+      startSizeMultiplier: { min: 0.1, max: 1.0, step: 0.1, label: 'Starting Size (× Target)' }
     }
   },
   {
