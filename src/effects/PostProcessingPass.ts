@@ -863,6 +863,8 @@ export class PostProcessingPass {
         this.circlePackingPass.colorSimilarityThreshold = Number(effect.parameters.colorSimilarityThreshold ?? 0.8)
         this.circlePackingPass.adaptiveResizeSpeed = Number(effect.parameters.adaptiveResizeSpeed ?? 1.0)
         this.circlePackingPass.colorUpdateInterval = Number(effect.parameters.colorUpdateInterval ?? 100)
+        this.circlePackingPass.enableColorChangeMap = Boolean(effect.parameters.enableColorChangeMap ?? 1)
+        this.circlePackingPass.showColorChangeMap = Boolean(effect.parameters.showColorChangeMap ?? 0)
         // Calculate deltaTime for animation
         const currentTime = performance.now()
         const deltaTime = currentTime - this.lastFrameTime

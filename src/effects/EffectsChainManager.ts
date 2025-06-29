@@ -490,19 +490,20 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     defaultBlendMode: 'normal',
     defaultParameters: { 
       intensity: 1.0, 
-      packingDensity: 281, 
-      minCircleSize: 2.56, 
-      maxCircleSize: 151.7, 
-      circleSpacing: 1.0, 
+      packingDensity: 370, 
+      totalCircles: 300, // Total number of circles to generate
+      minCircleSize: 5.0, 
+      maxCircleSize: 120.0, 
+      circleSpacing: 1.2, 
       randomSeed: Math.floor(Math.random() * 1000),
       backgroundOpacity: 1.0,
       backgroundColor: 0,
       // Physics simulation parameters
-      useVerletPhysics: 0,
-      gravity: 0.1,
+      useVerletPhysics: 1,
+      gravity: 0,
       damping: 0.8,
       substeps: 10,
-      physicsIterations: 28,
+      physicsIterations: 50,
       // Spatial optimization parameters
       usePhysicsPlacement: 1,
       // Animation parameters
@@ -510,17 +511,24 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       animationSpeed: 1.0,
       // Progressive growth parameters
       enableProgressiveGrowth: 1,
-      growthRate: 0.5,
+      growthRate: 1.8,
       startSizeMultiplier: 0.3,
       // Adaptive color monitoring parameters
       enableColorMonitoring: 1,
       colorSimilarityThreshold: 0.8,
-      adaptiveResizeSpeed: 1.0,
-      colorUpdateInterval: 100
+      colorUpdateInterval: 500,
+      enableColorChangeMap: 1, // Enable color change detection for adaptive sizing
+      showColorChangeMap: 0, // Show the color change gradient visualization
+      // Dynamic spawning parameters
+      enableDynamicSpawning: 0,
+      spawnInterval: 500,
+      maxSpawnsPerCheck: 10,
+      minEmptyAreaSize: 0.00005
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
       packingDensity: { min: 4, max: 1000, step: 1, label: 'Packing Density' },
+      totalCircles: { min: 50, max: 1000, step: 10, label: 'Total Circles' },
       minCircleSize: { min: 1.5, max: 15.0, step: 0.01, label: 'Min Circle Size' },
       maxCircleSize: { min: 9.0, max: 300.0, step: 0.1, label: 'Max Circle Size' },
       circleSpacing: { min: 0.5, max: 2.0, step: 0.1, label: 'Circle Spacing' },
@@ -530,7 +538,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       // Physics simulation parameter definitions
       useVerletPhysics: { min: 0, max: 1, step: 1, label: 'Enable Verlet Physics', type: 'boolean' },
       gravity: { min: 0, max: 1.0, step: 0.01, label: 'Gravity Strength' },
-      damping: { min: 0.8, max: 1.0, step: 0.01, label: 'Velocity Damping' },
+      damping: { min: 0.0, max: 1.0, step: 0.05, label: 'Velocity Damping' },
       substeps: { min: 1, max: 40, step: 1, label: 'Physics Substeps' },
       physicsIterations: { min: 5, max: 400, step: 1, label: 'Physics Iterations' },
       // Spatial optimization parameter definitions
@@ -545,8 +553,14 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       // Adaptive color monitoring parameter definitions
       enableColorMonitoring: { min: 0, max: 1, step: 1, label: 'Enable Color Monitoring', type: 'boolean' },
       colorSimilarityThreshold: { min: 0.1, max: 1.0, step: 0.05, label: 'Color Similarity Threshold' },
-      adaptiveResizeSpeed: { min: 0.1, max: 3.0, step: 0.1, label: 'Adaptive Resize Speed' },
-      colorUpdateInterval: { min: 50, max: 500, step: 50, label: 'Color Update Interval' }
+      colorUpdateInterval: { min: 50, max: 2000, step: 50, label: 'Color Update Interval (ms)' },
+      enableColorChangeMap: { min: 0, max: 1, step: 1, label: 'Enable Color Change Detection', type: 'boolean' },
+      showColorChangeMap: { min: 0, max: 1, step: 1, label: 'Show Color Change Gradient', type: 'boolean' },
+      // Dynamic spawning parameter definitions
+      enableDynamicSpawning: { min: 0, max: 1, step: 1, label: 'Enable Dynamic Spawning', type: 'boolean' },
+      spawnInterval: { min: 1000, max: 10000, step: 500, label: 'Spawn Interval (ms)' },
+      maxSpawnsPerCheck: { min: 1, max: 10, step: 1, label: 'Max Spawns Per Check' },
+      minEmptyAreaSize: { min: 0.0001, max: 0.003, step: 0.0001, label: 'Min Empty Area Size' }
     }
   },
   {

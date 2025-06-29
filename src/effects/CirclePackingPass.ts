@@ -21,6 +21,18 @@ interface CircleData {
   isAdapting?: boolean // Currently in adaptation cycle
   adaptationStartTime?: number // When adaptation began
   adaptationPhase?: 'shrinking' | 'resampling' | 'growing' // Current adaptation phase
+  // New system properties
+  isDynamicSpawn?: boolean // Mark spawned circles for special growth behavior
+  spawnProtectionTime?: number // Protect newly spawned circles from color monitoring
+  // Smooth radius animation properties
+  colorTargetRadius?: number // Target radius from color similarity
+  radiusAnimationStartTime?: number // When radius animation began
+  radiusAnimationStartRadius?: number // Starting radius for animation
+  isGradualExpanding?: boolean // Whether circle is in gradual expansion mode
+  // New color seeking properties
+  targetX?: number // Target X position for movement
+  targetY?: number // Target Y position for movement
+  targetColor?: [number, number, number] // Target color to blend toward
 }
 
 
@@ -165,6 +177,7 @@ export class CirclePackingPass {
   public enabled: boolean = false
   public intensity: number = 0.8
   public packingDensity: number = 18 // Number of circles to generate
+  public totalCircles: number = 300 // Total number of circles to generate
   public minCircleSize: number = 0.3 // Minimum circle radius (0-1)
   public maxCircleSize: number = 8.0 // Maximum circle radius
   public circleSpacing: number = 1.2 // Spacing multiplier between circles
@@ -194,8 +207,15 @@ export class CirclePackingPass {
   // Adaptive color monitoring parameters
   public enableColorMonitoring: boolean = true // Enable adaptive color monitoring
   public colorSimilarityThreshold: number = 0.8 // Threshold for color similarity (0.1-1.0)
-  public adaptiveResizeSpeed: number = 1.0 // Speed of adaptive resize cycle
   public colorUpdateInterval: number = 100 // How often to check colors (ms)
+  public enableColorChangeMap: boolean = true // Enable color change detection for adaptive sizing
+  public showColorChangeMap: boolean = false // Show the color change gradient visualization
+  
+  // Dynamic circle spawning parameters
+  public enableDynamicSpawning: boolean = true // Enable dynamic circle spawning in empty areas
+  public spawnInterval: number = 3000 // How often to check for empty areas and spawn circles (ms)
+  public maxSpawnsPerCheck: number = 3 // Maximum new circles to spawn per check
+  public minEmptyAreaSize: number = 0.001 // Minimum empty area size (grid cells) to consider for spawning
   
   // Pre-computed circle data
   private circles: CircleData[] = []
@@ -216,12 +236,24 @@ export class CirclePackingPass {
   private lastColorCheck: number = 0
   private currentInputTexture: THREE.Texture | null = null
   private currentRenderer: THREE.WebGLRenderer | null = null
+  private effectStartTime: number = 0 // When effect was initialized
+  private relaxationDelay: number = 5000 // Delay color monitoring for 5 seconds to allow physics settling
+  
+  // Dynamic spawning state
+  private lastSpawnCheck: number = 0
+  private totalSpawnedCircles: number = 0
   
   // WebWorker support for parallel processing
   private worker: Worker | null = null
   private isGenerating: boolean = false
   private generationProgress: number = 0
   private useWebWorker: boolean = true // Can be disabled for debugging
+  
+  // Color change detection for adaptive sizing
+  private colorChangeMap: Float32Array | null = null
+  private previousImageData: ImageData | null = null
+  private lastColorChangeUpdate: number = 0
+  private colorChangeTexture: THREE.DataTexture | null = null
   
   // Track parameter changes to trigger recompute
   private lastParameters = {
@@ -251,10 +283,10 @@ export class CirclePackingPass {
     })
     
     // Create circle data texture (more efficient than uniforms)
-    // Use 200x2 texture: row 0 = position+radius, row 1 = color
+    // Use 300x2 texture: row 0 = position+radius, row 1 = color
     this.circleDataTexture = new THREE.DataTexture(
-      new Float32Array(200 * 2 * 4), // 200 circles * 2 rows * 4 channels (RGBA)
-      200, 2, // 200x2 texture
+      new Float32Array(300 * 2 * 4), // 300 circles * 2 rows * 4 channels (RGBA)
+      300, 2, // 300x2 texture
       THREE.RGBAFormat,
       THREE.FloatType
     )
@@ -271,7 +303,9 @@ export class CirclePackingPass {
         globalBackgroundG: { value: 0.08 },
         globalBackgroundB: { value: 0.08 },
         circleDataTexture: { value: this.circleDataTexture },
-        numCircles: { value: 0 }
+        numCircles: { value: 0 },
+        colorChangeMap: { value: null },
+        showColorChangeMap: { value: 0.0 }
       },
       vertexShader: this.getVertexShader(),
       fragmentShader: this.getFragmentShader()
@@ -339,6 +373,9 @@ export class CirclePackingPass {
     this.isGenerating = false
     this.generationProgress = 100
     this.needsRecompute = false
+    
+    // Set effect start time for relaxation delay
+    this.effectStartTime = performance.now()
     
     // Initialize progressive growth for all circles
     this.initializeProgressiveGrowth()
@@ -437,13 +474,13 @@ export class CirclePackingPass {
   private generateSimpleCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
     
-    // Calculate screen area and normalize packing density as percentage of available space
+    // Use totalCircles parameter with screen scaling
     const screenArea = width * height
     const baseArea = 1920 * 1080 // Reference resolution (Full HD)
     const areaRatio = screenArea / baseArea
-    const screenAwareAttempts = Math.floor(this.packingDensity * 50 * areaRatio)
+    const screenAwareAttempts = Math.floor(this.totalCircles * areaRatio * 10) // Scale attempts with screen size
     
-    console.log(`Screen: ${width}×${height} (${screenArea}px), Area ratio: ${areaRatio.toFixed(2)}, Attempts: ${screenAwareAttempts}`)
+    console.log(`Screen: ${width}×${height} (${screenArea}px), Target circles: ${this.totalCircles}, Attempts: ${screenAwareAttempts}`)
     
     const totalAttempts = screenAwareAttempts
     
@@ -452,9 +489,18 @@ export class CirclePackingPass {
     const maxConsecutiveFailures = Math.min(1000, totalAttempts * 0.1)
     
     for (let attempt = 0; attempt < totalAttempts; attempt++) {
-      // Random position
-      const x = Math.random() * width
-      const y = Math.random() * height
+      // Weighted random position - bias toward high-change areas
+      let x: number, y: number
+      
+      if (this.enableColorChangeMap && this.colorChangeMap && Math.random() < 0.6) {
+        // 60% of attempts: use weighted sampling based on color change intensity
+        x = this.sampleWeightedPosition(width, height).x
+        y = this.sampleWeightedPosition(width, height).y
+      } else {
+        // 40% of attempts: use pure random sampling for coverage
+        x = Math.random() * width
+        y = Math.random() * height
+      }
       
       // Calculate optimal radius for this position (adaptive sizing)
       const optimalRadius = this.calculateOptimalRadius(x, y, spatialStructure, width, height)
@@ -531,9 +577,26 @@ export class CirclePackingPass {
       Math.min(x, y, width - x, height - y)) // Distance to nearest edge
     
     // Use spatial hash grid to find the largest radius that doesn't collide
-    const optimalRadius = spatialStructure.getMaxRadiusAt(x, y, this.circleSpacing, {width, height})
+    let optimalRadius = spatialStructure.getMaxRadiusAt(x, y, this.circleSpacing, {width, height})
     
-    // Clamp to user-defined range
+    // Apply color change-based sizing if enabled
+    if (this.enableColorChangeMap && this.colorChangeMap) {
+      const colorChangeIntensity = this.getColorChangeIntensity(x, y)
+      
+      // High color change = smaller, denser circles
+      // Low color change = larger, sparser circles
+      const sizeMultiplier = 1.0 - (colorChangeIntensity * 0.7) // Reduce size by up to 70%
+      optimalRadius *= sizeMultiplier
+      
+      // In high-change areas, allow smaller circles than normal minimum
+      const adaptiveMinSize = colorChangeIntensity > 0.5 ? 
+        this.minCircleSize * 0.5 : this.minCircleSize
+      
+      // Clamp to adaptive range
+      return Math.max(adaptiveMinSize, Math.min(maxPossibleRadius, optimalRadius))
+    }
+    
+    // Normal sizing without color change detection
     return Math.max(this.minCircleSize, Math.min(maxPossibleRadius, optimalRadius))
   }
 
@@ -587,7 +650,7 @@ export class CirclePackingPass {
   // Verlet integration step: position = position + velocity + acceleration
   private verletIntegrationStep(circles: CircleData[], width: number, height: number, deltaTime: number): void {
     for (const circle of circles) {
-      if (circle.pinned) continue
+      if (circle.pinned || circle.radius <= 0) continue
       
       // Calculate current velocity from position difference
       const velocityX = circle.x - (circle.prevX ?? circle.x)
@@ -621,6 +684,9 @@ export class CirclePackingPass {
         const circle1 = circles[i]
         const circle2 = circles[j]
         
+        // Skip zero-radius circles
+        if (circle1.radius <= 0 || circle2.radius <= 0) continue
+        
         const dx = circle2.x - circle1.x
         const dy = circle2.y - circle1.y
         const distance = Math.sqrt(dx * dx + dy * dy)
@@ -634,10 +700,14 @@ export class CirclePackingPass {
           const normalX = dx / distance
           const normalY = dy / distance
           
-          // Mass-based separation (heavier circles move less)
-          const totalMass = (circle1.mass ?? 1) + (circle2.mass ?? 1)
-          const mass1Ratio = (circle2.mass ?? 1) / totalMass
-          const mass2Ratio = (circle1.mass ?? 1) / totalMass
+          // Mass-based separation (heavier circles move much less)
+          const mass1 = circle1.mass ?? 1
+          const mass2 = circle2.mass ?? 1
+          const totalMass = mass1 + mass2
+          
+          // More pronounced mass effect - smaller circles bounce off bigger ones
+          const mass1Ratio = (mass2 / totalMass) * 1.5 // Amplify mass effect
+          const mass2Ratio = (mass1 / totalMass) * 1.5
           
           // Separate circles based on mass ratios
           const separationX = normalX * overlap * 0.5
@@ -660,6 +730,9 @@ export class CirclePackingPass {
   // Constrain circles to stay within bounds
   private constrainToBounds(circles: CircleData[], width: number, height: number): void {
     for (const circle of circles) {
+      // Skip zero-radius circles
+      if (circle.radius <= 0) continue
+      
       const margin = circle.radius
       
       // Left boundary
@@ -1022,10 +1095,11 @@ export class CirclePackingPass {
   public updatePhysicsAnimation(deltaTime: number, width: number, height: number): boolean {
     if (!this.isAnimating || !this.spatialStructure) return false
     
-    const elapsed = performance.now() - this.animationStartTime
-    if (elapsed > this.animationDuration) {
+    // Continue physics simulation continuously when animatePhysics is enabled
+    // Only stop if animatePhysics is disabled
+    if (!this.animatePhysics) {
       this.isAnimating = false
-      console.log('Animation completed!')
+      console.log('Physics animation stopped - animatePhysics disabled')
       return false
     }
     
@@ -1036,7 +1110,10 @@ export class CirclePackingPass {
     if (this.spatialStructure instanceof SpatialHashGrid) {
       this.spatialStructure.clear()
       for (const circle of this.circles) {
-        this.spatialStructure.insert(circle)
+        // Only insert living circles with positive radius
+        if (circle.radius > 0) {
+          this.spatialStructure.insert(circle)
+        }
       }
     }
     
@@ -1076,7 +1153,45 @@ export class CirclePackingPass {
       // Skip if already at target size
       if (circle.currentRadius >= circle.targetRadius) continue
       
-      // Calculate growth progress
+      // Skip circles that are being animated by color similarity
+      if (circle.radiusAnimationStartTime) continue
+      
+      // Special handling for dynamic spawns - grow until collision
+      if (circle.isDynamicSpawn) {
+        // Try to grow incrementally and check for collisions
+        const growthIncrement = deltaTime * this.growthRate * 0.1 // Smaller increments for collision detection
+        const potentialNewRadius = Math.min(circle.currentRadius + growthIncrement, circle.targetRadius)
+        
+        // Check if this new size would cause collision
+        if (this.spatialStructure && this.wouldCollideAtRadius(circle, potentialNewRadius)) {
+          // Stop growing - we've hit something, lock size and mark as stable
+          circle.targetRadius = circle.currentRadius // Lock current size as final
+          circle.pinned = true // Make it stable in physics
+          console.log(`Dynamic spawn stabilized at radius ${circle.currentRadius.toFixed(1)} (collision detected)`)
+          continue
+        }
+        
+        // Check if we've reached target size
+        if (potentialNewRadius >= circle.targetRadius) {
+          circle.currentRadius = circle.targetRadius
+          circle.radius = circle.targetRadius
+          circle.pinned = true // Make it stable in physics
+          console.log(`Dynamic spawn reached target radius ${circle.targetRadius.toFixed(1)}`)
+          needsUpdate = true
+          continue
+        }
+        
+        circle.currentRadius = potentialNewRadius
+        circle.radius = potentialNewRadius
+        
+        // Resample color as dynamic spawned circle grows
+        this.resampleCircleColor(circle)
+        
+        needsUpdate = true
+        continue
+      }
+      
+      // Regular progressive growth for non-dynamic circles
       const elapsedTime = currentTime - circle.growthStartTime
       const growthProgress = Math.min(1.0, elapsedTime * this.growthRate * 0.001) // Convert to seconds
       
@@ -1091,6 +1206,13 @@ export class CirclePackingPass {
       if (Math.abs(newRadius - circle.currentRadius) > 0.1) {
         circle.currentRadius = newRadius
         circle.radius = newRadius // Update actual radius used by shader
+        
+        // Update mass based on new radius
+        circle.mass = Math.PI * circle.radius * circle.radius
+        
+        // Resample color as circle grows to match current size content
+        this.resampleCircleColor(circle)
+        
         needsUpdate = true
       }
     }
@@ -1132,32 +1254,129 @@ export class CirclePackingPass {
     
     const currentTime = performance.now()
     
-    // Check if enough time has passed for color monitoring update
-    if (currentTime - this.lastColorCheck < this.colorUpdateInterval) {
-      // Still update any ongoing adaptations
+    // Update color change detection map
+    if (this.enableColorChangeMap) {
+      this.updateColorChangeDetection(currentTime)
+    }
+    
+    // Skip color monitoring during initial relaxation period to allow physics settling
+    if (this.effectStartTime > 0 && currentTime - this.effectStartTime < this.relaxationDelay) {
+      // Still update any ongoing adaptations and radius animations
       this.updateCircleAdaptations(currentTime, deltaTime)
+      this.updateRadiusAnimations(deltaTime)
       return
+    }
+    
+    // Calculate adaptive update interval based on average color change intensity
+    let adaptiveUpdateInterval = this.colorUpdateInterval
+    if (this.colorChangeMap && this.enableColorChangeMap) {
+      // Calculate average color change intensity
+      let totalIntensity = 0
+      for (let i = 0; i < this.colorChangeMap.length; i++) {
+        totalIntensity += this.colorChangeMap[i]
+      }
+      const avgIntensity = totalIntensity / this.colorChangeMap.length
+      
+      // Adaptive frequency: high change = faster updates, low change = slower updates
+      // Scale from 0.2x to 3.0x the base interval
+      const frequencyMultiplier = 0.2 + (1.0 - avgIntensity) * 2.8
+      adaptiveUpdateInterval = this.colorUpdateInterval * frequencyMultiplier
+      
+      // Debug adaptive frequency occasionally
+      if (Math.random() < 0.05) {
+        console.log(`Adaptive frequency: avgIntensity=${avgIntensity.toFixed(3)}, multiplier=${frequencyMultiplier.toFixed(2)}x, interval=${adaptiveUpdateInterval.toFixed(0)}ms`)
+      }
+    }
+    
+    // Check if enough time has passed for color monitoring update (using adaptive interval)
+    if (currentTime - this.lastColorCheck < adaptiveUpdateInterval) {
+      // Still update any ongoing adaptations and radius animations
+      this.updateCircleAdaptations(currentTime, deltaTime)
+      this.updateRadiusAnimations(deltaTime)
+      return
+    }
+    
+    // Log when color monitoring starts (only once)
+    if (this.lastColorCheck === 0 && this.effectStartTime > 0) {
+      console.log(`Color monitoring started after ${(currentTime - this.effectStartTime).toFixed(0)}ms relaxation delay`)
     }
     
     this.lastColorCheck = currentTime
     this.currentInputTexture = inputTexture
     
-    // Check a subset of circles each frame for performance
-    const batchSize = Math.min(10, this.circles.length)
-    const startIndex = Math.floor(Math.random() * this.circles.length)
+    // Check a randomized batch of circles each frame
+    const batchSize = Math.floor(this.circles.length * 0.3) // Process 30% each frame (reduced from 90%)
     
-    for (let i = 0; i < batchSize; i++) {
-      const circleIndex = (startIndex + i) % this.circles.length
+    // Create weighted batch of circle indices based on color change intensity
+    const availableIndices = []
+    const circleWeights = []
+    
+    for (let i = 0; i < this.circles.length; i++) {
+      const circle = this.circles[i]
+      // Only include circles that can be processed
+      if (!circle.isAdapting && (!circle.spawnProtectionTime || currentTime >= circle.spawnProtectionTime)) {
+        availableIndices.push(i)
+        
+        // Calculate weight based on color change intensity at circle position
+        let weight = 1.0 // Default weight
+        if (this.colorChangeMap && this.imageData && this.enableColorChangeMap) {
+          const changeIntensity = this.getColorChangeIntensity(circle.x, circle.y)
+          // Higher change intensity = higher weight (2x more likely to be selected)
+          weight = 0.5 + changeIntensity * 1.5
+        }
+        circleWeights.push(weight)
+      }
+    }
+    
+    // Select circles using weighted random sampling
+    const indicesToProcess = []
+    const desiredCount = Math.min(batchSize, availableIndices.length)
+    
+    for (let i = 0; i < desiredCount; i++) {
+      // Calculate total weight of remaining candidates
+      const totalWeight = circleWeights.reduce((sum, weight, idx) => 
+        availableIndices[idx] !== -1 ? sum + weight : sum, 0)
+      
+      if (totalWeight <= 0) break
+      
+      // Select weighted random index
+      let randomWeight = Math.random() * totalWeight
+      let selectedIdx = -1
+      
+      for (let j = 0; j < availableIndices.length; j++) {
+        if (availableIndices[j] === -1) continue // Already selected
+        randomWeight -= circleWeights[j]
+        if (randomWeight <= 0) {
+          selectedIdx = j
+          break
+        }
+      }
+      
+      if (selectedIdx !== -1) {
+        indicesToProcess.push(availableIndices[selectedIdx])
+        availableIndices[selectedIdx] = -1 // Mark as selected
+      }
+    }
+    let processedCount = 0
+    
+    for (const circleIndex of indicesToProcess) {
       const circle = this.circles[circleIndex]
-      
-      // Skip circles that are already adapting
-      if (circle.isAdapting) continue
-      
       this.checkCircleColorSimilarity(circle, inputTexture, currentTime)
+      processedCount++
     }
     
     // Update ongoing adaptations
     this.updateCircleAdaptations(currentTime, deltaTime)
+    this.updateRadiusAnimations(deltaTime)
+    
+    // Log processing stats occasionally
+    if (Math.random() < 0.01) { // Log ~1% of the time
+      const highChangeCircles = indicesToProcess.filter(idx => {
+        const circle = this.circles[idx]
+        return this.colorChangeMap && this.imageData && this.getColorChangeIntensity(circle.x, circle.y) > 0.5
+      }).length
+      console.log(`Color monitoring: processed ${processedCount}/${this.circles.length} circles (${(processedCount/this.circles.length*100).toFixed(1)}%), ${highChangeCircles} in high-change areas`)
+    }
   }
 
   // Check if a circle's color matches the content beneath it
@@ -1186,14 +1405,137 @@ export class CirclePackingPass {
       // Calculate color similarity
       const similarity = this.calculateColorSimilarity(circle.color, sampledColor)
       
-      // If similarity is below threshold, trigger adaptation
-      if (similarity < this.colorSimilarityThreshold) {
-        console.log(`Circle adaptation triggered: similarity ${similarity.toFixed(2)} < threshold ${this.colorSimilarityThreshold}`)
-        this.startCircleAdaptation(circle, sampledColor, currentTime)
-      }
+      // New system: Scale circle size based on color similarity
+      this.updateCircleSizeBasedOnSimilarity(circle, similarity)
+      
     } catch (error) {
       // Silently handle sampling errors
       console.warn('Color sampling failed:', error)
+    }
+  }
+
+  // New algorithm: Sample center + 8 surrounding pixels, move to best match
+  private updateCircleSizeBasedOnSimilarity(circle: CircleData, similarity: number): void {
+    
+    // Skip processing if circle is already adapting
+    if (circle.isAdapting) return
+    
+    // If similarity is below threshold, start color seeking behavior
+    if (similarity < this.colorSimilarityThreshold) {
+      circle.isAdapting = true
+      circle.adaptationStartTime = performance.now()
+      circle.adaptationPhase = 'resampling' // Start with seeking new position
+      circle.originalColor = [...circle.color] as [number, number, number]
+      
+      console.log(`Circle below threshold (${similarity.toFixed(3)}): starting color seeking`)
+    }
+    // If similarity is good, no action needed - circle stays in place
+  }
+
+  // Update smooth radius animations for color similarity
+  private updateRadiusAnimations(deltaTime: number): void {
+    if (!this.circles || this.circles.length === 0) return
+    
+    const currentTime = performance.now()
+    let needsUpdate = false
+    let animatingCount = 0
+    
+    for (const circle of this.circles) {
+      // Skip circles without animation data
+      if (!circle.colorTargetRadius || !circle.radiusAnimationStartTime || !circle.radiusAnimationStartRadius) {
+        continue
+      }
+      
+      animatingCount++
+      
+      // Calculate animation progress using dedicated expansion duration
+      const elapsedTime = currentTime - circle.radiusAnimationStartTime
+      const animationDuration = this.expansionDuration // Use dedicated expansion duration parameter
+      const progress = Math.min(1.0, elapsedTime / animationDuration)
+      
+      // Smooth easing function (ease-out for natural feel)
+      const easedProgress = 1 - Math.pow(1 - progress, 2)
+      
+      // Interpolate between start and target radius
+      const startRadius = circle.radiusAnimationStartRadius
+      const targetRadius = circle.colorTargetRadius
+      const newRadius = startRadius + (targetRadius - startRadius) * easedProgress
+      
+      // Update circle radius
+      if (Math.abs(circle.radius - newRadius) > 0.01) {
+        const oldRadius = circle.radius
+        circle.radius = newRadius
+        circle.currentRadius = newRadius
+        
+        // Update mass based on new radius (mass = π × radius²)
+        circle.mass = Math.PI * circle.radius * circle.radius
+        
+        needsUpdate = true
+        
+      }
+      
+      // Animation complete - clean up animation data
+      if (progress >= 1.0) {
+        // Update the circle's targetRadius to match the color-based target
+        if (circle.colorTargetRadius !== undefined) {
+          circle.targetRadius = circle.colorTargetRadius
+        }
+        
+        circle.radiusAnimationStartTime = undefined
+        circle.radiusAnimationStartRadius = undefined
+        
+        // If circle is adapting and reached minimum size, move to resampling phase
+        if (circle.isAdapting && circle.adaptationPhase === 'shrinking' && circle.radius <= this.minCircleSize + 0.1) {
+          circle.adaptationPhase = 'resampling'
+          console.log('Circle reached minimum size, starting resampling phase')
+        }
+      }
+    }
+    
+    
+    // Update shader if any circles changed
+    if (needsUpdate) {
+      this.updateCircleDataInShader()
+    }
+  }
+
+  // Remove circles that have died from color mismatch
+  private removeDeadCircles(): void {
+    const initialCount = this.circles.length
+    
+    // Count how many dynamic spawns are being removed
+    const removedDynamicCount = this.circles.filter(circle => 
+      (circle.radius <= 0.01) && circle.isDynamicSpawn
+    ).length
+    
+    // Filter out dead circles and circles with effectively zero radius
+    this.circles = this.circles.filter(circle => 
+      circle.radius > 0.01
+    )
+    
+    const removedCount = initialCount - this.circles.length
+    if (removedCount > 0) {
+      // Decrease spawn count when dynamic spawns are removed
+      this.totalSpawnedCircles = Math.max(0, this.totalSpawnedCircles - removedDynamicCount)
+      
+      // Update spatial structure with living circles only
+      if (this.spatialStructure) {
+        this.spatialStructure.clear()
+        for (const circle of this.circles) {
+          // Double-check before inserting
+          if (circle.radius > 0) {
+            this.spatialStructure.insert(circle)
+          }
+        }
+        
+        // If we removed a lot of circles, rebuild the spatial grid to ensure accuracy
+        if (removedCount > 10) {
+          this.convertToSpatialHashGrid()
+        }
+      }
+      
+      // Update shader with remaining circles
+      this.updateCircleDataInShader()
     }
   }
 
@@ -1205,8 +1547,6 @@ export class CirclePackingPass {
     
     // Store the new target color
     circle.originalColor = newColor
-    
-    console.log(`Starting adaptation for circle at (${circle.x.toFixed(0)}, ${circle.y.toFixed(0)})`)
   }
 
   // Update all circles that are currently adapting
@@ -1217,69 +1557,519 @@ export class CirclePackingPass {
       if (!circle.isAdapting || !circle.adaptationStartTime) continue
       
       const elapsedTime = currentTime - circle.adaptationStartTime
-      const adaptationSpeed = this.adaptiveResizeSpeed * 0.001 // Convert to seconds
       
       switch (circle.adaptationPhase) {
         case 'shrinking':
-          // Shrink to 20% of current size
-          const shrinkProgress = Math.min(1.0, elapsedTime * adaptationSpeed * 3) // 3x faster shrinking
-          const minRadius = (circle.targetRadius || circle.radius) * 0.2
-          const newShrinkRadius = circle.radius * (1 - shrinkProgress) + minRadius * shrinkProgress
-          
-          if (newShrinkRadius !== circle.radius) {
-            circle.radius = newShrinkRadius
-            needsUpdate = true
-          }
-          
-          if (shrinkProgress >= 1.0) {
-            circle.adaptationPhase = 'resampling'
-            circle.adaptationStartTime = currentTime // Reset timer for next phase
-          }
+          // Handled by radius animation system
           break
           
         case 'resampling':
-          // Update color and prepare for growth
-          if (circle.originalColor) {
-            circle.color = [...circle.originalColor]
-            circle.adaptationPhase = 'growing'
-            circle.adaptationStartTime = currentTime // Reset timer for growth
-            needsUpdate = true
-          }
+          // Sample center + 8 surrounding pixels to find best color match
+          this.findBestColorPosition(circle).then((result) => {
+            if (result.bestPosition) {
+              // Found a better position, try to move there
+              circle.adaptationPhase = 'growing'
+              circle.adaptationStartTime = currentTime
+              
+              // Store the target position and color
+              circle.targetX = result.bestPosition.x
+              circle.targetY = result.bestPosition.y
+              circle.targetColor = result.bestPosition.color
+              
+              console.log(`Circle found better position: (${result.bestPosition.x.toFixed(1)}, ${result.bestPosition.y.toFixed(1)})`)
+            } else {
+              // No better position found, end adaptation
+              circle.isAdapting = false
+              circle.adaptationPhase = undefined
+              console.log('Circle found no better position, staying in place')
+            }
+          }).catch(err => {
+            console.error('Color seeking failed:', err)
+            circle.isAdapting = false
+            circle.adaptationPhase = undefined
+          })
           break
           
         case 'growing':
-          // Grow back to target size
-          const growthProgress = Math.min(1.0, elapsedTime * adaptationSpeed)
-          const targetRadius = circle.targetRadius || circle.radius * 5 // Assume target is 5x current
-          const minRadius2 = targetRadius * 0.2
-          const newGrowthRadius = minRadius2 + (targetRadius - minRadius2) * growthProgress
-          
-          if (newGrowthRadius !== circle.radius) {
-            circle.radius = newGrowthRadius
-            needsUpdate = true
-          }
-          
-          if (growthProgress >= 1.0) {
-            // Adaptation complete
-            circle.isAdapting = false
-            circle.adaptationPhase = undefined
+          // Handle ray-casting movement and size adaptation
+          if (circle.targetX !== undefined && circle.targetY !== undefined) {
+            // Calculate direction vector to target
+            const dx = circle.targetX - circle.x
+            const dy = circle.targetY - circle.y
+            const distance = Math.sqrt(dx * dx + dy * dy)
             
-            // Trigger physics if enabled
-            if (this.useVerletPhysics && this.animatePhysics) {
-              // Add some random velocity to create physics interaction
-              circle.prevX = circle.x + (Math.random() - 0.5) * 2
-              circle.prevY = circle.y + (Math.random() - 0.5) * 2
+            if (distance > 0) {
+              // Normalize direction
+              const dirX = dx / distance
+              const dirY = dy / distance
+              
+              // Cast ray to find collision distance
+              const collisionDistance = this.castRayToCollision(circle, dirX, dirY)
+              
+              // Move much more conservatively - only 10% of collision distance
+              const moveDistance = collisionDistance * 0.1
+              const newX = circle.x + dirX * moveDistance
+              const newY = circle.y + dirY * moveDistance
+              
+              // Update position
+              circle.x = newX
+              circle.y = newY
+              
+              // Blend color 50% toward target
+              if (circle.targetColor) {
+                circle.color = this.blendColors(circle.color, circle.targetColor, 0.5)
+              }
+              
+              // Adjust radius based on available space - very conservatively
+              if (collisionDistance > circle.radius * 2) {
+                // Lots of space available, grow very slightly
+                const newRadius = circle.radius + 0.2
+                circle.radius = newRadius
+                circle.mass = Math.PI * circle.radius * circle.radius
+                console.log(`Circle moved ${moveDistance.toFixed(1)}px and grew to radius ${circle.radius.toFixed(2)}`)
+              } else if (collisionDistance < circle.radius * 0.8) {
+                // Very limited space, shrink slightly
+                const newRadius = Math.max(this.minCircleSize, circle.radius * 0.95)
+                circle.radius = newRadius
+                circle.mass = Math.PI * circle.radius * circle.radius
+                console.log(`Circle moved ${moveDistance.toFixed(1)}px and shrunk to radius ${circle.radius.toFixed(2)}`)
+              } else {
+                // Moderate space, just move without size change
+                console.log(`Circle moved ${moveDistance.toFixed(1)}px, radius unchanged`)
+              }
+              
+              needsUpdate = true
             }
             
-            console.log(`Circle adaptation completed at (${circle.x.toFixed(0)}, ${circle.y.toFixed(0)})`)
+            // End adaptation cycle
+            circle.isAdapting = false
+            circle.adaptationPhase = undefined
+            circle.targetX = undefined
+            circle.targetY = undefined
+            circle.targetColor = undefined
           }
           break
       }
     }
     
-    // Update shader if any circles changed
     if (needsUpdate) {
       this.updateCircleDataInShader()
+    }
+  }
+  
+  // Start expanding a circle until it hits another circle
+  private startExpansionUntilCollision(circle: CircleData): void {
+    // Start with just a small increment - we'll check collision on each frame
+    const smallIncrement = 0.5 // Start with tiny expansion
+    circle.colorTargetRadius = circle.radius + smallIncrement
+    circle.radiusAnimationStartTime = performance.now()
+    circle.radiusAnimationStartRadius = circle.radius
+    
+    // Mark that this circle is in gradual expansion mode
+    circle.isGradualExpanding = true
+  }
+  
+  // Update gradual expansion - add small increments until collision
+  private updateGradualExpansion(circle: CircleData, currentTime: number): void {
+    // Check if current expansion animation is complete
+    if (circle.radiusAnimationStartTime && circle.radiusAnimationStartRadius !== undefined) {
+      const elapsedTime = currentTime - circle.radiusAnimationStartTime
+      const animationDuration = this.expansionDuration
+      const progress = elapsedTime / animationDuration
+      
+      // If animation is complete, set next small increment
+      if (progress >= 1.0) {
+        const increment = 0.2 // Very small increments for gradual growth
+        const maxRadius = Math.min(this.maxCircleSize, 30) // Reasonable cap
+        
+        // Don't expand beyond maximum
+        if (circle.radius >= maxRadius) {
+          circle.isAdapting = false
+          circle.adaptationPhase = undefined
+          circle.isGradualExpanding = false
+          console.log(`Circle reached maximum expansion at radius ${circle.radius.toFixed(2)}`)
+          return
+        }
+        
+        // Set next small target
+        circle.colorTargetRadius = circle.radius + increment
+        circle.radiusAnimationStartTime = currentTime
+        circle.radiusAnimationStartRadius = circle.radius
+      }
+    }
+  }
+  
+  // Start color fade animation (no size change)
+  private startColorFade(circle: CircleData, currentTime: number): void {
+    // Mark as fading and set end time
+    circle.adaptationPhase = 'growing' // Reuse growing phase for fade completion tracking
+    circle.adaptationStartTime = currentTime
+    
+    // No radius animation needed - just wait for fade to complete
+    // The new color is already set in the circle.color during resampling
+    
+    // Set a timer to end the adaptation after fade duration
+    setTimeout(() => {
+      if (circle.isAdapting && circle.adaptationPhase === 'growing') {
+        circle.isAdapting = false
+        circle.adaptationPhase = undefined
+        console.log('Color fade completed')
+      }
+    }, this.colorUpdateInterval * 2) // Fade duration = 2x color update interval
+  }
+  
+  // Check if circle is colliding during expansion
+  private checkCollisionDuringExpansion(circle: CircleData): boolean {
+    if (!this.spatialStructure) return false
+    
+    // Check for collision with any other circle
+    for (const other of this.circles) {
+      if (other === circle) continue
+      
+      const dx = circle.x - other.x
+      const dy = circle.y - other.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const minDistance = circle.radius + other.radius + (this.circleSpacing * 2) // Larger spacing for collision detection
+      
+      if (distance < minDistance) {
+        return true // Collision detected
+      }
+    }
+    
+    return false // No collision
+  }
+  
+  // Sample in a wider area to find best color match direction
+  private async findBestColorPosition(circle: CircleData): Promise<{bestPosition?: {x: number, y: number, color: [number, number, number]}}> {
+    if (!this.currentInputTexture || !this.imageData) {
+      throw new Error('No texture or image data available')
+    }
+    
+    const searchRadius = 20 // Search within 20 pixels for better color matches
+    const numDirections = 16 // Sample in 16 directions around the circle
+    
+    let bestSimilarity = 0
+    let bestPosition: {x: number, y: number, color: [number, number, number]} | undefined
+    
+    // Sample in radial directions around the circle
+    for (let i = 0; i < numDirections; i++) {
+      const angle = (i / numDirections) * 2 * Math.PI
+      const testX = circle.x + Math.cos(angle) * searchRadius
+      const testY = circle.y + Math.sin(angle) * searchRadius
+      
+      // Ensure position is within bounds
+      if (testX < 0 || testX >= this.imageData.width || testY < 0 || testY >= this.imageData.height) {
+        continue
+      }
+      
+      try {
+        const pixelColor = this.samplePixelColor(testX, testY)
+        const similarity = this.calculateColorSimilarity(circle.color, pixelColor)
+        
+        if (similarity > bestSimilarity) {
+          bestSimilarity = similarity
+          bestPosition = {x: testX, y: testY, color: pixelColor}
+        }
+      } catch (error) {
+        console.warn(`Failed to sample position (${testX.toFixed(1)}, ${testY.toFixed(1)}):`, error)
+      }
+    }
+    
+    // Only return a position if it's significantly better than current
+    if (bestPosition && bestSimilarity > this.colorSimilarityThreshold) {
+      return {bestPosition}
+    }
+    
+    return {}
+  }
+  
+  // Sample a single pixel color from image data
+  private samplePixelColor(x: number, y: number): [number, number, number] {
+    if (!this.imageData) {
+      throw new Error('No image data available')
+    }
+    
+    const clampedX = Math.floor(Math.max(0, Math.min(this.imageData.width - 1, x)))
+    const clampedY = Math.floor(Math.max(0, Math.min(this.imageData.height - 1, y)))
+    const index = (clampedY * this.imageData.width + clampedX) * 4
+    
+    return [
+      this.imageData.data[index] / 255,     // R
+      this.imageData.data[index + 1] / 255, // G
+      this.imageData.data[index + 2] / 255  // B
+    ]
+  }
+  
+  // Cast a ray from circle in given direction to find collision distance
+  private castRayToCollision(circle: CircleData, dirX: number, dirY: number): number {
+    const maxDistance = 30 // Reduced maximum ray distance
+    const stepSize = 1.0 // Larger step size for efficiency
+    
+    let currentDistance = 0
+    
+    // Step along the ray until we hit something or reach max distance
+    while (currentDistance < maxDistance) {
+      currentDistance += stepSize
+      
+      const testX = circle.x + dirX * currentDistance
+      const testY = circle.y + dirY * currentDistance
+      
+      // Check screen boundaries with margin
+      const margin = circle.radius + 2
+      if (testX - margin < 0 || testX + margin >= (this.imageData?.width || 1920) || 
+          testY - margin < 0 || testY + margin >= (this.imageData?.height || 1080)) {
+        return Math.max(0, currentDistance - stepSize) // Return distance just before boundary
+      }
+      
+      // Check collision with other circles using proper spacing
+      for (const other of this.circles) {
+        if (other === circle) continue
+        
+        const dx = testX - other.x
+        const dy = testY - other.y
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        const minDistance = circle.radius + other.radius + (this.circleSpacing * 3) // More conservative spacing
+        
+        if (distance < minDistance) {
+          return Math.max(0, currentDistance - stepSize) // Return distance just before collision
+        }
+      }
+    }
+    
+    return maxDistance // No collision found within max distance
+  }
+  
+  // Blend two colors by a given factor (0 = color1, 1 = color2)
+  private blendColors(color1: [number, number, number], color2: [number, number, number], factor: number): [number, number, number] {
+    return [
+      color1[0] + (color2[0] - color1[0]) * factor,
+      color1[1] + (color2[1] - color1[1]) * factor,
+      color1[2] + (color2[2] - color1[2]) * factor
+    ]
+  }
+  
+  // Update color change detection map
+  private updateColorChangeDetection(currentTime: number): void {
+    if (!this.imageData || currentTime - this.lastColorChangeUpdate < 100) { // Update every 100ms
+      return
+    }
+    
+    this.lastColorChangeUpdate = currentTime
+    
+    // Initialize color change map if needed
+    if (!this.colorChangeMap) {
+      this.colorChangeMap = new Float32Array(this.imageData.width * this.imageData.height)
+    }
+    
+    const width = this.imageData.width
+    const height = this.imageData.height
+    
+    // Calculate spatial color gradients (edge detection) for current frame
+    this.calculateSpatialColorGradients(width, height)
+    
+    // If we have previous frame data, also add temporal changes
+    if (this.previousImageData && 
+        this.previousImageData.width === this.imageData.width && 
+        this.previousImageData.height === this.imageData.height) {
+      
+      // Add temporal changes to spatial gradients
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const index = y * width + x
+          const pixelIndex = index * 4
+          
+          // Get current and previous colors
+          const currentR = this.imageData.data[pixelIndex] / 255
+          const currentG = this.imageData.data[pixelIndex + 1] / 255
+          const currentB = this.imageData.data[pixelIndex + 2] / 255
+          
+          const prevR = this.previousImageData.data[pixelIndex] / 255
+          const prevG = this.previousImageData.data[pixelIndex + 1] / 255
+          const prevB = this.previousImageData.data[pixelIndex + 2] / 255
+          
+          // Calculate temporal color change magnitude
+          const temporalChange = Math.sqrt(
+            Math.pow(currentR - prevR, 2) +
+            Math.pow(currentG - prevG, 2) +
+            Math.pow(currentB - prevB, 2)
+          )
+          
+          // Combine spatial and temporal changes (weighted average)
+          const spatialChange = this.colorChangeMap[index]
+          const combinedChange = spatialChange * 0.7 + (temporalChange / Math.sqrt(3)) * 0.3
+          
+          this.colorChangeMap[index] = Math.min(1.0, combinedChange)
+        }
+      }
+    }
+    
+    // Store current frame as previous for next comparison
+    this.previousImageData = new ImageData(
+      new Uint8ClampedArray(this.imageData.data),
+      this.imageData.width,
+      this.imageData.height
+    )
+  }
+  
+  // Calculate spatial color gradients using Sobel edge detection
+  private calculateSpatialColorGradients(width: number, height: number): void {
+    if (!this.imageData || !this.colorChangeMap) return
+    
+    // Sobel X and Y kernels for edge detection
+    const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
+    const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]]
+    
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        let gradientXR = 0, gradientXG = 0, gradientXB = 0
+        let gradientYR = 0, gradientYG = 0, gradientYB = 0
+        
+        // Apply Sobel kernels to 3x3 neighborhood
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const pixelIndex = ((y + ky) * width + (x + kx)) * 4
+            const r = this.imageData.data[pixelIndex] / 255
+            const g = this.imageData.data[pixelIndex + 1] / 255
+            const b = this.imageData.data[pixelIndex + 2] / 255
+            
+            const kernelX = sobelX[ky + 1][kx + 1]
+            const kernelY = sobelY[ky + 1][kx + 1]
+            
+            gradientXR += r * kernelX
+            gradientXG += g * kernelX
+            gradientXB += b * kernelX
+            
+            gradientYR += r * kernelY
+            gradientYG += g * kernelY
+            gradientYB += b * kernelY
+          }
+        }
+        
+        // Calculate gradient magnitude for each channel
+        const gradientMagnitudeR = Math.sqrt(gradientXR * gradientXR + gradientYR * gradientYR)
+        const gradientMagnitudeG = Math.sqrt(gradientXG * gradientXG + gradientYG * gradientYG)
+        const gradientMagnitudeB = Math.sqrt(gradientXB * gradientXB + gradientYB * gradientYB)
+        
+        // Combine RGB gradients into single intensity
+        const overallGradient = (gradientMagnitudeR + gradientMagnitudeG + gradientMagnitudeB) / 3
+        
+        // Store normalized gradient value (0-1)
+        const index = y * width + x
+        this.colorChangeMap[index] = Math.min(1.0, overallGradient * 2.0) // Scale up for visibility
+      }
+    }
+    
+    // Handle edges (copy from nearest interior pixel)
+    for (let x = 0; x < width; x++) {
+      this.colorChangeMap[x] = this.colorChangeMap[width + x] // Top edge
+      this.colorChangeMap[(height - 1) * width + x] = this.colorChangeMap[(height - 2) * width + x] // Bottom edge
+    }
+    for (let y = 0; y < height; y++) {
+      this.colorChangeMap[y * width] = this.colorChangeMap[y * width + 1] // Left edge
+      this.colorChangeMap[y * width + (width - 1)] = this.colorChangeMap[y * width + (width - 2)] // Right edge
+    }
+  }
+  
+  // Get color change intensity at a position (0 = no change, 1 = maximum change)
+  private getColorChangeIntensity(x: number, y: number): number {
+    if (!this.colorChangeMap || !this.imageData) {
+      return 0
+    }
+    
+    const clampedX = Math.floor(Math.max(0, Math.min(this.imageData.width - 1, x)))
+    const clampedY = Math.floor(Math.max(0, Math.min(this.imageData.height - 1, y)))
+    const index = clampedY * this.imageData.width + clampedX
+    
+    return this.colorChangeMap[index] || 0
+  }
+  
+  // Sample a position weighted by color change intensity (more likely to pick high-change areas)
+  private sampleWeightedPosition(width: number, height: number): {x: number, y: number} {
+    if (!this.colorChangeMap || !this.imageData) {
+      // Fallback to random if no color change data
+      return {
+        x: Math.random() * width,
+        y: Math.random() * height
+      }
+    }
+    
+    // Rejection sampling: try random positions and accept based on change intensity
+    const maxAttempts = 20
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const x = Math.random() * width
+      const y = Math.random() * height
+      const changeIntensity = this.getColorChangeIntensity(x, y)
+      
+      // Higher change intensity = higher acceptance probability
+      // Base acceptance: 0.3, max acceptance: 1.0
+      const acceptanceProbability = 0.3 + (changeIntensity * 0.7)
+      
+      if (Math.random() < acceptanceProbability) {
+        return {x, y}
+      }
+    }
+    
+    // Fallback to random position if rejection sampling fails
+    return {
+      x: Math.random() * width,
+      y: Math.random() * height
+    }
+  }
+  
+  // Resample circle color based on current size and position
+  private resampleCircleColor(circle: CircleData): void {
+    if (!this.imageData) return
+    
+    const width = this.imageData.width
+    const height = this.imageData.height
+    
+    // Sample multiple points within the circle area for better color averaging
+    const sampleCount = Math.max(4, Math.min(16, Math.floor(circle.radius / 2))) // More samples for larger circles
+    let totalR = 0, totalG = 0, totalB = 0
+    let validSamples = 0
+    
+    for (let i = 0; i < sampleCount; i++) {
+      // Generate random point within circle
+      const angle = Math.random() * Math.PI * 2
+      const distance = Math.random() * circle.radius * 0.8 // Stay within 80% of radius for better averaging
+      
+      const sampleX = circle.x + Math.cos(angle) * distance
+      const sampleY = circle.y + Math.sin(angle) * distance
+      
+      // Clamp to image bounds
+      const pixelX = Math.max(0, Math.min(width - 1, Math.floor(sampleX)))
+      const pixelY = Math.max(0, Math.min(height - 1, Math.floor(sampleY)))
+      const pixelIndex = (pixelY * width + pixelX) * 4
+      
+      // Accumulate color values
+      totalR += this.imageData.data[pixelIndex]
+      totalG += this.imageData.data[pixelIndex + 1]
+      totalB += this.imageData.data[pixelIndex + 2]
+      validSamples++
+    }
+    
+    if (validSamples > 0) {
+      // Calculate average color
+      let avgR = (totalR / validSamples) / 255
+      let avgG = (totalG / validSamples) / 255
+      let avgB = (totalB / validSamples) / 255
+      
+      // Prevent pure black circles
+      const brightness = avgR * 0.299 + avgG * 0.587 + avgB * 0.114
+      if (brightness < 0.1) {
+        const factor = 0.1 / Math.max(brightness, 0.001)
+        avgR = Math.min(1.0, avgR * factor + 0.05)
+        avgG = Math.min(1.0, avgG * factor + 0.05)
+        avgB = Math.min(1.0, avgB * factor + 0.05)
+      }
+      
+      // Smooth transition to new color (blend with existing color)
+      const blendFactor = 0.7 // 70% new color, 30% old color for smooth transition
+      circle.color = [
+        circle.color[0] * (1 - blendFactor) + avgR * blendFactor,
+        circle.color[1] * (1 - blendFactor) + avgG * blendFactor,
+        circle.color[2] * (1 - blendFactor) + avgB * blendFactor
+      ]
     }
   }
 
@@ -1386,6 +2176,246 @@ export class CirclePackingPass {
   // Get the current renderer
   private getRenderer(): THREE.WebGLRenderer | null {
     return this.currentRenderer
+  }
+
+  // Dynamic Circle Spawning System
+  // ===============================
+  
+  // Update dynamic spawning (called every frame when enabled)
+  private updateDynamicSpawning(currentTime: number): void {
+    if (!this.enableDynamicSpawning || !this.spatialStructure) {
+      return
+    }
+    
+    // Convert QuadTree to SpatialHashGrid if needed for dynamic spawning
+    if (!(this.spatialStructure instanceof SpatialHashGrid)) {
+      console.log('Dynamic spawning: Converting QuadTree to SpatialHashGrid for empty area detection')
+      this.convertToSpatialHashGrid()
+      return // Wait for next frame after conversion
+    }
+    
+    // Throttle spawn checks based on spawn interval
+    if (currentTime - this.lastSpawnCheck < this.spawnInterval) {
+      return
+    }
+    
+    this.lastSpawnCheck = currentTime
+    console.log('Dynamic spawning: Starting spawn check...')
+    
+    // Find empty areas in the current spatial structure
+    const emptyAreas = this.spatialStructure.findEmptyAreas(this.minEmptyAreaSize)
+    
+    // Debug grid stats
+    const stats = this.spatialStructure.getStats()
+    
+    if (emptyAreas.length === 0) {
+      // Fallback: If grid method fails, try random placement
+      console.log(`Dynamic spawning: Grid method found no areas, trying random placement fallback`)
+      this.tryRandomSpawning()
+      return
+    }
+    
+    console.log(`Dynamic spawning: Found ${emptyAreas.length} empty areas`)
+    
+    // Process the largest empty areas first
+    let spawnedThisCheck = 0
+    
+    for (const area of emptyAreas.slice(0, 3)) { // Limit to top 3 areas
+      if (spawnedThisCheck >= this.maxSpawnsPerCheck) break
+      
+      // Get optimal spawn points within this area
+      const spawnPoints = this.spatialStructure.getSpawnPointsInArea(area, 2)
+      
+      for (const spawnPoint of spawnPoints) {
+        if (spawnedThisCheck >= this.maxSpawnsPerCheck) break
+        
+        // Create new circle at spawn point
+        const newCircle = this.createDynamicCircle(spawnPoint.x, spawnPoint.y, spawnPoint.maxRadius)
+        
+        if (newCircle) {
+          this.circles.push(newCircle)
+          this.spatialStructure.insert(newCircle)
+          spawnedThisCheck++
+          this.totalSpawnedCircles++
+          
+          console.log(`Spawned circle ${this.totalSpawnedCircles} at (${spawnPoint.x.toFixed(1)}, ${spawnPoint.y.toFixed(1)}) with radius ${spawnPoint.maxRadius.toFixed(1)}`)
+        }
+      }
+    }
+    
+    if (spawnedThisCheck > 0) {
+      // Update circle data in shader to include new circles
+      this.updateCircleDataInShader()
+      console.log(`Dynamic spawning: Added ${spawnedThisCheck} new circles (total: ${this.circles.length})`)
+    }
+  }
+  
+  // Create a new circle for dynamic spawning
+  private createDynamicCircle(x: number, y: number, maxRadius: number): CircleData | null {
+    if (!this.imageData) {
+      console.warn('Dynamic spawning: No imageData available for color sampling')
+      return null
+    }
+    
+    // More aggressive sizing for dynamic spawns - they should fill available space
+    const constrainedMaxRadius = Math.min(maxRadius, this.maxCircleSize)
+    // Use more of available space (30-80% instead of 10-30%)
+    const sizeFactor = 0.3 + Math.random() * 0.5 // Random between 30-80%
+    const conservativeRadius = Math.max(this.minCircleSize, constrainedMaxRadius * sizeFactor)
+    
+    // Sample color from the image at this position
+    const pixelX = Math.floor(Math.max(0, Math.min(this.imageData.width - 1, x)))
+    const pixelY = Math.floor(Math.max(0, Math.min(this.imageData.height - 1, y)))
+    const pixelIndex = (pixelY * this.imageData.width + pixelX) * 4
+    
+    const r = this.imageData.data[pixelIndex] / 255
+    const g = this.imageData.data[pixelIndex + 1] / 255
+    const b = this.imageData.data[pixelIndex + 2] / 255
+    
+    // Create circle data with physics properties
+    const startRadius = Math.max(this.minCircleSize, 5.0) // Start much more visible
+    const circle: CircleData = {
+      x,
+      y,
+      radius: startRadius, // Start much more visible than minimum
+      color: [r, g, b],
+      // Physics properties for Verlet integration
+      prevX: x,
+      prevY: y,
+      mass: Math.PI * startRadius * startRadius,
+      pinned: false,
+      // Progressive growth properties - will grow until collision
+      targetRadius: conservativeRadius, // Use the calculated target size
+      currentRadius: startRadius,
+      growthStartTime: performance.now(),
+      // Adaptive color monitoring properties
+      originalColor: [r, g, b],
+      isAdapting: false,
+      // Mark as dynamic spawn for special growth behavior
+      isDynamicSpawn: true,
+      // Protect from color monitoring for 2 seconds to allow initial growth
+      spawnProtectionTime: performance.now() + 2000
+    }
+    
+    return circle
+  }
+  
+  // Check if a circle would collide with others at a given radius
+  private wouldCollideAtRadius(circle: CircleData, testRadius: number): boolean {
+    if (!this.spatialStructure) return false
+    
+    // Get nearby circles
+    const nearby = this.spatialStructure.getNearbyCircles(circle.x, circle.y, testRadius + this.circleSpacing)
+    
+    // Check collision with each nearby circle
+    for (const other of nearby) {
+      if (other === circle) continue // Skip self
+      
+      const dx = circle.x - other.x
+      const dy = circle.y - other.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const minDistance = testRadius + other.radius + this.circleSpacing
+      
+      if (distance < minDistance) {
+        return true // Collision detected
+      }
+    }
+    
+    // Check boundary collision
+    const margin = testRadius
+    if (circle.x < margin || 
+        circle.x > this.renderTarget.width - margin ||
+        circle.y < margin || 
+        circle.y > this.renderTarget.height - margin) {
+      return true // Boundary collision
+    }
+    
+    return false // No collision
+  }
+  
+  // Convert QuadTree to SpatialHashGrid for dynamic spawning
+  private convertToSpatialHashGrid(): void {
+    if (!this.spatialStructure || this.spatialStructure instanceof SpatialHashGrid) {
+      return
+    }
+    
+    // Calculate average circle radius for optimal grid sizing
+    const totalRadius = this.circles.reduce((sum, circle) => sum + circle.radius, 0)
+    const averageRadius = this.circles.length > 0 ? totalRadius / this.circles.length : 10
+    
+    // Get render target dimensions
+    const width = this.renderTarget.width
+    const height = this.renderTarget.height
+    
+    // Create new SpatialHashGrid
+    this.spatialStructure = new SpatialHashGrid(width, height, averageRadius)
+    
+    // Re-insert all existing circles
+    for (const circle of this.circles) {
+      this.spatialStructure.insert(circle)
+    }
+    
+    console.log(`Converted to SpatialHashGrid: ${this.circles.length} circles re-inserted`)
+  }
+  
+  // Fallback spawning when grid method fails
+  private tryRandomSpawning(): void {
+    if (!this.spatialStructure) return
+    
+    const width = this.renderTarget.width
+    const height = this.renderTarget.height
+    let spawnedThisCheck = 0
+    const maxAttempts = 50 // Try 50 random positions
+    
+    for (let attempt = 0; attempt < maxAttempts && spawnedThisCheck < this.maxSpawnsPerCheck; attempt++) {
+      // Random position
+      const x = Math.random() * width
+      const y = Math.random() * height
+      const testRadius = this.minCircleSize + Math.random() * (this.maxCircleSize - this.minCircleSize) * 0.3
+      
+      // Check if this position would collide
+      if (!this.wouldCollideAtRadius({ x, y, radius: testRadius } as CircleData, testRadius)) {
+        // Create new circle at this position
+        const newCircle = this.createDynamicCircle(x, y, testRadius * 2)
+        
+        if (newCircle) {
+          this.circles.push(newCircle)
+          this.spatialStructure.insert(newCircle)
+          spawnedThisCheck++
+          this.totalSpawnedCircles++
+          
+          console.log(`Random spawn: Added circle at (${x.toFixed(1)}, ${y.toFixed(1)}) with radius ${testRadius.toFixed(1)}`)
+        }
+      }
+    }
+    
+    if (spawnedThisCheck > 0) {
+      // Update circle data in shader to include new circles
+      this.updateCircleDataInShader()
+      console.log(`Random spawning: Added ${spawnedThisCheck} new circles (total: ${this.circles.length})`)
+    } else {
+      console.log(`Random spawning: Failed to place any circles after ${maxAttempts} attempts`)
+    }
+  }
+
+  // Check if dynamic spawning should be enabled
+  private shouldEnableDynamicSpawning(): boolean {
+    const enabled = this.enableDynamicSpawning && 
+           this.circles.length > 0 && 
+           this.spatialStructure !== null &&
+           this.totalSpawnedCircles < 2000 // Allow up to 2000 spawned circles
+    
+    if (!enabled && this.enableDynamicSpawning) {
+      console.log('Dynamic spawning disabled:', {
+        enableDynamicSpawning: this.enableDynamicSpawning,
+        circlesLength: this.circles.length,
+        spatialStructureType: this.spatialStructure?.constructor.name,
+        totalSpawned: this.totalSpawnedCircles,
+        spawnLimit: 2000
+      })
+    }
+    
+    return enabled
   }
   
   // Find optimal squares within color blocks with collision detection
@@ -2052,6 +3082,27 @@ export class CirclePackingPass {
       return
     }
     
+    // Update adaptive color monitoring (independent of physics)
+    if (this.enableColorMonitoring && this.circles.length > 0) {
+      // Refresh imageData more frequently to handle camera movement
+      const targetWidth = this.renderTarget.width
+      const targetHeight = this.renderTarget.height
+      
+      // Update imageData every few frames to keep it current with camera movement
+      const shouldRefreshImageData = !this.imageData || Math.random() < 0.1 // 10% chance per frame
+      
+      if (shouldRefreshImageData) {
+        this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
+          .then(imageData => {
+            this.imageData = imageData
+            this.updateColorMonitoring(inputTexture, deltaTime)
+          })
+          .catch(console.error)
+      } else {
+        this.updateColorMonitoring(inputTexture, deltaTime)
+      }
+    }
+    
     // Handle real-time physics animation
     if (this.animatePhysics && this.usePhysicsPlacement) {
       const targetWidth = this.renderTarget.width
@@ -2069,20 +3120,28 @@ export class CirclePackingPass {
           .catch(console.error)
       }
       
-      // Update adaptive color monitoring BEFORE physics to avoid position desync
-      if (this.enableColorMonitoring) {
-        this.updateColorMonitoring(inputTexture, deltaTime)
-      }
-      
-      // Update animation if running
-      if (this.isAnimating) {
+      // Start or update physics animation when enabled
+      if (this.animatePhysics && this.useVerletPhysics && this.circles.length > 0) {
+        // Start animation if not already running
+        if (!this.isAnimating) {
+          this.isAnimating = true
+          this.animationStartTime = performance.now()
+          console.log(`Continuous physics animation started with ${this.circles.length} circles`)
+        }
         this.updatePhysicsAnimation(deltaTime, targetWidth, targetHeight)
+      } else if (this.isAnimating && !this.animatePhysics) {
+        // Stop animation if animatePhysics was disabled
+        this.isAnimating = false
+        console.log('Physics animation stopped - animatePhysics disabled')
       }
       
       // Update progressive growth if enabled
       if (this.enableProgressiveGrowth) {
         this.updateProgressiveGrowth(deltaTime)
       }
+      
+      // Update dynamic spawning if enabled
+      // Dynamic spawning disabled - no longer calling updateDynamicSpawning
     }
     
     // Check if parameters changed and trigger recompute
@@ -2093,6 +3152,9 @@ export class CirclePackingPass {
     
     // Recompute circles if needed (async but cache results)
     if (this.needsRecompute && !this.isGenerating) {
+      // Reset effect start time for new relaxation delay period
+      this.effectStartTime = 0
+      
       // Use current render target size for ImageData to ensure full screen coverage
       const targetWidth = this.renderTarget.width
       const targetHeight = this.renderTarget.height
@@ -2112,6 +3174,9 @@ export class CirclePackingPass {
             this.circles = this.generateCirclePacking(imageData, imageData.width, imageData.height)
             this.needsRecompute = false
             
+            // Set effect start time for relaxation delay
+            this.effectStartTime = performance.now()
+            
             // Initialize progressive growth for all circles
             this.initializeProgressiveGrowth()
             
@@ -2124,6 +3189,43 @@ export class CirclePackingPass {
     // Get current global background color
     const globalBgColor = this.getGlobalBackgroundColor(renderer)
     
+    // Update color change map texture if available
+    if (this.colorChangeMap && this.imageData) {
+      // Create or update texture from color change map data
+      if (!this.colorChangeTexture || 
+          this.colorChangeTexture.image.width !== this.imageData.width ||
+          this.colorChangeTexture.image.height !== this.imageData.height) {
+        // Dispose old texture if it exists
+        if (this.colorChangeTexture) {
+          this.colorChangeTexture.dispose()
+        }
+        
+        // Create new texture with correct dimensions
+        this.colorChangeTexture = new THREE.DataTexture(
+          this.colorChangeMap,
+          this.imageData.width,
+          this.imageData.height,
+          THREE.RedFormat,
+          THREE.FloatType
+        )
+        this.material.uniforms.colorChangeMap.value = this.colorChangeTexture
+        
+        // Debug logging
+        console.log(`Color change texture created: ${this.imageData.width}×${this.imageData.height}, showToggle=${this.showColorChangeMap}, spatial gradients enabled`)
+      } else {
+        // Update existing texture data
+        this.colorChangeTexture.image.data = this.colorChangeMap
+      }
+      
+      this.colorChangeTexture.needsUpdate = true
+      
+      // Debug the toggle state occasionally
+      if (Math.random() < 0.02) {
+        const avgIntensity = this.colorChangeMap.reduce((sum, val) => sum + val, 0) / this.colorChangeMap.length
+        console.log(`Color change map: toggle=${this.showColorChangeMap}, texture=${!!this.colorChangeTexture}, uniform=${this.material.uniforms.showColorChangeMap.value}, avgIntensity=${avgIntensity.toFixed(3)}`)
+      }
+    }
+    
     // Update uniforms
     this.material.uniforms.tDiffuse.value = inputTexture
     this.material.uniforms.intensity.value = this.intensity
@@ -2131,6 +3233,7 @@ export class CirclePackingPass {
     this.material.uniforms.globalBackgroundR.value = globalBgColor[0]
     this.material.uniforms.globalBackgroundG.value = globalBgColor[1]
     this.material.uniforms.globalBackgroundB.value = globalBgColor[2]
+    this.material.uniforms.showColorChangeMap.value = this.showColorChangeMap ? 1.0 : 0.0
     
     // Render the effect
     renderer.setRenderTarget(outputTarget || null)
@@ -2141,8 +3244,14 @@ export class CirclePackingPass {
   private updateCircleDataInShader(): void {
     if (!this.circleDataTexture) return
     
-    const maxCircles = 200
-    const textureData = new Float32Array(maxCircles * 2 * 4) // 200 circles * 2 rows * 4 channels
+    const maxCircles = 300 // Increased from 200 to handle more circles
+    const textureData = new Float32Array(maxCircles * 2 * 4) // 300 circles * 2 rows * 4 channels
+    
+    // Debug: Track radius values being sent to shader
+    let radiusSum = 0
+    let minRadius = Infinity
+    let maxRadius = 0
+    
     for (let i = 0; i < Math.min(this.circles.length, maxCircles); i++) {
       const circle = this.circles[i]
       
@@ -2159,11 +3268,32 @@ export class CirclePackingPass {
       textureData[colorOffset + 1] = circle.color[1]
       textureData[colorOffset + 2] = circle.color[2]
       textureData[colorOffset + 3] = 0 // unused
+      
+      // Track radius stats
+      radiusSum += circle.radius
+      minRadius = Math.min(minRadius, circle.radius)
+      maxRadius = Math.max(maxRadius, circle.radius)
     }
     
     this.circleDataTexture.image.data = textureData
     this.circleDataTexture.needsUpdate = true
     this.material.uniforms.numCircles.value = Math.min(this.circles.length, maxCircles)
+    
+    // Debug spawned circles (temporary)
+    if (Math.random() < 0.1) {
+      const spawnedCount = this.circles.filter(c => c.isDynamicSpawn).length
+      const visibleSpawned = this.circles.filter(c => c.isDynamicSpawn && c.radius > 2).length
+      const processedCount = Math.min(this.circles.length, maxCircles)
+      const spawnedInRange = this.circles.slice(0, processedCount).filter(c => c.isDynamicSpawn).length
+      console.log(`Shader: ${this.circles.length} total, ${processedCount} sent to GPU, ${spawnedCount} spawned total, ${spawnedInRange} spawned in GPU range`)
+      
+      // Debug a few spawned circles' data
+      const recentSpawned = this.circles.filter(c => c.isDynamicSpawn).slice(-3)
+      for (const circle of recentSpawned) {
+        const index = this.circles.indexOf(circle)
+        console.log(`Spawned circle ${index}: pos(${circle.x.toFixed(1)}, ${circle.y.toFixed(1)}), radius=${circle.radius.toFixed(1)}, color=[${circle.color.map(c => c.toFixed(2)).join(',')}]`)
+      }
+    }
   }
   
   setSize(width: number, height: number) {
@@ -2179,6 +3309,9 @@ export class CirclePackingPass {
     this.mesh.geometry.dispose()
     if (this.circleDataTexture) {
       this.circleDataTexture.dispose()
+    }
+    if (this.colorChangeTexture) {
+      this.colorChangeTexture.dispose()
     }
     
     // Clean up WebWorker
@@ -2210,12 +3343,14 @@ export class CirclePackingPass {
       uniform float globalBackgroundB;
       uniform sampler2D circleDataTexture;
       uniform int numCircles;
+      uniform sampler2D colorChangeMap;
+      uniform float showColorChangeMap;
       
       varying vec2 vUv;
       
       // Sample circle data from texture
       vec4 getCircleData(int index, int component) {
-        float u = (float(index) + 0.5) / 200.0; // Circle index
+        float u = (float(index) + 0.5) / 300.0; // Circle index
         float v = (float(component) + 0.5) / 2.0; // Component (0 = position+radius, 1 = color)
         return texture2D(circleDataTexture, vec2(u, v));
       }
@@ -2226,12 +3361,23 @@ export class CirclePackingPass {
         // Sample original color
         vec4 originalColor = texture2D(tDiffuse, vUv);
         
+        // Show color change gradient if enabled
+        if (showColorChangeMap > 0.5) {
+          vec4 changeMapSample = texture2D(colorChangeMap, vUv);
+          float changeIntensity = changeMapSample.r;
+          
+          // Display as grayscale: white = high change, black = low change
+          // Add slight blue tint to distinguish from pure grayscale
+          gl_FragColor = vec4(changeIntensity, changeIntensity, changeIntensity + 0.1, 1.0);
+          return;
+        }
+        
         // Find the top-most circle at this pixel
         vec3 circleColor = vec3(0.0);
         bool insideCircle = false;
         
         // Check all pre-computed circles
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < 300; i++) {
           if (i >= numCircles) break;
           
           // Sample circle data from texture
