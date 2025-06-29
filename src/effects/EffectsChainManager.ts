@@ -511,7 +511,12 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       // Progressive growth parameters
       enableProgressiveGrowth: 1,
       growthRate: 0.5,
-      startSizeMultiplier: 0.3
+      startSizeMultiplier: 0.3,
+      // Adaptive color monitoring parameters
+      enableColorMonitoring: 1,
+      colorSimilarityThreshold: 0.8,
+      adaptiveResizeSpeed: 1.0,
+      colorUpdateInterval: 100
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -527,7 +532,7 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       gravity: { min: 0, max: 1.0, step: 0.01, label: 'Gravity Strength' },
       damping: { min: 0.8, max: 1.0, step: 0.01, label: 'Velocity Damping' },
       substeps: { min: 1, max: 40, step: 1, label: 'Physics Substeps' },
-      physicsIterations: { min: 5, max: 200, step: 1, label: 'Physics Iterations' },
+      physicsIterations: { min: 5, max: 400, step: 1, label: 'Physics Iterations' },
       // Spatial optimization parameter definitions
       usePhysicsPlacement: { min: 0, max: 1, step: 1, label: 'Physics-Based Placement', type: 'boolean' },
       // Animation parameter definitions
@@ -536,7 +541,12 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       // Progressive growth parameter definitions
       enableProgressiveGrowth: { min: 0, max: 1, step: 1, label: 'Enable Progressive Growth', type: 'boolean' },
       growthRate: { min: 0.1, max: 2.0, step: 0.1, label: 'Growth Rate' },
-      startSizeMultiplier: { min: 0.1, max: 1.0, step: 0.1, label: 'Starting Size (× Target)' }
+      startSizeMultiplier: { min: 0.1, max: 1.0, step: 0.1, label: 'Starting Size' },
+      // Adaptive color monitoring parameter definitions
+      enableColorMonitoring: { min: 0, max: 1, step: 1, label: 'Enable Color Monitoring', type: 'boolean' },
+      colorSimilarityThreshold: { min: 0.1, max: 1.0, step: 0.05, label: 'Color Similarity Threshold' },
+      adaptiveResizeSpeed: { min: 0.1, max: 3.0, step: 0.1, label: 'Adaptive Resize Speed' },
+      colorUpdateInterval: { min: 50, max: 500, step: 50, label: 'Color Update Interval' }
     }
   },
   {

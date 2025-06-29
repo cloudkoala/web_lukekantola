@@ -858,6 +858,11 @@ export class PostProcessingPass {
         this.circlePackingPass.enableProgressiveGrowth = Boolean(effect.parameters.enableProgressiveGrowth ?? 1)
         this.circlePackingPass.growthRate = Number(effect.parameters.growthRate ?? 0.5)
         this.circlePackingPass.startSizeMultiplier = Number(effect.parameters.startSizeMultiplier ?? 0.3)
+        // Adaptive color monitoring parameters
+        this.circlePackingPass.enableColorMonitoring = Boolean(effect.parameters.enableColorMonitoring ?? 1)
+        this.circlePackingPass.colorSimilarityThreshold = Number(effect.parameters.colorSimilarityThreshold ?? 0.8)
+        this.circlePackingPass.adaptiveResizeSpeed = Number(effect.parameters.adaptiveResizeSpeed ?? 1.0)
+        this.circlePackingPass.colorUpdateInterval = Number(effect.parameters.colorUpdateInterval ?? 100)
         // Calculate deltaTime for animation
         const currentTime = performance.now()
         const deltaTime = currentTime - this.lastFrameTime

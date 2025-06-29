@@ -16,6 +16,11 @@ interface CircleData {
   targetRadius?: number // Final desired radius
   currentRadius?: number // Current animated radius
   growthStartTime?: number // When this circle started growing
+  // Adaptive color monitoring properties
+  originalColor?: [number, number, number] // Original sampled color
+  isAdapting?: boolean // Currently in adaptation cycle
+  adaptationStartTime?: number // When adaptation began
+  adaptationPhase?: 'shrinking' | 'resampling' | 'growing' // Current adaptation phase
 }
 
 
@@ -186,6 +191,12 @@ export class CirclePackingPass {
   public growthRate: number = 0.5 // Growth speed (0.1 = slow, 2.0 = fast)
   public startSizeMultiplier: number = 0.3 // Initial size as fraction of target (0.1-1.0)
   
+  // Adaptive color monitoring parameters
+  public enableColorMonitoring: boolean = true // Enable adaptive color monitoring
+  public colorSimilarityThreshold: number = 0.8 // Threshold for color similarity (0.1-1.0)
+  public adaptiveResizeSpeed: number = 1.0 // Speed of adaptive resize cycle
+  public colorUpdateInterval: number = 100 // How often to check colors (ms)
+  
   // Pre-computed circle data
   private circles: CircleData[] = []
   private needsRecompute: boolean = true
@@ -200,6 +211,11 @@ export class CirclePackingPass {
   // Progressive growth state
   private growthStartTime: number = 0
   private lastGrowthUpdate: number = 0
+  
+  // Adaptive color monitoring state
+  private lastColorCheck: number = 0
+  private currentInputTexture: THREE.Texture | null = null
+  private currentRenderer: THREE.WebGLRenderer | null = null
   
   // WebWorker support for parallel processing
   private worker: Worker | null = null
@@ -420,9 +436,16 @@ export class CirclePackingPass {
   // Adaptive circle placement with proper packing logic
   private generateSimpleCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
-    const totalAttempts = this.packingDensity * 50 // Use packing density as attempt multiplier, not target count
     
-    console.log(`Attempting to pack circles with ${totalAttempts} placement attempts`)
+    // Calculate screen area and normalize packing density as percentage of available space
+    const screenArea = width * height
+    const baseArea = 1920 * 1080 // Reference resolution (Full HD)
+    const areaRatio = screenArea / baseArea
+    const screenAwareAttempts = Math.floor(this.packingDensity * 50 * areaRatio)
+    
+    console.log(`Screen: ${width}×${height} (${screenArea}px), Area ratio: ${areaRatio.toFixed(2)}, Attempts: ${screenAwareAttempts}`)
+    
+    const totalAttempts = screenAwareAttempts
     
     // Track consecutive failures to detect when packing is saturated
     let consecutiveFailures = 0
@@ -773,9 +796,14 @@ export class CirclePackingPass {
   // Physics-based bouncing ball placement system (inspired by sphere-drawings)
   private generatePhysicsBasedCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: QuadTree | SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
-    const maxCircles = Math.floor(this.packingDensity * 2) // Adjust density for physics placement
     
-    console.log(`Physics placement: generating ${maxCircles} circles with bouncing ball simulation`)
+    // Calculate screen-aware circle count for physics placement
+    const screenArea = width * height
+    const baseArea = 1920 * 1080 // Reference resolution (Full HD)
+    const areaRatio = screenArea / baseArea
+    const maxCircles = Math.floor(this.packingDensity * 2 * areaRatio) // Adjust density for physics placement
+    
+    console.log(`Physics placement: generating ${maxCircles} circles (area ratio: ${areaRatio.toFixed(2)}) with bouncing ball simulation`)
     
     // Spawn circles from the top with random initial velocities
     for (let i = 0; i < maxCircles; i++) {
@@ -970,7 +998,12 @@ export class CirclePackingPass {
     
     // Initialize circles with physics properties
     this.circles = []
-    const maxCircles = Math.floor(this.packingDensity * 0.5) // Fewer circles for better animation performance
+    
+    // Calculate screen-aware circle count for animation
+    const screenArea = width * height
+    const baseArea = 1920 * 1080 // Reference resolution (Full HD)
+    const areaRatio = screenArea / baseArea
+    const maxCircles = Math.floor(this.packingDensity * 0.5 * areaRatio) // Fewer circles for better animation performance
     
     for (let i = 0; i < maxCircles; i++) {
       const circle = this.createBouncingBall(originalImageData, width, height, i)
@@ -1091,6 +1124,268 @@ export class CirclePackingPass {
     }
     
     console.log(`Progressive growth initialized for ${this.circles.length} circles`)
+  }
+
+  // Update adaptive color monitoring for all circles
+  private updateColorMonitoring(inputTexture: THREE.Texture, deltaTime: number): void {
+    if (!this.circles || this.circles.length === 0) return
+    
+    const currentTime = performance.now()
+    
+    // Check if enough time has passed for color monitoring update
+    if (currentTime - this.lastColorCheck < this.colorUpdateInterval) {
+      // Still update any ongoing adaptations
+      this.updateCircleAdaptations(currentTime, deltaTime)
+      return
+    }
+    
+    this.lastColorCheck = currentTime
+    this.currentInputTexture = inputTexture
+    
+    // Check a subset of circles each frame for performance
+    const batchSize = Math.min(10, this.circles.length)
+    const startIndex = Math.floor(Math.random() * this.circles.length)
+    
+    for (let i = 0; i < batchSize; i++) {
+      const circleIndex = (startIndex + i) % this.circles.length
+      const circle = this.circles[circleIndex]
+      
+      // Skip circles that are already adapting
+      if (circle.isAdapting) continue
+      
+      this.checkCircleColorSimilarity(circle, inputTexture, currentTime)
+    }
+    
+    // Update ongoing adaptations
+    this.updateCircleAdaptations(currentTime, deltaTime)
+  }
+
+  // Check if a circle's color matches the content beneath it
+  private async checkCircleColorSimilarity(circle: CircleData, inputTexture: THREE.Texture, currentTime: number): Promise<void> {
+    try {
+      // Store position before async sampling to detect if circle moved during sampling
+      const startPosition = { x: circle.x, y: circle.y }
+      
+      // Sample the average color under the circle
+      const sampledColor = await this.sampleCircleAreaColor(circle, inputTexture)
+      
+      // Validate circle hasn't moved significantly during async operation
+      const positionDrift = Math.sqrt(
+        Math.pow(circle.x - startPosition.x, 2) + Math.pow(circle.y - startPosition.y, 2)
+      )
+      if (positionDrift > 5.0) {
+        // Circle moved too much during sampling, skip this update
+        return
+      }
+      
+      // Store original color if not set
+      if (!circle.originalColor) {
+        circle.originalColor = [...circle.color]
+      }
+      
+      // Calculate color similarity
+      const similarity = this.calculateColorSimilarity(circle.color, sampledColor)
+      
+      // If similarity is below threshold, trigger adaptation
+      if (similarity < this.colorSimilarityThreshold) {
+        console.log(`Circle adaptation triggered: similarity ${similarity.toFixed(2)} < threshold ${this.colorSimilarityThreshold}`)
+        this.startCircleAdaptation(circle, sampledColor, currentTime)
+      }
+    } catch (error) {
+      // Silently handle sampling errors
+      console.warn('Color sampling failed:', error)
+    }
+  }
+
+  // Start the adaptation cycle for a circle
+  private startCircleAdaptation(circle: CircleData, newColor: [number, number, number], currentTime: number): void {
+    circle.isAdapting = true
+    circle.adaptationStartTime = currentTime
+    circle.adaptationPhase = 'shrinking'
+    
+    // Store the new target color
+    circle.originalColor = newColor
+    
+    console.log(`Starting adaptation for circle at (${circle.x.toFixed(0)}, ${circle.y.toFixed(0)})`)
+  }
+
+  // Update all circles that are currently adapting
+  private updateCircleAdaptations(currentTime: number, deltaTime: number): void {
+    let needsUpdate = false
+    
+    for (const circle of this.circles) {
+      if (!circle.isAdapting || !circle.adaptationStartTime) continue
+      
+      const elapsedTime = currentTime - circle.adaptationStartTime
+      const adaptationSpeed = this.adaptiveResizeSpeed * 0.001 // Convert to seconds
+      
+      switch (circle.adaptationPhase) {
+        case 'shrinking':
+          // Shrink to 20% of current size
+          const shrinkProgress = Math.min(1.0, elapsedTime * adaptationSpeed * 3) // 3x faster shrinking
+          const minRadius = (circle.targetRadius || circle.radius) * 0.2
+          const newShrinkRadius = circle.radius * (1 - shrinkProgress) + minRadius * shrinkProgress
+          
+          if (newShrinkRadius !== circle.radius) {
+            circle.radius = newShrinkRadius
+            needsUpdate = true
+          }
+          
+          if (shrinkProgress >= 1.0) {
+            circle.adaptationPhase = 'resampling'
+            circle.adaptationStartTime = currentTime // Reset timer for next phase
+          }
+          break
+          
+        case 'resampling':
+          // Update color and prepare for growth
+          if (circle.originalColor) {
+            circle.color = [...circle.originalColor]
+            circle.adaptationPhase = 'growing'
+            circle.adaptationStartTime = currentTime // Reset timer for growth
+            needsUpdate = true
+          }
+          break
+          
+        case 'growing':
+          // Grow back to target size
+          const growthProgress = Math.min(1.0, elapsedTime * adaptationSpeed)
+          const targetRadius = circle.targetRadius || circle.radius * 5 // Assume target is 5x current
+          const minRadius2 = targetRadius * 0.2
+          const newGrowthRadius = minRadius2 + (targetRadius - minRadius2) * growthProgress
+          
+          if (newGrowthRadius !== circle.radius) {
+            circle.radius = newGrowthRadius
+            needsUpdate = true
+          }
+          
+          if (growthProgress >= 1.0) {
+            // Adaptation complete
+            circle.isAdapting = false
+            circle.adaptationPhase = undefined
+            
+            // Trigger physics if enabled
+            if (this.useVerletPhysics && this.animatePhysics) {
+              // Add some random velocity to create physics interaction
+              circle.prevX = circle.x + (Math.random() - 0.5) * 2
+              circle.prevY = circle.y + (Math.random() - 0.5) * 2
+            }
+            
+            console.log(`Circle adaptation completed at (${circle.x.toFixed(0)}, ${circle.y.toFixed(0)})`)
+          }
+          break
+      }
+    }
+    
+    // Update shader if any circles changed
+    if (needsUpdate) {
+      this.updateCircleDataInShader()
+    }
+  }
+
+  // Sample the average color under a circle area
+  private async sampleCircleAreaColor(circle: CircleData, inputTexture: THREE.Texture): Promise<[number, number, number]> {
+    // Create a temporary render target to sample the texture
+    const tempRT = new THREE.WebGLRenderTarget(1, 1)
+    const tempCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
+    const tempScene = new THREE.Scene()
+    
+    // Create sampling material that averages colors within the circle area
+    const samplingMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: inputTexture },
+        circleCenter: { value: new THREE.Vector2(circle.x, circle.y) },
+        circleRadius: { value: circle.radius },
+        resolution: { value: new THREE.Vector2(this.imageData?.width || 1920, this.imageData?.height || 1080) }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform vec2 circleCenter;
+        uniform float circleRadius;
+        uniform vec2 resolution;
+        varying vec2 vUv;
+        
+        void main() {
+          vec2 coord = vUv * resolution;
+          vec2 center = circleCenter;
+          float radius = circleRadius;
+          
+          // Sample multiple points within the circle
+          vec3 colorSum = vec3(0.0);
+          float sampleCount = 0.0;
+          
+          for (float x = -radius; x <= radius; x += radius * 0.2) {
+            for (float y = -radius; y <= radius; y += radius * 0.2) {
+              vec2 samplePos = center + vec2(x, y);
+              float dist = length(vec2(x, y));
+              
+              if (dist <= radius && samplePos.x >= 0.0 && samplePos.x < resolution.x && 
+                  samplePos.y >= 0.0 && samplePos.y < resolution.y) {
+                vec2 sampleUv = samplePos / resolution;
+                colorSum += texture2D(tDiffuse, sampleUv).rgb;
+                sampleCount += 1.0;
+              }
+            }
+          }
+          
+          if (sampleCount > 0.0) {
+            gl_FragColor = vec4(colorSum / sampleCount, 1.0);
+          } else {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+          }
+        }
+      `
+    })
+    
+    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), samplingMaterial)
+    tempScene.add(quad)
+    
+    // Render and read the pixel
+    const renderer = this.getRenderer() // We'll need to add this method
+    if (renderer) {
+      renderer.setRenderTarget(tempRT)
+      renderer.render(tempScene, tempCamera)
+      
+      // Read the pixel
+      const pixel = new Uint8Array(4)
+      renderer.readRenderTargetPixels(tempRT, 0, 0, 1, 1, pixel)
+      
+      renderer.setRenderTarget(null)
+      
+      // Clean up
+      tempRT.dispose()
+      samplingMaterial.dispose()
+      
+      return [pixel[0] / 255, pixel[1] / 255, pixel[2] / 255]
+    }
+    
+    // Fallback to circle's current color
+    return [...circle.color]
+  }
+
+  // Calculate color similarity between two RGB colors
+  private calculateColorSimilarity(color1: [number, number, number], color2: [number, number, number]): number {
+    // Use Euclidean distance in RGB space
+    const dr = color1[0] - color2[0]
+    const dg = color1[1] - color2[1]
+    const db = color1[2] - color2[2]
+    const distance = Math.sqrt(dr * dr + dg * dg + db * db)
+    
+    // Convert distance to similarity (0 = no similarity, 1 = identical)
+    const maxDistance = Math.sqrt(3) // Maximum possible RGB distance
+    return 1.0 - (distance / maxDistance)
+  }
+
+  // Get the current renderer
+  private getRenderer(): THREE.WebGLRenderer | null {
+    return this.currentRenderer
   }
   
   // Find optimal squares within color blocks with collision detection
@@ -1500,8 +1795,11 @@ export class CirclePackingPass {
   private packCirclesInRegion(region: {points: Array<{x: number, y: number}>, avgX: number, avgY: number, area: number}, originalImageData: ImageData, width: number, height: number): CircleData[] {
     const circles: CircleData[] = []
     
-    // Much more aggressive circle generation for better packing
-    const maxCircles = Math.min(Math.floor(this.packingDensity * Math.sqrt(region.area) / 10), 200) // Increased from /100 to /10, max from 50 to 200
+    // Screen-aware circle generation for better packing
+    const screenArea = width * height
+    const baseArea = 1920 * 1080 // Reference resolution (Full HD)
+    const areaRatio = screenArea / baseArea
+    const maxCircles = Math.min(Math.floor(this.packingDensity * Math.sqrt(region.area) / 10 * areaRatio), 200) // Screen-aware with area ratio
     
     // Larger base radius for better screen filling
     const baseRadius = Math.sqrt(region.area / Math.PI) * 0.8 // Increased from 0.3 to 0.8
@@ -1719,6 +2017,8 @@ export class CirclePackingPass {
   }
 
   render(renderer: THREE.WebGLRenderer, inputTexture: THREE.Texture, outputTarget?: THREE.WebGLRenderTarget | null, deltaTime: number = 16) {
+    // Store renderer reference for color monitoring
+    this.currentRenderer = renderer
     if (!this.enabled) {
       // If disabled, just copy input to output
       if (outputTarget) {
@@ -1761,10 +2061,17 @@ export class CirclePackingPass {
       if (!this.isAnimating && this.needsRecompute) {
         this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
           .then(imageData => {
+            // Store imageData for color monitoring coordinate mapping
+            this.imageData = imageData
             this.startPhysicsAnimation(imageData, imageData.width, imageData.height)
             this.needsRecompute = false
           })
           .catch(console.error)
+      }
+      
+      // Update adaptive color monitoring BEFORE physics to avoid position desync
+      if (this.enableColorMonitoring) {
+        this.updateColorMonitoring(inputTexture, deltaTime)
       }
       
       // Update animation if running
@@ -1792,6 +2099,8 @@ export class CirclePackingPass {
       
       this.getImageDataFromTexture(renderer, inputTexture, targetWidth, targetHeight)
         .then(imageData => {
+          // Store imageData for color monitoring coordinate mapping
+          this.imageData = imageData
           // CRITICAL: Update resolution uniform to match ImageData dimensions for correct coordinate mapping
           this.material.uniforms.resolution.value.set(imageData.width, imageData.height)
           
