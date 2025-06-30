@@ -205,11 +205,6 @@ export class CirclePackingPass {
   public enablePeriodicUpdates: boolean = true // Enable periodic color and radius updates
   public colorUpdateInterval: number = 1000 // How often to update colors (ms)
   public colorAnimationDuration: number = 500 // How long color changes take to animate (ms)
-  public enableColorChangeMap: boolean = true // Enable color change detection for adaptive sizing
-  public showColorChangeMap: boolean = false // Show the color change gradient visualization
-  public gradientThreshold: number = 0.25 // Threshold for what counts as "high change" (0-1)
-  public enableVectorField: boolean = false // Enable vector field pointing toward high-change areas (disabled by default for debugging)
-  public vectorFieldStrength: number = 0.8 // How strongly vectors influence circle placement
   public movementDistance: number = 20 // Maximum distance circles can move (pixels)
   
   
@@ -242,37 +237,19 @@ export class CirclePackingPass {
   private generationProgress: number = 0
   private useWebWorker: boolean = true // Can be disabled for debugging
   
-  // Color change detection for adaptive sizing
-  private colorChangeMap: Float32Array | null = null
-  private previousImageData: ImageData | null = null
-  private lastColorChangeUpdate: number = 0
-  private colorChangeTexture: THREE.DataTexture | null = null
   
-  // SDF and vector field for gradient-based placement
-  private gradientSDF: Float32Array | null = null // Distance field to nearest high-change area
-  private vectorField: Float32Array | null = null // Vector field pointing toward high-change areas (x,y per pixel)
-  private highChangePoints: Array<{x: number, y: number}> = [] // Cached high-change points for SDF calculation
-  private sdfSampling: number = 4 // SDF resolution reduction factor
-  private sampledWidth: number = 0
-  private sampledHeight: number = 0
   
   // Visualization overlay
   private visualizationCanvas: HTMLCanvasElement | null = null
   private visualizationContext: CanvasRenderingContext2D | null = null
   private lastVisualizationUpdate: number = 0
   
-  // Delayed gradient calculation
-  private gradientCalculationDelay: number = 3000 // 3 second delay
-  private gradientCalculationStartTime: number = 0
-  private hasCalculatedGradients: boolean = false
   
-  // SDF calculation - only once or when camera moves
-  private hasCachedSdf: boolean = false
-  private lastCameraPosition: { x: number, y: number, z: number } | null = null
-  private cameraMovementThreshold: number = 0.1 // Minimum camera movement to trigger SDF recalculation
   
   // Mouse interaction
   private mousePosition: { x: number, y: number } = { x: 0, y: 0 }
+  private targetMousePosition: { x: number, y: number } = { x: 0, y: 0 } // Raw mouse target
+  private mouseVelocity: { x: number, y: number } = { x: 0, y: 0 } // Current velocity
   private previousMousePosition: { x: number, y: number } = { x: 0, y: 0 }
   public mouseInfluenceRadius: number = 80 // Radius of mouse influence
   public mouseForceStrength: number = 50 // Force strength multiplier
@@ -280,8 +257,15 @@ export class CirclePackingPass {
   private isMouseActive: boolean = false
   private canvas: HTMLCanvasElement | null = null
   private mouseListenersAdded: boolean = false
-  // Smoothing parameters
-  public mouseMovementSmoothing: number = 0.8 // 0 = no smoothing, 1 = heavy smoothing
+  
+  // Playful momentum physics parameters
+  public mouseSpringStrength: number = 0.20 // Spring force toward target (higher = snappier)
+  public mouseDamping: number = 0.45 // Velocity damping (higher = more damping)
+  public maxMouseVelocity: number = 65 // Maximum velocity to prevent wild overshoots
+  public overshootMultiplier: number = 1.15 // How much overshoot to allow (1.0 = no overshoot)
+  
+  // Legacy smoothing parameters (kept for compatibility)
+  public mouseMovementSmoothing: number = 0.8 // 0 = no smoothing, 1 = heavy smoothing  
   public forceStabilization: number = 0.85 // Reduces force when circle velocity is high
   
   // Track parameter changes to trigger recompute
@@ -333,8 +317,6 @@ export class CirclePackingPass {
         globalBackgroundB: { value: 0.08 },
         circleDataTexture: { value: this.circleDataTexture },
         numCircles: { value: 0 },
-        colorChangeMap: { value: null },
-        showColorChangeMap: { value: 0.0 },
         mousePosition: { value: new THREE.Vector2(0, 0) },
         mouseInfluenceRadius: { value: this.mouseInfluenceRadius },
         showMouseInfluence: { value: 0.0 }
@@ -367,7 +349,6 @@ export class CirclePackingPass {
   
   private initializeWebWorker(): void {
     if (!this.useWebWorker || typeof Worker === 'undefined') {
-      console.log('WebWorker not available or disabled, using main thread')
       return
     }
     
@@ -394,16 +375,13 @@ export class CirclePackingPass {
       }
       
       this.worker.onerror = (error) => {
-        console.error('WebWorker error:', error)
         this.isGenerating = false
         // Fallback to main thread
         this.useWebWorker = false
       }
       
-      console.log('WebWorker initialized successfully')
       
     } catch (error) {
-      console.warn('Failed to initialize WebWorker, falling back to main thread:', error)
       this.useWebWorker = false
     }
   }
@@ -421,17 +399,14 @@ export class CirclePackingPass {
     this.initializeProgressiveGrowth()
     
     this.updateCircleDataInShader()
-    console.log(`WebWorker completed: ${circles.length} circles generated`)
   }
   
   private onWorkerProgress(data: { message: string, progress: number }): void {
     this.generationProgress = data.progress
     // You could emit this progress to the UI if needed
-    console.log(`Progress: ${data.progress}% - ${data.message}`)
   }
   
   private onWorkerError(data: { message: string }): void {
-    console.error('WebWorker generation error:', data.message)
     this.isGenerating = false
     this.generationProgress = 0
     // Fallback to main thread generation
@@ -441,7 +416,6 @@ export class CirclePackingPass {
   
   private generateCirclesWithWorker(imageData: ImageData): void {
     if (!this.worker) {
-      console.error('WebWorker not available')
       return
     }
     
@@ -502,10 +476,8 @@ export class CirclePackingPass {
     
     // Use physics-based placement if enabled, otherwise use simple random placement
     if (this.usePhysicsPlacement) {
-      console.log('Using physics-based bouncing ball placement system')
       return this.generatePhysicsBasedCirclePacking(originalImageData, width, height, spatialStructure)
     } else {
-      console.log('Using simple random placement with physics relaxation')
       return this.generateSimpleCirclePacking(originalImageData, width, height, spatialStructure)
     }
   }
@@ -520,12 +492,7 @@ export class CirclePackingPass {
     const areaRatio = screenArea / baseArea
     let baseAttempts = Math.floor(this.totalCircles * areaRatio * 10) // Scale attempts with screen size
     
-    // Boost attempts when color change detection is enabled to pack more small circles in gradient areas
-    if (this.enableColorChangeMap && this.colorChangeMap) {
-      baseAttempts = Math.floor(baseAttempts * 1.5) // 50% more attempts for gradient-based dense packing
-    }
     
-    console.log(`Screen: ${width}×${height} (${screenArea}px), Target circles: ${this.totalCircles}, Attempts: ${baseAttempts}`)
     
     const totalAttempts = baseAttempts
     
@@ -537,20 +504,9 @@ export class CirclePackingPass {
       // Vector field-guided position sampling
       let x: number, y: number
       
-      if (this.enableVectorField && this.vectorField && Math.random() < 0.9) {
-        // 90% of attempts: use vector field-guided sampling
-        const sampleResult = this.sampleVectorFieldGuidedPosition(width, height)
-        x = sampleResult.x
-        y = sampleResult.y
-      } else if (this.enableColorChangeMap && this.colorChangeMap && Math.random() < 0.8) {
-        // Fallback: weighted sampling based on color change intensity
-        x = this.sampleWeightedPosition(width, height).x
-        y = this.sampleWeightedPosition(width, height).y
-      } else {
-        // Pure random sampling for coverage
-        x = Math.random() * width
-        y = Math.random() * height
-      }
+      // Pure random sampling
+      x = Math.random() * width
+      y = Math.random() * height
       
       // Calculate optimal radius for this position (adaptive sizing)
       const optimalRadius = this.calculateOptimalRadius(x, y, spatialStructure, width, height)
@@ -559,7 +515,6 @@ export class CirclePackingPass {
       if (optimalRadius < this.minCircleSize) {
         consecutiveFailures++
         if (consecutiveFailures > maxConsecutiveFailures) {
-          console.log(`Stopping circle generation - packing saturated after ${circles.length} circles`)
           break
         }
         continue
@@ -623,7 +578,6 @@ export class CirclePackingPass {
       }
     }
     
-    console.log(`Simple placement: generated ${circles.length} circles`)
     
     // Apply physics relaxation if enabled
     if (this.useVerletPhysics) {
@@ -642,33 +596,6 @@ export class CirclePackingPass {
     // Use spatial hash grid to find the largest radius that doesn't collide
     let optimalRadius = spatialStructure.getMaxRadiusAt(x, y, this.circleSpacing, {width, height})
     
-    // Apply SDF-based sizing if vector field is enabled
-    if (this.enableVectorField && this.gradientSDF) {
-      const normalizedDistance = this.getNormalizedSDFValue(x, y) // 0 = at high-change, 1 = far from high-change
-      
-      // Simple linear scaling from min to max size based on SDF distance
-      // Close to edges (distance 0) = minCircleSize, far from edges (distance 1) = maxCircleSize
-      const linearRadius = this.minCircleSize + (normalizedDistance * (this.maxCircleSize - this.minCircleSize))
-      
-      // Still respect collision constraints
-      return Math.min(maxPossibleRadius, linearRadius)
-    }
-    // Fallback to original color change-based sizing
-    else if (this.enableColorChangeMap && this.colorChangeMap) {
-      const colorChangeIntensity = this.getColorChangeIntensity(x, y)
-      
-      // High color change = much smaller, denser circles
-      // Low color change = larger, sparser circles
-      const sizeMultiplier = 1.0 - (colorChangeIntensity * 0.85) // Reduce size by up to 85%
-      optimalRadius *= sizeMultiplier
-      
-      // In high-change areas, allow much smaller circles than normal minimum
-      const adaptiveMinSize = colorChangeIntensity > 0.3 ? 
-        this.minCircleSize * 0.3 : this.minCircleSize
-      
-      // Clamp to adaptive range
-      return Math.max(adaptiveMinSize, Math.min(maxPossibleRadius, optimalRadius))
-    }
     
     // Normal sizing without any gradient detection
     return Math.max(this.minCircleSize, Math.min(maxPossibleRadius, optimalRadius))
@@ -681,20 +608,8 @@ export class CirclePackingPass {
       return false
     }
     
-    // Adaptive spacing based on SDF or gradient intensity
-    let spacing = this.circleSpacing
-    if (this.enableVectorField && this.gradientSDF) {
-      const sdfValue = this.getSDFValue(x, y) // 0 = at high-change, 1 = far from high-change
-      // Near high-change areas, allow much tighter packing
-      spacing = this.circleSpacing * (0.3 + sdfValue * 0.7) // Range: 0.3x to 1.0x spacing
-    } else if (this.enableColorChangeMap && this.colorChangeMap) {
-      const colorChangeIntensity = this.getColorChangeIntensity(x, y)
-      // In high-gradient areas, allow tighter packing (smaller spacing)
-      spacing = this.circleSpacing * (1.0 - colorChangeIntensity * 0.3) // Reduce spacing by up to 30%
-    }
-    
-    // Check for collisions with existing circles using adaptive spacing
-    const collision = spatialStructure.checkCollision({x, y, radius, color: [0,0,0]}, spacing)
+    // Check for collisions with existing circles
+    const collision = spatialStructure.checkCollision({x, y, radius, color: [0,0,0]}, this.circleSpacing)
     return collision === null
   }
   
@@ -720,7 +635,6 @@ export class CirclePackingPass {
     const fixedTimeStep = 0.016 // ~60 FPS timestep
     const substepDelta = fixedTimeStep / this.substeps
     
-    console.log(`Verlet physics: ${this.physicsIterations} iterations, ${this.substeps} substeps`)
     
     for (let iteration = 0; iteration < this.physicsIterations; iteration++) {
       for (let substep = 0; substep < this.substeps; substep++) {
@@ -752,12 +666,12 @@ export class CirclePackingPass {
       // Apply vector field forces to push circles toward high-change areas
       let vectorForceX = 0
       let vectorForceY = 0
-      if (this.enableVectorField && this.vectorField) {
-        const vector = this.getVectorToHighChange(circle.x, circle.y)
+      if (false) { // Disabled: vector field removed
+        const vector = { x: 0, y: 0 } // Simplified: no gradient guidance
         const sdfValue = this.getSDFValue(circle.x, circle.y)
         
         // Stronger force when farther from high-change areas
-        const vectorForceStrength = 0.1 * this.vectorFieldStrength * sdfValue * deltaTime * deltaTime
+        const vectorForceStrength = 0 // Disabled: vector field removed
         vectorForceX = vector.x * vectorForceStrength
         vectorForceY = vector.y * vectorForceStrength
       }
@@ -794,10 +708,6 @@ export class CirclePackingPass {
           mouseForceX = forceDirectionX * forceMagnitude * deltaTime
           mouseForceY = forceDirectionY * forceMagnitude * deltaTime
           
-          // Debug logging occasionally
-          if (Math.random() < 0.01) {
-            console.log(`Mouse force: distance=${distance.toFixed(1)}, force=${forceMagnitude.toFixed(2)}, velocity=${velocityMagnitude.toFixed(2)}`)
-          }
         }
       }
       
@@ -913,7 +823,6 @@ export class CirclePackingPass {
     const iterations = Math.min(10, Math.max(3, Math.floor(circles.length / 50))) // Adaptive iterations
     const dampingFactor = 0.5 // Reduce movement over time
     
-    console.log(`Applying ${iterations} simple force relaxation iterations to ${circles.length} circles`)
     
     for (let iteration = 0; iteration < iterations; iteration++) {
       const forces: Array<{fx: number, fy: number}> = []
@@ -996,7 +905,6 @@ export class CirclePackingPass {
       
       // Early termination if system is stable
       if (maxMovement < 0.1) {
-        console.log(`Relaxation converged after ${iteration + 1} iterations`)
         break
       }
     }
@@ -1014,7 +922,6 @@ export class CirclePackingPass {
     const areaRatio = screenArea / baseArea
     const maxCircles = Math.floor(this.packingDensity * 2 * areaRatio) // Adjust density for physics placement
     
-    console.log(`Physics placement: generating ${maxCircles} circles (area ratio: ${areaRatio.toFixed(2)}) with bouncing ball simulation`)
     
     // Spawn circles from the top with random initial velocities
     for (let i = 0; i < maxCircles; i++) {
@@ -1038,7 +945,6 @@ export class CirclePackingPass {
       }
     }
     
-    console.log(`Physics placement complete: ${circles.length} circles settled`)
     
     // Apply final Verlet physics simulation for polish
     if (this.useVerletPhysics) {
@@ -1216,7 +1122,6 @@ export class CirclePackingPass {
   public startPhysicsAnimation(originalImageData: ImageData, width: number, height: number): void {
     if (this.isAnimating) return // Already animating
     
-    console.log('Starting real-time physics animation!')
     
     // Create spatial structure for animation
     this.spatialStructure = this.useSpatialHashGrid 
@@ -1242,7 +1147,6 @@ export class CirclePackingPass {
     // Start animation
     this.isAnimating = true
     this.animationStartTime = performance.now()
-    console.log(`Animation started with ${this.circles.length} circles`)
   }
   
   // Update physics animation (called every frame)
@@ -1253,7 +1157,6 @@ export class CirclePackingPass {
     // Only stop if animatePhysics is disabled
     if (!this.animatePhysics) {
       this.isAnimating = false
-      console.log('Physics animation stopped - animatePhysics disabled')
       return false
     }
     
@@ -1285,7 +1188,6 @@ export class CirclePackingPass {
   // Stop animation
   public stopPhysicsAnimation(): void {
     this.isAnimating = false
-    console.log('Animation stopped')
   }
   
   // Check if currently animating
@@ -1319,7 +1221,6 @@ export class CirclePackingPass {
           // Stop growing - we've hit something, lock size but remain movable
           circle.targetRadius = circle.currentRadius // Lock current size as final
           // Don't pin - allow physics to push this circle if needed
-          console.log(`Dynamic spawn stabilized at radius ${circle.currentRadius.toFixed(1)} (collision detected)`)
           continue
         }
         
@@ -1328,7 +1229,6 @@ export class CirclePackingPass {
           circle.currentRadius = circle.targetRadius
           circle.radius = circle.targetRadius
           // Don't pin - allow physics to push this circle if needed
-          console.log(`Dynamic spawn reached target radius ${circle.targetRadius.toFixed(1)}`)
           needsUpdate = true
           continue
         }
@@ -1388,7 +1288,6 @@ export class CirclePackingPass {
           // Growth is complete - sample final color
           circle.finalColor = this.sampleCircleColorAtSize(circle)
           circle.hasCompletedGrowth = true
-          console.log(`Circle completed growth - sampled final color`)
         }
         
         // Update color based on growth progress (fade from initial to final)
@@ -1438,7 +1337,6 @@ export class CirclePackingPass {
       circle.hasCompletedGrowth = false
     }
     
-    console.log(`Progressive growth initialized for ${this.circles.length} circles`)
   }
 
   // Update adaptive color monitoring for all circles
@@ -1446,10 +1344,6 @@ export class CirclePackingPass {
   private updateSimplePeriodicUpdates(currentTime: number): void {
     if (!this.circles || this.circles.length === 0) return
     
-    // Update color change detection map for gradient-based radius adjustment
-    if (this.enableColorChangeMap) {
-      this.updateColorChangeDetection(currentTime)
-    }
     
     // Process a few circles per frame for color and radius updates
     const circlesPerFrame = Math.max(1, Math.ceil(this.circles.length * 0.02)) // 2% per frame
@@ -1497,7 +1391,6 @@ export class CirclePackingPass {
     
     // Debug log occasionally
     if (Math.random() < 0.01) {
-      console.log(`Color fade-in started: RGB(${circle.color.map(c => (c*255).toFixed(0)).join(',')}) → RGB(${circle.finalColor.map(c => (c*255).toFixed(0)).join(',')})`)
     }
   }
   
@@ -1549,265 +1442,22 @@ export class CirclePackingPass {
       circle.adaptationPhase = 'resampling' // Start with seeking new position
       circle.originalColor = [...circle.color] as [number, number, number]
       
-      console.log(`Circle below threshold (${similarity.toFixed(3)}): starting color seeking`)
     }
     // If similarity is good, no action needed - circle stays in place
   }
 
-  // Calculate SDF (Signed Distance Field) to nearest threshold pixels (white pixels in gradient map)
-  private calculateGradientSDF(width: number, height: number): void {
-    if (!this.colorChangeMap) return
-    
-    // Safety check for reasonable image size - with aggressive downsampling, we can handle much larger images
-    if (width * height > 4096 * 4096) {
-      console.warn(`Image too large for SDF calculation (${width}x${height} = ${width * height} pixels), skipping`)
-      return
-    }
-    
-    // Reduce SDF resolution for performance - sample every N pixels  
-    this.sdfSampling = 32 // Sample every 32nd pixel for maximum performance
-    this.sampledWidth = Math.ceil(width / this.sdfSampling)
-    this.sampledHeight = Math.ceil(height / this.sdfSampling)
-    
-    // Additional safety check for vector field enable state
-    if (!this.enableVectorField) {
-      console.log('Vector field disabled, skipping SDF calculation')
-      return
-    }
-    
-    console.log(`Calculating SDF for ${width}x${height} image (sampled at ${this.sampledWidth}x${this.sampledHeight}), threshold: ${this.gradientThreshold}`)
-    
-    // Initialize arrays at reduced resolution
-    this.gradientSDF = new Float32Array(this.sampledWidth * this.sampledHeight)
-    this.vectorField = new Float32Array(this.sampledWidth * this.sampledHeight * 2) // x,y vectors
-    this.highChangePoints = []
-    
-    // Find ALL threshold pixels (white pixels in gradient map)
-    let maxIntensity = 0
-    let totalIntensity = 0
-    let pixelCount = 0
-    
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const index = y * width + x
-        if (index < this.colorChangeMap.length) {
-          const changeIntensity = this.colorChangeMap[index]
-          
-          maxIntensity = Math.max(maxIntensity, changeIntensity)
-          totalIntensity += changeIntensity
-          pixelCount++
-          
-          // Threshold crossing = white pixel = edge
-          if (changeIntensity >= this.gradientThreshold) {
-            this.highChangePoints.push({x, y})
-          }
-        }
-      }
-    }
-    
-    const avgIntensity = totalIntensity / pixelCount
-    console.log(`Gradient analysis: max=${maxIntensity.toFixed(3)}, avg=${avgIntensity.toFixed(3)}, threshold=${this.gradientThreshold}, found ${this.highChangePoints.length} pixels (${((this.highChangePoints.length / (width * height)) * 100).toFixed(1)}% of image)`)
-    
-    // If very few threshold pixels found, adjust threshold dynamically
-    if (this.highChangePoints.length < (width * height) * 0.01) { // Less than 1% of image
-      const dynamicThreshold = Math.max(0.1, avgIntensity * 0.8) // Use 80% of average as threshold
-      console.log(`Too few threshold pixels, trying dynamic threshold: ${dynamicThreshold.toFixed(3)}`)
-      
-      this.highChangePoints = []
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const index = y * width + x
-          if (index < this.colorChangeMap.length) {
-            const changeIntensity = this.colorChangeMap[index]
-            if (changeIntensity >= dynamicThreshold) {
-              this.highChangePoints.push({x, y})
-            }
-          }
-        }
-      }
-      console.log(`Dynamic threshold found ${this.highChangePoints.length} pixels (${((this.highChangePoints.length / (width * height)) * 100).toFixed(1)}% of image)`)
-    }
-    
-    // Fallback if no threshold pixels found
-    if (this.highChangePoints.length === 0) {
-      console.warn('No threshold pixels found, using image edges as fallback')
-      // Use image edges as fallback
-      for (let i = 0; i < width; i += 10) {
-        this.highChangePoints.push({x: i, y: 0}) // Top edge
-        this.highChangePoints.push({x: i, y: height - 1}) // Bottom edge
-      }
-      for (let i = 0; i < height; i += 10) {
-        this.highChangePoints.push({x: 0, y: i}) // Left edge
-        this.highChangePoints.push({x: width - 1, y: i}) // Right edge
-      }
-    }
-    
-    // Calculate maximum possible distance (image diagonal)
-    const maxDistance = Math.sqrt(width * width + height * height)
-    const halfMaxDistance = maxDistance / 2
-    
-    console.log(`Max distance: ${maxDistance.toFixed(1)}, Half max (no movement zone): ${halfMaxDistance.toFixed(1)}`)
-    
-    // Calculate distance field and vectors for sampled pixels only
-    for (let sy = 0; sy < this.sampledHeight; sy++) {
-      for (let sx = 0; sx < this.sampledWidth; sx++) {
-        // Map sampled coordinates back to original image coordinates
-        const x = sx * this.sdfSampling
-        const y = sy * this.sdfSampling
-        const index = sy * this.sampledWidth + sx
-        
-        // Find nearest threshold pixel up to max distance to avoid expensive calculations
-        let minDistance = halfMaxDistance // Start with max useful distance
-        let nearestPoint = this.highChangePoints[0]
-        
-        for (const point of this.highChangePoints) {
-          const dx = x - point.x
-          const dy = y - point.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-          
-          if (distance < minDistance) {
-            minDistance = distance
-            nearestPoint = point
-          }
-          
-          // Early exit if we're already very close
-          if (minDistance < 5) break
-        }
-        
-        // Store actual distance (clamped to max useful distance)
-        this.gradientSDF[index] = Math.min(minDistance, halfMaxDistance)
-        
-        // Calculate unit vector pointing toward nearest threshold pixel
-        const vecDx = nearestPoint.x - x
-        const vecDy = nearestPoint.y - y
-        const length = Math.sqrt(vecDx * vecDx + vecDy * vecDy)
-        
-        if (length > 0) {
-          this.vectorField[index * 2] = vecDx / length     // x component (unit vector)
-          this.vectorField[index * 2 + 1] = vecDy / length // y component (unit vector)
-        } else {
-          this.vectorField[index * 2] = 0
-          this.vectorField[index * 2 + 1] = 0
-        }
-      }
-    }
-    
-    console.log(`SDF calculation complete: generated ${this.highChangePoints.length} threshold points, ${this.gradientSDF.length} SDF values, ${this.vectorField.length / 2} vectors`)
-  }
   
-  // Get actual distance to nearest threshold pixel (in pixels)
-  private getSDFValue(x: number, y: number): number {
-    if (!this.gradientSDF || !this.imageData || this.sampledWidth === 0) return 1000.0 // Large fallback distance
-    
-    // Map image coordinates to sampled coordinates
-    const sx = Math.max(0, Math.min(this.sampledWidth - 1, Math.floor(x / this.sdfSampling)))
-    const sy = Math.max(0, Math.min(this.sampledHeight - 1, Math.floor(y / this.sdfSampling)))
-    const index = sy * this.sampledWidth + sx
-    
-    if (index >= 0 && index < this.gradientSDF.length) {
-      return this.gradientSDF[index] // Actual distance in pixels
-    }
-    return 1000.0 // Safe fallback
-  }
   
-  // Get normalized distance (0 = at threshold, 1 = at max distance/2 or farther)
-  private getNormalizedSDFValue(x: number, y: number): number {
-    if (!this.imageData) return 1.0
-    
-    const actualDistance = this.getSDFValue(x, y)
-    const width = this.imageData.width
-    const height = this.imageData.height
-    const maxDistance = Math.sqrt(width * width + height * height)
-    const halfMaxDistance = maxDistance / 2
-    
-    // Normalize: 0 = at threshold, 1 = at half max distance or farther
-    return Math.min(1.0, actualDistance / halfMaxDistance)
-  }
 
-  // Check if SDF should be recalculated (only once or when camera moves)
-  private shouldRecalculateSDF(): boolean {
-    // Always calculate if we haven't cached it yet
-    if (!this.hasCachedSdf) {
-      return true
-    }
-    
-    // Check for camera movement if we have a renderer
-    if (this.currentRenderer && this.currentRenderer.xr) {
-      // For VR/AR, get camera from renderer
-      const camera = this.currentRenderer.xr.getCamera()
-      if (camera && this.hasCameraMoved(camera.position)) {
-        return true
-      }
-    }
-    
-    // Default: don't recalculate if already cached
-    return false
-  }
 
-  // Check if camera has moved significantly
-  private hasCameraMoved(currentPosition: THREE.Vector3): boolean {
-    if (!this.lastCameraPosition) {
-      // First time - store position and don't recalculate
-      this.lastCameraPosition = {
-        x: currentPosition.x,
-        y: currentPosition.y,
-        z: currentPosition.z
-      }
-      return false
-    }
-    
-    // Calculate distance moved
-    const dx = currentPosition.x - this.lastCameraPosition.x
-    const dy = currentPosition.y - this.lastCameraPosition.y
-    const dz = currentPosition.z - this.lastCameraPosition.z
-    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
-    
-    // If moved significantly, update position and recalculate
-    if (distance > this.cameraMovementThreshold) {
-      this.lastCameraPosition = {
-        x: currentPosition.x,
-        y: currentPosition.y,
-        z: currentPosition.z
-      }
-      this.hasCachedSdf = false // Force recalculation
-      console.log(`Camera moved ${distance.toFixed(3)} units, recalculating SDF`)
-      return true
-    }
-    
-    return false
-  }
 
-  // Update camera position for movement detection (to be called from external camera updates)
-  public updateCameraPosition(position: THREE.Vector3): void {
-    this.hasCameraMoved(position)
-  }
   
   // Get vector pointing toward nearest high-change area
-  private getVectorToHighChange(x: number, y: number): {x: number, y: number} {
-    if (!this.vectorField || !this.imageData || this.sampledWidth === 0) return {x: 0, y: 0}
-    
-    // Map image coordinates to sampled coordinates
-    const sx = Math.max(0, Math.min(this.sampledWidth - 1, Math.floor(x / this.sdfSampling)))
-    const sy = Math.max(0, Math.min(this.sampledHeight - 1, Math.floor(y / this.sdfSampling)))
-    const index = sy * this.sampledWidth + sx
-    
-    if (index >= 0 && index * 2 + 1 < this.vectorField.length) {
-      const vx = this.vectorField[index * 2]
-      const vy = this.vectorField[index * 2 + 1]
-      
-      // Safety check for valid vectors
-      if (isFinite(vx) && isFinite(vy)) {
-        return { x: vx, y: vy }
-      }
-    }
-    
-    return { x: 0, y: 0 } // Safe fallback
-  }
   
   
   // Find nearest high-gradient area for movement
   private findNearestHighGradientArea(x: number, y: number): {x: number, y: number} | null {
-    if (!this.colorChangeMap || !this.imageData) return null
+    if (!this.imageData) return null // Simplified: colorChangeMap removed
     
     const width = this.imageData.width
     const height = this.imageData.height
@@ -1828,7 +1478,7 @@ export class CirclePackingPass {
         const gradientValue = this.getColorChangeIntensity(testX, testY)
         
         // If this is a high-gradient area
-        if (gradientValue >= this.gradientThreshold) {
+        if (gradientValue >= 0.5 /* gradientThreshold removed */) {
           const distance = Math.sqrt((testX - x) ** 2 + (testY - y) ** 2)
           if (distance < bestDistance) {
             bestDistance = distance
@@ -1845,7 +1495,7 @@ export class CirclePackingPass {
   // Sample position using vector field guidance
   private sampleVectorFieldGuidedPosition(width: number, height: number): {x: number, y: number} {
     // Safety check
-    if (!this.vectorField || !this.gradientSDF) {
+    if (true) { // Simplified: vector field and SDF removed
       return {
         x: Math.random() * width,
         y: Math.random() * height
@@ -1861,8 +1511,8 @@ export class CirclePackingPass {
     const stepSize = Math.min(width, height) * 0.01 // Smaller step size for stability
     
     for (let step = 0; step < steps; step++) {
-      const vector = this.getVectorToHighChange(x, y)
-      const sdfValue = this.getSDFValue(x, y)
+      const vector = { x: 0, y: 0 } // Simplified: no gradient guidance
+      const sdfValue = 1000.0 // Simplified: no SDF calculation
       
       // Safety checks
       if (!isFinite(vector.x) || !isFinite(vector.y) || !isFinite(sdfValue)) {
@@ -1870,7 +1520,7 @@ export class CirclePackingPass {
       }
       
       // Stronger influence when farther from high-change areas
-      const influence = Math.min(1.0, sdfValue * this.vectorFieldStrength)
+      const influence = 0 // Simplified: vector field removed
       
       // Move toward high-change area with smaller steps
       const deltaX = vector.x * stepSize * influence
@@ -1972,15 +1622,12 @@ export class CirclePackingPass {
               circle.targetY = result.bestPosition.y
               circle.targetColor = result.bestPosition.color
               
-              console.log(`Circle found better position: (${result.bestPosition.x.toFixed(1)}, ${result.bestPosition.y.toFixed(1)})`)
             } else {
               // No better position found, end adaptation
               circle.isAdapting = false
               circle.adaptationPhase = undefined
-              console.log('Circle found no better position, staying in place')
             }
           }).catch(err => {
-            console.error('Color seeking failed:', err)
             circle.isAdapting = false
             circle.adaptationPhase = undefined
           })
@@ -2022,16 +1669,13 @@ export class CirclePackingPass {
                 const newRadius = circle.radius + 0.2
                 circle.radius = newRadius
                 circle.mass = Math.PI * circle.radius * circle.radius
-                console.log(`Circle moved ${moveDistance.toFixed(1)}px and grew to radius ${circle.radius.toFixed(2)}`)
               } else if (collisionDistance < circle.radius * 0.8) {
                 // Very limited space, shrink slightly
                 const newRadius = Math.max(this.minCircleSize, circle.radius * 0.95)
                 circle.radius = newRadius
                 circle.mass = Math.PI * circle.radius * circle.radius
-                console.log(`Circle moved ${moveDistance.toFixed(1)}px and shrunk to radius ${circle.radius.toFixed(2)}`)
               } else {
                 // Moderate space, just move without size change
-                console.log(`Circle moved ${moveDistance.toFixed(1)}px, radius unchanged`)
               }
               
               needsUpdate = true
@@ -2068,7 +1712,6 @@ export class CirclePackingPass {
       if (circle.isAdapting && circle.adaptationPhase === 'growing') {
         circle.isAdapting = false
         circle.adaptationPhase = undefined
-        console.log('Color fade completed')
       }
     }, this.colorUpdateInterval * 2) // Fade duration = 2x color update interval
   }
@@ -2126,7 +1769,6 @@ export class CirclePackingPass {
           bestPosition = {x: testX, y: testY, color: pixelColor}
         }
       } catch (error) {
-        console.warn(`Failed to sample position (${testX.toFixed(1)}, ${testY.toFixed(1)}):`, error)
       }
     }
     
@@ -2212,7 +1854,6 @@ export class CirclePackingPass {
     // Delay gradient calculation to allow initial settling
     if (!this.gradientCalculationStartTime) {
       this.gradientCalculationStartTime = currentTime
-      console.log('Starting gradient calculation delay timer...')
       return
     }
     
@@ -2221,16 +1862,12 @@ export class CirclePackingPass {
     }
     
     if (!this.hasCalculatedGradients) {
-      console.log('Delay complete, calculating gradients...')
       this.hasCalculatedGradients = true
     }
     
     this.lastColorChangeUpdate = currentTime
     
-    // Initialize color change map if needed
-    if (!this.colorChangeMap) {
-      this.colorChangeMap = new Float32Array(this.imageData.width * this.imageData.height)
-    }
+    // Color change map removed - functionality simplified
     
     const width = this.imageData.width
     const height = this.imageData.height
@@ -2266,10 +1903,10 @@ export class CirclePackingPass {
           )
           
           // Combine spatial and temporal changes (weighted average)
-          const spatialChange = this.colorChangeMap[index]
+          const spatialChange = 0 // Simplified: colorChangeMap removed
           const combinedChange = spatialChange * 0.7 + (temporalChange / Math.sqrt(3)) * 0.3
           
-          this.colorChangeMap[index] = Math.min(1.0, combinedChange)
+          // colorChangeMap assignment removed
         }
       }
     }
@@ -2282,20 +1919,17 @@ export class CirclePackingPass {
     )
     
     // Calculate SDF and vector field when enabled (only once or when camera moves)
-    if (this.enableVectorField) {
-      const shouldCalculateSdf = this.shouldRecalculateSDF()
+    if (false) { // Disabled: vector field removed
+      const shouldCalculateSdf = false // SDF removed
       
       if (shouldCalculateSdf) {
         try {
           const startTime = performance.now()
           this.calculateGradientSDF(width, height)
           const endTime = performance.now()
-          console.log(`SDF calculation took ${(endTime - startTime).toFixed(1)}ms (calculated once)`)
           this.hasCachedSdf = true
         } catch (error) {
-          console.error('SDF calculation failed:', error)
-          // Disable vector field on error
-          this.enableVectorField = false
+          // Disable vector field on error (field removed)
         }
       }
     }
@@ -2303,7 +1937,7 @@ export class CirclePackingPass {
   
   // Calculate spatial hue gradients using Sobel edge detection
   private calculateSpatialColorGradients(width: number, height: number): void {
-    if (!this.imageData || !this.colorChangeMap) return
+    if (!this.imageData || !null /* colorChangeMap removed */) return
     
     // Downsample the image aggressively for maximum performance
     const downsampleFactor = 32 // 32x downsampling for gradient calculation
@@ -2311,7 +1945,6 @@ export class CirclePackingPass {
     const downsampledHeight = Math.ceil(height / downsampleFactor)
     const downsampledData = this.downsampleImageData(this.imageData, downsampleFactor)
     
-    console.log(`Calculating gradients on downsampled image: ${width}x${height} -> ${downsampledWidth}x${downsampledHeight}`)
     
     // Sobel X and Y kernels for edge detection
     const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]
@@ -2377,7 +2010,6 @@ export class CirclePackingPass {
         
         // Debug sampling (minimal)
         if (debugSampleCount < 1 && gradientMagnitudeH > 0.1) {
-          console.log(`Hue sample: hue=${centerHue.toFixed(3)}, sat=${centerSaturation.toFixed(3)}, gradient=${gradientMagnitudeH.toFixed(4)}`)
           debugSampleCount++
         }
         
@@ -2386,7 +2018,6 @@ export class CirclePackingPass {
       }
     }
     
-    console.log(`Hue gradient calculation: max gradient = ${maxGradient.toFixed(4)}`)
     
     // Debug: Check gradient distribution
     const sortedGradients = [...gradients].sort((a, b) => a - b)
@@ -2394,7 +2025,6 @@ export class CirclePackingPass {
     const medianGrad = sortedGradients[Math.floor(sortedGradients.length / 2)]
     const maxGrad = sortedGradients[sortedGradients.length - 1]
     const avgGrad = gradients.reduce((sum, val) => sum + val, 0) / gradients.length
-    console.log(`Gradient stats: min=${minGrad.toFixed(4)}, median=${medianGrad.toFixed(4)}, avg=${avgGrad.toFixed(4)}, max=${maxGrad.toFixed(4)}`)
     
     // Second pass: normalize all values to 0-1 range and upsample to full resolution
     this.upsampleGradients(gradients, maxGradient, downsampledWidth, downsampledHeight, width, height, downsampleFactor)
@@ -2402,44 +2032,12 @@ export class CirclePackingPass {
   
   // Get color change intensity at a position (0 = no change, 1 = maximum change)
   private getColorChangeIntensity(x: number, y: number): number {
-    if (!this.colorChangeMap || !this.imageData) {
-      return 0
-    }
-    
-    const clampedX = Math.floor(Math.max(0, Math.min(this.imageData.width - 1, x)))
-    const clampedY = Math.floor(Math.max(0, Math.min(this.imageData.height - 1, y)))
-    const index = clampedY * this.imageData.width + clampedX
-    
-    return this.colorChangeMap[index] || 0
+    return 0 // Simplified: colorChangeMap removed
   }
   
   // Sample a position weighted by color change intensity (more likely to pick high-change areas)
   private sampleWeightedPosition(width: number, height: number): {x: number, y: number} {
-    if (!this.colorChangeMap || !this.imageData) {
-      // Fallback to random if no color change data
-      return {
-        x: Math.random() * width,
-        y: Math.random() * height
-      }
-    }
-    
-    // Rejection sampling: try random positions and accept based on change intensity
-    const maxAttempts = 20
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const x = Math.random() * width
-      const y = Math.random() * height
-      const changeIntensity = this.getColorChangeIntensity(x, y)
-      
-      // Higher change intensity = higher acceptance probability
-      // Base acceptance: 0.3, max acceptance: 1.0
-      const acceptanceProbability = 0.3 + (changeIntensity * 0.7)
-      
-      if (Math.random() < acceptanceProbability) {
-        return {x, y}
-      }
-    }
-    
-    // Fallback to random position if rejection sampling fails
+    // Simplified: always use random sampling since colorChangeMap removed
     return {
       x: Math.random() * width,
       y: Math.random() * height
@@ -3267,7 +2865,7 @@ export class CirclePackingPass {
 
   // Render gradient visualization overlay
   private renderGradientVisualization(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    if (!this.showColorChangeMap || !this.colorChangeMap || !this.imageData) return
+    if (!false /* showColorChangeMap removed */ || !null /* colorChangeMap removed */ || !this.imageData) return
     
     // Use imageData dimensions, not canvas dimensions, to avoid coordinate mismatch
     const imageWidth = this.imageData.width
@@ -3282,7 +2880,7 @@ export class CirclePackingPass {
     for (let y = 0; y < imageHeight; y++) {
       for (let x = 0; x < imageWidth; x++) {
         const index = y * imageWidth + x
-        const gradientValue = this.colorChangeMap[index] || 0
+        const gradientValue = null /* colorChangeMap removed */[index] || 0
         
         // Track stats
         minVisGrad = Math.min(minVisGrad, gradientValue)
@@ -3293,7 +2891,7 @@ export class CirclePackingPass {
         // Color based on gradient value using hue mapping
         const hue = gradientValue * 240 // Map 0-1 to 0-240 degrees (blue to red)
         const saturation = 100 // Full saturation for vibrant colors
-        const lightness = gradientValue >= this.gradientThreshold ? 80 : 50 // Brighter for threshold areas
+        const lightness = gradientValue >= 0.5 /* gradientThreshold removed */ ? 80 : 50 // Brighter for threshold areas
         const alpha = Math.max(120, gradientValue * 200) // More opacity for higher gradients
         
         // Convert HSL to RGB
@@ -3312,11 +2910,9 @@ export class CirclePackingPass {
     }
     
     const avgVisGrad = totalVisGrad / pixelCount
-    console.log(`Visualization gradient values: min=${minVisGrad.toFixed(4)}, avg=${avgVisGrad.toFixed(4)}, max=${maxVisGrad.toFixed(4)}, threshold=${this.gradientThreshold}`)
     
     // Count pixels above threshold
-    const aboveThreshold = Array.from(this.colorChangeMap).filter(val => val >= this.gradientThreshold).length
-    console.log(`Pixels above threshold: ${aboveThreshold} / ${this.colorChangeMap.length} (${(aboveThreshold / this.colorChangeMap.length * 100).toFixed(1)}%)`)
+    const aboveThreshold = Array.from(null /* colorChangeMap removed */).filter(val => val >= 0.5 /* gradientThreshold removed */).length
     
     // Draw gradient overlay, scaling to canvas size if needed
     ctx.putImageData(gradientImageData, 0, 0)
@@ -3338,13 +2934,11 @@ export class CirclePackingPass {
 
   // Render vector field arrows
   private renderVectorFieldVisualization(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    if (!this.enableVectorField) {
-      console.log('Vector field disabled in settings')
+    if (!false /* enableVectorField removed */) {
       return
     }
     
-    if (!this.vectorField || this.sampledWidth === 0) {
-      console.log(`Vector field data missing: vectorField=${!!this.vectorField}, sampledWidth=${this.sampledWidth}, gradientSDF=${!!this.gradientSDF}`)
+    if (!null /* vectorField removed */ || this.sampledWidth === 0) {
       return
     }
     
@@ -3361,12 +2955,12 @@ export class CirclePackingPass {
     for (let y = gridSpacing; y < height; y += gridSpacing) {
       for (let x = gridSpacing; x < width; x += gridSpacing) {
         // Get vector at this position
-        const vector = this.getVectorToHighChange(x, y)
-        const distance = this.getSDFValue(x, y)
+        const vector = { x: 0, y: 0 } // Simplified: no gradient guidance
+        const distance = 1000.0 // Simplified: no SDF calculation
         
         // Scale arrow length by inverse distance (closer to edges = longer arrows)
         const maxArrowLength = 30 // Longer arrows for better visibility
-        const normalizedDistance = this.getNormalizedSDFValue(x, y)
+        const normalizedDistance = 1.0 // Simplified: no SDF calculation
         const arrowLength = maxArrowLength * (1.0 - normalizedDistance) // Closer = longer
         
         // Only draw significant arrows for performance
@@ -3407,7 +3001,6 @@ export class CirclePackingPass {
     
     // Optional debug logging
     if (arrowsDrawn > 0 && Math.random() < 0.01) {
-      console.log(`Vector field: ${arrowsDrawn} arrows drawn`)
     }
   }
 
@@ -3490,7 +3083,7 @@ export class CirclePackingPass {
   // Upsample gradient results back to full resolution
   private upsampleGradients(gradients: number[], maxGradient: number, downsampledWidth: number, downsampledHeight: number, fullWidth: number, fullHeight: number, factor: number): void {
     // Clear the color change map
-    this.colorChangeMap.fill(0)
+    null /* colorChangeMap removed */.fill(0)
     
     // Normalize and upsample gradients
     let gradientIndex = 0
@@ -3506,7 +3099,7 @@ export class CirclePackingPass {
             
             if (fullX < fullWidth && fullY < fullHeight) {
               const fullIndex = fullY * fullWidth + fullX
-              this.colorChangeMap[fullIndex] = normalizedGradient
+              null /* colorChangeMap removed */[fullIndex] = normalizedGradient
             }
           }
         }
@@ -3516,12 +3109,12 @@ export class CirclePackingPass {
     
     // Handle edges by copying from nearest interior pixels
     for (let x = 0; x < fullWidth; x++) {
-      this.colorChangeMap[x] = this.colorChangeMap[fullWidth + x] // Top edge
-      this.colorChangeMap[(fullHeight - 1) * fullWidth + x] = this.colorChangeMap[(fullHeight - 2) * fullWidth + x] // Bottom edge
+      null /* colorChangeMap removed */[x] = null /* colorChangeMap removed */[fullWidth + x] // Top edge
+      null /* colorChangeMap removed */[(fullHeight - 1) * fullWidth + x] = null /* colorChangeMap removed */[(fullHeight - 2) * fullWidth + x] // Bottom edge
     }
     for (let y = 0; y < fullHeight; y++) {
-      this.colorChangeMap[y * fullWidth] = this.colorChangeMap[y * fullWidth + 1] // Left edge
-      this.colorChangeMap[y * fullWidth + (fullWidth - 1)] = this.colorChangeMap[y * fullWidth + (fullWidth - 2)] // Right edge
+      null /* colorChangeMap removed */[y * fullWidth] = null /* colorChangeMap removed */[y * fullWidth + 1] // Left edge
+      null /* colorChangeMap removed */[y * fullWidth + (fullWidth - 1)] = null /* colorChangeMap removed */[y * fullWidth + (fullWidth - 2)] // Right edge
     }
   }
 
@@ -3606,7 +3199,6 @@ export class CirclePackingPass {
             this.imageData = imageData
             this.updateSimplePeriodicUpdates(performance.now())
           })
-          .catch(console.error)
       } else {
         this.updateSimplePeriodicUpdates(performance.now())
       }
@@ -3626,7 +3218,6 @@ export class CirclePackingPass {
             this.startPhysicsAnimation(imageData, imageData.width, imageData.height)
             this.needsRecompute = false
           })
-          .catch(console.error)
       }
       
       // Start or update physics animation when enabled
@@ -3635,13 +3226,11 @@ export class CirclePackingPass {
         if (!this.isAnimating) {
           this.isAnimating = true
           this.animationStartTime = performance.now()
-          console.log(`Continuous physics animation started with ${this.circles.length} circles`)
         }
         this.updatePhysicsAnimation(deltaTime, targetWidth, targetHeight)
       } else if (this.isAnimating && !this.animatePhysics) {
         // Stop animation if animatePhysics was disabled
         this.isAnimating = false
-        console.log('Physics animation stopped - animatePhysics disabled')
       }
       
       // Update progressive growth if enabled
@@ -3696,48 +3285,12 @@ export class CirclePackingPass {
             this.updateCircleDataInShader()
           }
         })
-        .catch(console.error)
     }
     
     // Get current global background color
     const globalBgColor = this.getGlobalBackgroundColor(renderer)
     
-    // Update color change map texture if available
-    if (this.colorChangeMap && this.imageData) {
-      // Create or update texture from color change map data
-      if (!this.colorChangeTexture || 
-          this.colorChangeTexture.image.width !== this.imageData.width ||
-          this.colorChangeTexture.image.height !== this.imageData.height) {
-        // Dispose old texture if it exists
-        if (this.colorChangeTexture) {
-          this.colorChangeTexture.dispose()
-        }
-        
-        // Create new texture with correct dimensions
-        this.colorChangeTexture = new THREE.DataTexture(
-          this.colorChangeMap,
-          this.imageData.width,
-          this.imageData.height,
-          THREE.RedFormat,
-          THREE.FloatType
-        )
-        this.material.uniforms.colorChangeMap.value = this.colorChangeTexture
-        
-        // Debug logging
-        console.log(`Color change texture created: ${this.imageData.width}×${this.imageData.height}, showToggle=${this.showColorChangeMap}, spatial gradients enabled`)
-      } else {
-        // Update existing texture data
-        this.colorChangeTexture.image.data = this.colorChangeMap
-      }
-      
-      this.colorChangeTexture.needsUpdate = true
-      
-      // Debug the toggle state occasionally
-      if (Math.random() < 0.02) {
-        const avgIntensity = this.colorChangeMap.reduce((sum, val) => sum + val, 0) / this.colorChangeMap.length
-        console.log(`Color change map: toggle=${this.showColorChangeMap}, texture=${!!this.colorChangeTexture}, uniform=${this.material.uniforms.showColorChangeMap.value}, avgIntensity=${avgIntensity.toFixed(3)}`)
-      }
-    }
+    // Color change map texture functionality removed with gradient features
     
     // Update uniforms
     this.material.uniforms.tDiffuse.value = inputTexture
@@ -3746,7 +3299,12 @@ export class CirclePackingPass {
     this.material.uniforms.globalBackgroundR.value = globalBgColor[0]
     this.material.uniforms.globalBackgroundG.value = globalBgColor[1]
     this.material.uniforms.globalBackgroundB.value = globalBgColor[2]
-    this.material.uniforms.showColorChangeMap.value = this.showColorChangeMap ? 1.0 : 0.0
+    // showColorChangeMap uniform removed with gradient functionality
+    
+    // Update mouse physics with playful momentum
+    if (this.isMouseActive) {
+      this.updateMousePhysics(16) // Assume 60fps (16ms) for consistent physics
+    }
     
     // Update mouse interaction uniforms
     this.material.uniforms.mousePosition.value.set(this.mousePosition.x, this.mousePosition.y)
@@ -3765,7 +3323,7 @@ export class CirclePackingPass {
     renderer.render(this.scene, this.camera)
     
     // Render visualizations if enabled (throttle for performance)
-    if ((this.showColorChangeMap || this.enableVectorField) && this.imageData) {
+    if ((false /* showColorChangeMap removed */ || false /* enableVectorField removed */) && this.imageData) {
       // Only update visualization every 5th frame for performance
       if (!this.lastVisualizationUpdate) this.lastVisualizationUpdate = 0
       const now = performance.now()
@@ -3783,11 +3341,11 @@ export class CirclePackingPass {
           this.visualizationContext.clearRect(0, 0, width, height)
           
           // Render gradient visualization
-          if (this.showColorChangeMap) {
+          if (false /* showColorChangeMap removed */) {
             this.renderGradientVisualization(this.visualizationContext, width, height)
             
             // Also render vector field arrows when gradient view is enabled
-            if (this.enableVectorField) {
+            if (false /* enableVectorField removed */) {
               this.renderVectorFieldVisualization(this.visualizationContext, width, height)
             }
           }
@@ -3843,13 +3401,11 @@ export class CirclePackingPass {
       const visibleSpawned = this.circles.filter(c => c.isDynamicSpawn && c.radius > 2).length
       const processedCount = Math.min(this.circles.length, maxCircles)
       const spawnedInRange = this.circles.slice(0, processedCount).filter(c => c.isDynamicSpawn).length
-      console.log(`Shader: ${this.circles.length} total, ${processedCount} sent to GPU, ${spawnedCount} spawned total, ${spawnedInRange} spawned in GPU range`)
       
       // Debug a few spawned circles' data
       const recentSpawned = this.circles.filter(c => c.isDynamicSpawn).slice(-3)
       for (const circle of recentSpawned) {
         const index = this.circles.indexOf(circle)
-        console.log(`Spawned circle ${index}: pos(${circle.x.toFixed(1)}, ${circle.y.toFixed(1)}), radius=${circle.radius.toFixed(1)}, color=[${circle.color.map(c => c.toFixed(2)).join(',')}]`)
       }
     }
   }
@@ -3878,19 +3434,22 @@ export class CirclePackingPass {
       const rawMouseX = (event.clientX - rect.left) * scaleX
       const rawMouseY = this.renderTarget.height - (event.clientY - rect.top) * scaleY
       
-      // Store previous position for smoothing
-      this.previousMousePosition.x = this.mousePosition.x
-      this.previousMousePosition.y = this.mousePosition.y
+      // Update target position for momentum physics
+      this.targetMousePosition.x = rawMouseX
+      this.targetMousePosition.y = rawMouseY
       
-      // Apply smoothing to mouse movement
-      this.mousePosition.x = this.mousePosition.x * this.mouseMovementSmoothing + rawMouseX * (1 - this.mouseMovementSmoothing)
-      this.mousePosition.y = this.mousePosition.y * this.mouseMovementSmoothing + rawMouseY * (1 - this.mouseMovementSmoothing)
+      // Initialize mouse position on first movement
+      if (!this.isMouseActive) {
+        this.mousePosition.x = rawMouseX
+        this.mousePosition.y = rawMouseY
+        this.mouseVelocity.x = 0
+        this.mouseVelocity.y = 0
+      }
       
       this.isMouseActive = true
       
       // Debug logging occasionally
       if (Math.random() < 0.005) {
-        console.log(`Mouse: (${this.mousePosition.x.toFixed(1)}, ${this.mousePosition.y.toFixed(1)}), raw: (${rawMouseX.toFixed(1)}, ${rawMouseY.toFixed(1)}), physics: ${this.animatePhysics}`)
       }
     }
     
@@ -3908,7 +3467,6 @@ export class CirclePackingPass {
       this.randomSeed = Math.floor(Math.random() * 1000)
       this.needsRecompute = true
       
-      console.log(`Mouse click: New random seed = ${this.randomSeed}`)
       
       // Optional: Add a small explosion effect at click position
       if (this.circles && this.useVerletPhysics) {
@@ -3929,7 +3487,6 @@ export class CirclePackingPass {
     this.canvas.addEventListener('click', onClick)
     
     this.mouseListenersAdded = true
-    console.log('Mouse interaction setup complete')
   }
   
   // Set canvas for mouse interaction (can be called after construction)
@@ -3974,6 +3531,55 @@ export class CirclePackingPass {
         circle.prevY -= forceY * 0.1
       }
     }
+  }
+
+  // Update mouse position with playful momentum physics
+  private updateMousePhysics(deltaTime: number = 16): void {
+    // Convert deltaTime from ms to a normalized factor
+    const dt = Math.min(deltaTime / 16.0, 2.0) // Cap at 2x for stability
+    
+    // Calculate spring force toward target
+    const springForceX = (this.targetMousePosition.x - this.mousePosition.x) * this.mouseSpringStrength
+    const springForceY = (this.targetMousePosition.y - this.mousePosition.y) * this.mouseSpringStrength
+    
+    // Update velocity with spring force
+    this.mouseVelocity.x += springForceX * dt
+    this.mouseVelocity.y += springForceY * dt
+    
+    // Add overshoot boost when moving fast toward target
+    const distanceToTarget = Math.sqrt(
+      Math.pow(this.targetMousePosition.x - this.mousePosition.x, 2) + 
+      Math.pow(this.targetMousePosition.y - this.mousePosition.y, 2)
+    )
+    
+    // If we're moving toward the target and have significant velocity, add overshoot
+    if (distanceToTarget > 5) {
+      const velocityMagnitude = Math.sqrt(this.mouseVelocity.x * this.mouseVelocity.x + this.mouseVelocity.y * this.mouseVelocity.y)
+      if (velocityMagnitude > 2) {
+        const overshootBoost = Math.min(velocityMagnitude * 0.02, 0.5) * (this.overshootMultiplier - 1.0)
+        this.mouseVelocity.x += (this.mouseVelocity.x / velocityMagnitude) * overshootBoost * dt
+        this.mouseVelocity.y += (this.mouseVelocity.y / velocityMagnitude) * overshootBoost * dt
+      }
+    }
+    
+    // Apply damping to velocity
+    this.mouseVelocity.x *= Math.pow(this.mouseDamping, dt)
+    this.mouseVelocity.y *= Math.pow(this.mouseDamping, dt)
+    
+    // Clamp velocity to prevent wild overshoots
+    const maxVel = this.maxMouseVelocity
+    const velMag = Math.sqrt(this.mouseVelocity.x * this.mouseVelocity.x + this.mouseVelocity.y * this.mouseVelocity.y)
+    if (velMag > maxVel) {
+      this.mouseVelocity.x = (this.mouseVelocity.x / velMag) * maxVel
+      this.mouseVelocity.y = (this.mouseVelocity.y / velMag) * maxVel
+    }
+    
+    // Update position with velocity
+    this.previousMousePosition.x = this.mousePosition.x
+    this.previousMousePosition.y = this.mousePosition.y
+    
+    this.mousePosition.x += this.mouseVelocity.x * dt
+    this.mousePosition.y += this.mouseVelocity.y * dt
   }
   
   // Apply mouse forces to static circles (when physics animation is off)
@@ -4104,8 +3710,6 @@ export class CirclePackingPass {
       uniform float globalBackgroundB;
       uniform sampler2D circleDataTexture;
       uniform int numCircles;
-      uniform sampler2D colorChangeMap;
-      uniform float showColorChangeMap;
       uniform vec2 mousePosition;
       uniform float mouseInfluenceRadius;
       uniform float showMouseInfluence;
@@ -4125,16 +3729,7 @@ export class CirclePackingPass {
         // Sample original color
         vec4 originalColor = texture2D(tDiffuse, vUv);
         
-        // Show color change gradient if enabled
-        if (showColorChangeMap > 0.5) {
-          vec4 changeMapSample = texture2D(colorChangeMap, vUv);
-          float changeIntensity = changeMapSample.r;
-          
-          // Display as grayscale: white = high change, black = low change
-          // Add slight blue tint to distinguish from pure grayscale
-          gl_FragColor = vec4(changeIntensity, changeIntensity, changeIntensity + 0.1, 1.0);
-          return;
-        }
+        // Color change gradient functionality removed
         
         // Find the top-most circle at this pixel
         vec3 circleColor = vec3(0.0);

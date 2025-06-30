@@ -529,7 +529,12 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       mouseForceStrength: 200,
       showMouseInfluence: 1, // Enabled by default to show the cool inversion effect
       mouseMovementSmoothing: 80,
-      forceStabilization: 85
+      forceStabilization: 85,
+      // Playful momentum physics parameters
+      mouseSpringStrength: 20, // Spring force toward target (0-50, higher = snappier)
+      mouseDamping: 45, // Velocity damping (0-98, higher = more damping)
+      maxMouseVelocity: 65, // Maximum velocity to prevent wild overshoots (10-100)
+      overshootMultiplier: 115 // How much overshoot to allow (100-200, 100 = no overshoot)
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -572,7 +577,12 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       mouseForceStrength: { min: 0, max: 200, step: 10, label: 'Mouse Force Strength' },
       showMouseInfluence: { min: 0, max: 1, step: 1, label: 'Show Mouse Influence Area', type: 'boolean' },
       mouseMovementSmoothing: { min: 0, max: 95, step: 5, label: 'Mouse Movement Smoothing (%)' },
-      forceStabilization: { min: 50, max: 95, step: 5, label: 'Force Stabilization (%)' }
+      forceStabilization: { min: 50, max: 95, step: 5, label: 'Force Stabilization (%)' },
+      // Playful momentum physics parameter definitions
+      mouseSpringStrength: { min: 0, max: 50, step: 1, label: 'Mouse Spring Strength' },
+      mouseDamping: { min: 50, max: 98, step: 1, label: 'Mouse Damping (%)' },
+      maxMouseVelocity: { min: 10, max: 100, step: 5, label: 'Max Mouse Velocity' },
+      overshootMultiplier: { min: 100, max: 200, step: 5, label: 'Overshoot Amount (%)' }
     }
   },
   {

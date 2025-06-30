@@ -9,6 +9,7 @@ import { GlowPass } from './GlowPass'
 import { MotionBlurPass } from './MotionBlurPass'
 import { SSAOPass } from './SSAOPass'
 import { ZDepthPass } from './ZDepthPass'
+import { UnrealBloomPass } from './UnrealBloomPass'
 
 export type EffectType = 'none' | 'drawrange' | 'pointnetwork' | 'material' | 'randomscale' | 'gamma' | 'sepia' | 'vignette' | 'blur' | 'bloom' | 'crtgrain' | 'film35mm' | 'dotscreen' | 'bleachbypass' | 'invert' | 'afterimage' | 'dof' | 'colorify' | 'sobel' | 'sobelthreshold' | 'ascii' | 'halftone' | 'circlepacking' | 'motionblur' | 'oilpainting' | 'topographic' | 'zdepth' | 'datamosh' | 'pixelsort' | 'glow' | 'pixelate' | 'fog' | 'threshold' | 'colorgradient' | 'splittone' | 'gradient' | 'posterize' | 'noise2d' | 'skysphere' | 'sinradius' | 'engraving' | 'gaussianblur' | 'voronoi' | 'ambientocclusion'
 
@@ -87,6 +88,7 @@ export class PostProcessingPass {
   private glowPass: GlowPass
   private motionBlurPass: MotionBlurPass
   private ssaoPass: SSAOPass
+  private unrealBloomPass: UnrealBloomPass
   
   // Blending support
   private blendMaterial: THREE.ShaderMaterial | null = null
@@ -357,6 +359,7 @@ export class PostProcessingPass {
     this.glowPass = new GlowPass(width, height)
     this.motionBlurPass = new MotionBlurPass(width, height)
     this.ssaoPass = new SSAOPass(width, height)
+    this.unrealBloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 1.5, 0.4, 0.85)
     
     // Initialize afterimage effect
     this.initializeAfterimage(width, height)
@@ -560,8 +563,8 @@ export class PostProcessingPass {
       return
     }
     
-    // Handle dithering effects separately
-    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'zdepth' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur' || effect.type === 'ambientocclusion') {
+    // Handle special effects separately (dithering, passes, etc.)
+    if (effect.type === 'ascii' || effect.type === 'halftone' || effect.type === 'zdepth' || effect.type === 'engraving' || effect.type === 'circlepacking' || effect.type === 'gaussianblur' || effect.type === 'glow' || effect.type === 'motionblur' || effect.type === 'ambientocclusion' || effect.type === 'bloom') {
       this.renderDitheringEffect(renderer, inputTexture, effect, outputTarget)
       return
     }
@@ -598,12 +601,6 @@ export class PostProcessingPass {
         this.material.uniforms.blurAmount.value = effect.parameters.blurAmount ?? 0.002
         this.material.uniforms.blurThreshold.value = effect.parameters.threshold ?? 0.0
         this.material.uniforms.blurType.value = effect.parameters.blurType ?? 0
-        break
-      case 'bloom':
-        this.material.uniforms.bloomThreshold.value = effect.parameters.threshold ?? 0.8
-        this.material.uniforms.bloomIntensity.value = effect.parameters.intensity ?? 1.0
-        this.material.uniforms.bloomRadius.value = effect.parameters.radius ?? 0.5
-        this.material.uniforms.bloomQuality.value = effect.parameters.quality ?? 2
         break
       case 'crtgrain':
         this.material.uniforms.filmNoiseSeed.value = effect.parameters.noiseSeed ?? 0.35
@@ -875,6 +872,11 @@ export class PostProcessingPass {
         this.circlePackingPass.showMouseInfluence = Boolean(effect.parameters.showMouseInfluence ?? 0)
         this.circlePackingPass.mouseMovementSmoothing = Number(effect.parameters.mouseMovementSmoothing ?? 80) / 100
         this.circlePackingPass.forceStabilization = Number(effect.parameters.forceStabilization ?? 85) / 100
+        // Playful momentum physics parameters
+        this.circlePackingPass.mouseSpringStrength = Number(effect.parameters.mouseSpringStrength ?? 20) / 100 // Convert to 0.0-0.5 range
+        this.circlePackingPass.mouseDamping = Number(effect.parameters.mouseDamping ?? 45) / 100 // Convert to 0.0-0.98 range
+        this.circlePackingPass.maxMouseVelocity = Number(effect.parameters.maxMouseVelocity ?? 65)
+        this.circlePackingPass.overshootMultiplier = Number(effect.parameters.overshootMultiplier ?? 115) / 100 // Convert to 1.0-2.0 range
         // Calculate deltaTime for animation
         const currentTime = performance.now()
         const deltaTime = currentTime - this.lastFrameTime
@@ -938,6 +940,29 @@ export class PostProcessingPass {
         this.ssaoPass.aoOnly = effect.parameters.aoOnly ?? 0
         this.ssaoPass.debugDepth = effect.parameters.debugDepth ?? 0
         this.ssaoPass.render(renderer, inputTexture, null, outputTarget)
+        return
+        break
+      case 'bloom':
+        // Update bloom parameters
+        this.unrealBloomPass.threshold = effect.parameters.threshold ?? 0.85
+        this.unrealBloomPass.strength = effect.parameters.intensity ?? 1.5
+        this.unrealBloomPass.radius = effect.parameters.radius ?? 0.4
+        
+        // Use existing render target for input (reuse renderTargets[2] as temp)
+        const tempInputTarget = this.renderTargets[2]
+        
+        // Copy input texture to temp target using existing material
+        this.material.uniforms.tDiffuse.value = inputTexture
+        this.material.uniforms.effectType.value = 0 // Copy pass
+        this.material.uniforms.intensity.value = 1.0
+        
+        renderer.setRenderTarget(tempInputTarget)
+        renderer.clear()
+        renderer.render(this.scene, this.camera)
+        
+        // Render bloom effect
+        this.unrealBloomPass.render(renderer, outputTarget || this.renderTargets[0], tempInputTarget)
+        
         return
         break
       default:
@@ -1056,7 +1081,7 @@ export class PostProcessingPass {
     this.gaussianBlurPass.setSize(width, height)
     this.glowPass.setSize(width, height)
     this.motionBlurPass.setSize(width, height)
-    
+    this.unrealBloomPass.setSize(width, height)
     
     // Update afterimage render target
     if (this.afterimageRenderTarget) {
@@ -1090,6 +1115,7 @@ export class PostProcessingPass {
     this.gaussianBlurPass.dispose()
     this.glowPass.dispose()
     this.motionBlurPass.dispose()
+    this.unrealBloomPass.dispose()
     
     // Clean up point network resources
     this.resetPointNetwork()
@@ -1360,7 +1386,7 @@ export class PostProcessingPass {
       case 'sepia': return 2
       case 'vignette': return 3
       case 'blur': return 4
-      case 'bloom': return 5
+      case 'bloom': return 0 // Handled as separate pass
       case 'crtgrain': return 6
       case 'film35mm': return 7
       case 'dotscreen': return 8
