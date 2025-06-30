@@ -1,16 +1,18 @@
 {
   "version": "1.1",
-  "generated": "2025-06-29T10:25:53.837673Z",
+  "generated": "2025-06-29T13:00:31.313391Z",
   "files": [
     "Arscii.png",
     "Castleton Basic.png",
     "Castleton Disco.png",
     "Dazzle from Luke.png",
+    "Delicassy from Luke.png",
     "Delicate Ascii.png",
     "Delicate Basic.png",
     "Delicate Dots.png",
     "Delicate Noir.png",
     "Elegant Delicate.png",
+    "Favorite from Luke.png",
     "Fisher Basic.png",
     "Fisher Dither.png",
     "Fisher Hologram.png",
@@ -19,15 +21,14 @@
     "Scene Fisher from Luke.png",
     "Scene from Kantola Luke (1).png",
     "Scene from Kantola Luke.png",
-    "Scene from Luke.png"
+    "Scene from Luke.png",
+    "Simple Delicate from Luke.png",
+    "So Cool from Luke.png"
   ],
   "randomCandidates": [
-    "Arscii.png",
-    "Castleton Disco.png",
-    "Delicate Ascii.png",
-    "Delicate Dots.png",
-    "Elegant Delicate.png",
+    "Delicassy from Luke.png",
     "Fisher Hologram.png",
-    "Fisher Sobel.png"
+    "Fisher Sobel.png",
+    "So Cool from Luke.png"
   ]
 }

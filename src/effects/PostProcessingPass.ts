@@ -858,13 +858,23 @@ export class PostProcessingPass {
         this.circlePackingPass.enableProgressiveGrowth = Boolean(effect.parameters.enableProgressiveGrowth ?? 1)
         this.circlePackingPass.growthRate = Number(effect.parameters.growthRate ?? 0.5)
         this.circlePackingPass.startSizeMultiplier = Number(effect.parameters.startSizeMultiplier ?? 0.3)
-        // Adaptive color monitoring parameters
-        this.circlePackingPass.enableColorMonitoring = Boolean(effect.parameters.enableColorMonitoring ?? 1)
-        this.circlePackingPass.colorSimilarityThreshold = Number(effect.parameters.colorSimilarityThreshold ?? 0.8)
-        this.circlePackingPass.adaptiveResizeSpeed = Number(effect.parameters.adaptiveResizeSpeed ?? 1.0)
-        this.circlePackingPass.colorUpdateInterval = Number(effect.parameters.colorUpdateInterval ?? 100)
+        this.circlePackingPass.colorTransitionDuration = Number(effect.parameters.colorTransitionDuration ?? 1500)
+        // Simple periodic update parameters
+        this.circlePackingPass.enablePeriodicUpdates = Boolean(effect.parameters.enablePeriodicUpdates ?? 1)
+        this.circlePackingPass.colorUpdateInterval = Number(effect.parameters.colorUpdateInterval ?? 1000)
+        this.circlePackingPass.colorAnimationDuration = Number(effect.parameters.colorAnimationDuration ?? 500)
+        this.circlePackingPass.movementDistance = Number(effect.parameters.movementDistance ?? 20)
         this.circlePackingPass.enableColorChangeMap = Boolean(effect.parameters.enableColorChangeMap ?? 1)
         this.circlePackingPass.showColorChangeMap = Boolean(effect.parameters.showColorChangeMap ?? 0)
+        this.circlePackingPass.gradientThreshold = Number(effect.parameters.gradientThreshold ?? 0.3)
+        this.circlePackingPass.enableVectorField = Boolean(effect.parameters.enableVectorField ?? 0)
+        this.circlePackingPass.vectorFieldStrength = Number(effect.parameters.vectorFieldStrength ?? 0.5)
+        // Mouse interaction parameters
+        this.circlePackingPass.mouseInfluenceRadius = Number(effect.parameters.mouseInfluenceRadius ?? 80)
+        this.circlePackingPass.mouseForceStrength = Number(effect.parameters.mouseForceStrength ?? 50)
+        this.circlePackingPass.showMouseInfluence = Boolean(effect.parameters.showMouseInfluence ?? 0)
+        this.circlePackingPass.mouseMovementSmoothing = Number(effect.parameters.mouseMovementSmoothing ?? 80) / 100
+        this.circlePackingPass.forceStabilization = Number(effect.parameters.forceStabilization ?? 85) / 100
         // Calculate deltaTime for animation
         const currentTime = performance.now()
         const deltaTime = currentTime - this.lastFrameTime
@@ -1060,6 +1070,11 @@ export class PostProcessingPass {
     if (this.dofBlurRenderTarget) {
       this.dofBlurRenderTarget.setSize(width, height)
     }
+  }
+  
+  // Set canvas for mouse interaction in circle packing effect
+  public setCanvas(canvas: HTMLCanvasElement): void {
+    this.circlePackingPass.setCanvas(canvas)
   }
   
   dispose() {

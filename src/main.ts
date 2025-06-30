@@ -110,6 +110,8 @@ const postProcessingPass = new PostProcessingPass(window.innerWidth, window.inne
 postProcessingPass.setMainScene(scene, camera)
 // Enable effects pipeline by default (fixes issue where effects don't work without preset dropdown)
 postProcessingPass.enabled = true
+// Setup mouse interaction for circle packing effect
+postProcessingPass.setCanvas(canvas)
 
 const pixelRatio = Math.min(window.devicePixelRatio, 2)
 const renderTarget = new THREE.WebGLRenderTarget(

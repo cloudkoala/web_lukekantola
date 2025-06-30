@@ -489,21 +489,21 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
     supportsBlending: true,
     defaultBlendMode: 'normal',
     defaultParameters: { 
-      intensity: 1.0, 
-      packingDensity: 370, 
-      totalCircles: 300, // Total number of circles to generate
-      minCircleSize: 5.0, 
-      maxCircleSize: 120.0, 
+      intensity: 1, 
+      packingDensity: 270, 
+      totalCircles: 310, // Total number of circles to generate
+      minCircleSize: 6.07, 
+      maxCircleSize: 112.2, 
       circleSpacing: 1.2, 
-      randomSeed: Math.floor(Math.random() * 1000),
+      randomSeed: 196, // Fixed seed from "So Cool from Luke.png"
       backgroundOpacity: 1.0,
-      backgroundColor: 0,
+      backgroundColor: 13863048, // Warm orange/brown color (#d3a968)
       // Physics simulation parameters
       useVerletPhysics: 1,
       gravity: 0,
       damping: 0.8,
-      substeps: 10,
-      physicsIterations: 50,
+      substeps: 6,
+      physicsIterations: 59,
       // Spatial optimization parameters
       usePhysicsPlacement: 1,
       // Animation parameters
@@ -512,18 +512,24 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       // Progressive growth parameters
       enableProgressiveGrowth: 1,
       growthRate: 1.8,
-      startSizeMultiplier: 0.3,
-      // Adaptive color monitoring parameters
-      enableColorMonitoring: 1,
-      colorSimilarityThreshold: 0.8,
-      colorUpdateInterval: 500,
+      startSizeMultiplier: 0.9, // Larger starting size for smoother growth
+      colorTransitionDuration: 10000, // Longer, more gradual color transitions
+      // Simple periodic update parameters
+      enablePeriodicUpdates: 1,
+      colorUpdateInterval: 3000, // How often to update colors (ms)
+      colorAnimationDuration: 2000, // How long color changes take to animate (ms)
+      movementDistance: 15, // Maximum distance circles can move (pixels)
       enableColorChangeMap: 1, // Enable color change detection for adaptive sizing
-      showColorChangeMap: 0, // Show the color change gradient visualization
-      // Dynamic spawning parameters
-      enableDynamicSpawning: 0,
-      spawnInterval: 500,
-      maxSpawnsPerCheck: 10,
-      minEmptyAreaSize: 0.00005
+      showColorChangeMap: 0, // Show the color change gradient visualization (disabled by default - too intrusive)
+      gradientThreshold: 0.75, // Threshold for what counts as "high change" (0-1) - lower = more areas count as edges
+      enableVectorField: 1, // Enable vector field pointing toward high-change areas
+      vectorFieldStrength: 0.8, // How strongly vectors influence circle placement
+      // Mouse interaction parameters (enhanced from "So Cool" settings)
+      mouseInfluenceRadius: 110,
+      mouseForceStrength: 200,
+      showMouseInfluence: 1, // Enabled by default to show the cool inversion effect
+      mouseMovementSmoothing: 80,
+      forceStabilization: 85
     },
     parameterDefinitions: {
       intensity: { min: 0, max: 1, step: 0.01, label: 'Intensity' },
@@ -550,17 +556,23 @@ export const EFFECT_DEFINITIONS: EffectDefinition[] = [
       enableProgressiveGrowth: { min: 0, max: 1, step: 1, label: 'Enable Progressive Growth', type: 'boolean' },
       growthRate: { min: 0.1, max: 2.0, step: 0.1, label: 'Growth Rate' },
       startSizeMultiplier: { min: 0.1, max: 1.0, step: 0.1, label: 'Starting Size' },
-      // Adaptive color monitoring parameter definitions
-      enableColorMonitoring: { min: 0, max: 1, step: 1, label: 'Enable Color Monitoring', type: 'boolean' },
-      colorSimilarityThreshold: { min: 0.1, max: 1.0, step: 0.05, label: 'Color Similarity Threshold' },
-      colorUpdateInterval: { min: 50, max: 2000, step: 50, label: 'Color Update Interval (ms)' },
+      colorTransitionDuration: { min: 500, max: 10000, step: 250, label: 'Color Transition Duration (ms)' },
+      // Simple periodic update parameter definitions
+      enablePeriodicUpdates: { min: 0, max: 1, step: 1, label: 'Enable Periodic Updates', type: 'boolean' },
+      colorUpdateInterval: { min: 500, max: 6000, step: 100, label: 'Color Update Interval (ms)' },
+      colorAnimationDuration: { min: 100, max: 4000, step: 50, label: 'Color Animation Duration (ms)' },
+      movementDistance: { min: 0, max: 100, step: 5, label: 'Max Movement Distance (px)' },
       enableColorChangeMap: { min: 0, max: 1, step: 1, label: 'Enable Color Change Detection', type: 'boolean' },
       showColorChangeMap: { min: 0, max: 1, step: 1, label: 'Show Color Change Gradient', type: 'boolean' },
-      // Dynamic spawning parameter definitions
-      enableDynamicSpawning: { min: 0, max: 1, step: 1, label: 'Enable Dynamic Spawning', type: 'boolean' },
-      spawnInterval: { min: 1000, max: 10000, step: 500, label: 'Spawn Interval (ms)' },
-      maxSpawnsPerCheck: { min: 1, max: 10, step: 1, label: 'Max Spawns Per Check' },
-      minEmptyAreaSize: { min: 0.0001, max: 0.003, step: 0.0001, label: 'Min Empty Area Size' }
+      gradientThreshold: { min: 0.1, max: 0.8, step: 0.05, label: 'High Change Threshold' },
+      enableVectorField: { min: 0, max: 1, step: 1, label: 'Enable Vector Field Guidance', type: 'boolean' },
+      vectorFieldStrength: { min: 0.1, max: 2.0, step: 0.1, label: 'Vector Field Strength' },
+      // Mouse interaction parameter definitions
+      mouseInfluenceRadius: { min: 20, max: 200, step: 10, label: 'Mouse Influence Radius' },
+      mouseForceStrength: { min: 0, max: 200, step: 10, label: 'Mouse Force Strength' },
+      showMouseInfluence: { min: 0, max: 1, step: 1, label: 'Show Mouse Influence Area', type: 'boolean' },
+      mouseMovementSmoothing: { min: 0, max: 95, step: 5, label: 'Mouse Movement Smoothing (%)' },
+      forceStabilization: { min: 50, max: 95, step: 5, label: 'Force Stabilization (%)' }
     }
   },
   {
