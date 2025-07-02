@@ -1,0 +1,224 @@
+/* Working CSS that preserves scrolling */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  max-width: 100vw;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Space Mono', monospace;
+  scroll-snap-type: y mandatory;
+  overflow-x: hidden;
+  width: 100%;
+  /* No background - let the blue div show through in hero, black in other sections */
+}
+
+/* Canvas styling that allows rotation but preserves scrolling */
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  display: block;
+  pointer-events: auto;
+  touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+}
+
+#background-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Simple zoom control */
+.simple-zoom-control {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 15px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 6px;
+  color: #00ff00;
+}
+
+.simple-zoom-control input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 20px;
+  height: 150px;
+}
+
+/* Header and navigation */
+.title-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 10px 20px;
+  background: transparent;
+  z-index: 999;
+  pointer-events: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-header * {
+  pointer-events: auto;
+}
+
+.title-header h1 {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-family: 'Space Mono', 'Orbitron', 'Courier New', monospace;
+  letter-spacing: 2px;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  text-transform: uppercase;
+}
+
+/* On subpages, make kantola/luke grey */
+.title-header:has(#current-section:not(:empty)) h1 #home-path {
+  color: #A9A9A9;
+}
+
+.title-header .green-text {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.white-text {
+  color: white;
+}
+
+.clickable-path {
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+/* Desktop responsive */
+@media (min-width: 768px) {
+  .title-header h1 {
+    font-size: 1.45rem;
+    letter-spacing: 4px;
+  }
+}
+
+/* Section styling for better scroll snap */
+section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  min-height: 100vh !important;
+  height: 100vh !important;
+  width: 100% !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.hamburger-menu {
+  position: relative;
+}
+
+.hamburger-button {
+  background: none;
+  border: 1px solid #00ff00;
+  color: #00ff00;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.hamburger-button span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: #00ff00;
+  margin: 3px 0;
+}
+
+.hamburger-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  padding: 10px;
+  display: none;
+  min-width: 150px;
+}
+
+.hamburger-dropdown.open {
+  display: block;
+}
+
+.hamburger-dropdown a {
+  display: block;
+  color: #00ff00;
+  text-decoration: none;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.hamburger-dropdown a:hover {
+  color: white;
+}
+
+.hamburger-dropdown a:last-child {
+  border-bottom: none;
+}
+
+/* Hero navigation arrows */
+.hero-navigation {
+  position: fixed;
+  bottom: 15px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  pointer-events: none;
+  font-family: 'Space Mono', monospace;
+  padding: 0 20px;
+}
+
+.nav-indicator {
+  pointer-events: auto;
+  color: #00ff00;
+  cursor: pointer;
+  padding: 10px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.nav-indicator:hover {
+  border-color: #00ff00;
+  color: white;
+}
+
+.green-text {
+  color: #00ff00;
+}
+
+.white-text {
+  color: white;
+}

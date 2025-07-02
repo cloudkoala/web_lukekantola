@@ -6,6 +6,117 @@
   box-sizing: border-box;
 }
 
+/* Smooth scrolling for the entire document */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-y: scroll; /* Force visible scrollbar */
+  height: 500vh; /* Make body 5x viewport height to force scrolling */
+}
+
+/* WebGL Background Canvas - Fixed behind everything */
+#background-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Three.js Canvas - Part of hero section, scrolls up */
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  display: block;
+  pointer-events: none; /* Completely disable canvas interactions for now */
+  touch-action: pan-y; /* Allow vertical scrolling */
+  user-select: none; /* Prevent text selection */
+}
+
+/* Main scrollable content container */
+.main-content {
+  position: relative;
+  z-index: 1;
+  width: 100vw; /* Full viewport width */
+}
+
+/* Hero section - contains Three.js canvas, scrolls up */
+.hero-section {
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden; /* Contain the canvas */
+}
+
+/* Content sections with background for readability */
+.content-section {
+  min-height: 150vh; /* Make much taller */
+  height: 150vh; /* Force very tall sections */
+  width: 100%; /* Full width */
+  position: relative;
+  background: red; /* Bright color for testing */
+  border-top: 5px solid white;
+  padding: 80px 20px;
+  box-sizing: border-box;
+  color: white;
+  font-size: 2rem;
+  text-align: center;
+  padding-top: 50vh; /* Center text vertically */
+}
+
+.section-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Fixed UI Elements - Higher z-index to be above canvas */
+.simple-zoom-control {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 15px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 6px;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.hero-navigation {
+  position: fixed;
+  bottom: 15px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  pointer-events: none;
+  font-family: 'Space Mono', monospace;
+  padding: 0 20px;
+  gap: 20px;
+}
+
+.hero-navigation .nav-indicator {
+  pointer-events: auto;
+}
+
 /* Immediate loading screen square chase animation */
 @keyframes chase-border {
   0% { 
@@ -3105,7 +3216,7 @@ body, html {
   bottom: 15px; /* Mobile-first: closer to bottom */
   left: 0;
   right: 0;
-  display: none;
+  display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 1001;
@@ -3127,7 +3238,7 @@ body, html {
   background: rgba(0, 255, 0, 0.1);
   transition: all 0.3s ease;
   text-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
-  cursor: default;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3680,10 +3791,7 @@ body, html {
     display: block;
   }
   
-  /* Hide home navigation buttons on mobile */
-  .home-navigation {
-    display: none !important;
-  }
+  /* Show home navigation buttons on mobile too */
   
   /* Touch-specific: larger touch targets */
   .touch-layout button,
@@ -5554,5 +5662,139 @@ body, html {
   .capture-progress-content {
     margin: 20px;
     min-width: auto;
+  }
+}
+
+/* Simple Zoom Control for Simplified Homepage */
+.simple-zoom-control {
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  padding: 15px 10px;
+  font-family: 'Space Mono', monospace;
+  color: #00ff00;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.simple-zoom-control label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  writing-mode: horizontal-tb;
+  transform: rotate(-90deg);
+  white-space: nowrap;
+}
+
+.simple-zoom-control input[type="range"] {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 20px;
+  height: 150px;
+  background: transparent;
+  outline: none;
+}
+
+.simple-zoom-control input[type="range"]::-webkit-slider-runnable-track {
+  width: 150px;
+  height: 4px;
+  background: rgba(0, 255, 0, 0.3);
+  border-radius: 2px;
+}
+
+.simple-zoom-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #00ff00;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+}
+
+.simple-zoom-control input[type="range"]::-moz-range-track {
+  width: 150px;
+  height: 4px;
+  background: rgba(0, 255, 0, 0.3);
+  border-radius: 2px;
+  border: none;
+}
+
+.simple-zoom-control input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #00ff00;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 6px rgba(0, 255, 0, 0.6);
+}
+
+/* Mobile adjustments for zoom control */
+@media (max-width: 768px) {
+  .simple-zoom-control {
+    right: 10px;
+    padding: 10px 8px;
+    min-height: 150px;
+  }
+  
+  .simple-zoom-control input[type="range"] {
+    height: 120px;
+  }
+  
+  .simple-zoom-control label {
+    font-size: 0.7rem;
+  }
+}
+
+/* Content sections for simplified homepage */
+.content-section {
+  padding: 40px;
+  max-width: 800px;
+  margin: 0 auto;
+  font-family: 'Space Mono', monospace;
+  color: #00ff00;
+  background: rgba(0, 0, 0, 0.8);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.content-section h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.content-section p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .content-section {
+    padding: 20px;
+  }
+  
+  .content-section h2 {
+    font-size: 1.5rem;
+  }
+  
+  .content-section p {
+    font-size: 1rem;
   }
 }

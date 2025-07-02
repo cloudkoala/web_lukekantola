@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scroll Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        .section {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            border: 2px solid red;
+        }
+        .section:nth-child(1) { background: red; }
+        .section:nth-child(2) { background: blue; }
+        .section:nth-child(3) { background: green; }
+        .section:nth-child(4) { background: yellow; }
+        .section:nth-child(5) { background: purple; }
+        
+        .nav-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: black;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <button class="nav-button" onclick="scrollToSection2()">Go to Section 2</button>
+    
+    <div class="section">SECTION 1 - Try scrolling down</div>
+    <div class="section">SECTION 2</div>
+    <div class="section">SECTION 3</div>
+    <div class="section">SECTION 4</div>
+    <div class="section">SECTION 5</div>
+    
+    <script>
+        function scrollToSection2() {
+            document.querySelector('.section:nth-child(2)').scrollIntoView({ behavior: 'smooth' });
+        }
+        console.log('Test page loaded');
+    </script>
+</body>
+</html>

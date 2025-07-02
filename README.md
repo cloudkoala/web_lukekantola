@@ -1,6 +1,6 @@
 # Gaussian Splat Showcase
 
-A Three.js-based point cloud viewer built for showcasing Gaussian splat models with advanced camera controls, effects processing, and mobile-optimized UI.
+A Two-page Three.js application for showcasing Gaussian splat models: a simplified homepage featuring the Fisher hologram with basic controls, and a full-featured sandbox with advanced camera controls, effects processing, and mobile-optimized UI.
 
 ## Quick Start
 
@@ -8,6 +8,24 @@ A Three.js-based point cloud viewer built for showcasing Gaussian splat models w
 npm install
 npm run dev
 ```
+
+## Application Structure
+
+The application now consists of two pages:
+
+### Homepage (`index.html`)
+- **Simplified Experience**: Features only the Fisher Towers hologram
+- **Basic Controls**: Click+drag to rotate, vertical zoom slider
+- **Fast Loading**: No effects system, direct model loading, no complex initialization
+- **Rotation Constraints**: Prevents camera flipping for better UX
+- **Navigation**: Left/right arrows to reel and projects sections
+
+### Sandbox (`sandbox.html`)
+- **Full Features**: All models, complete effects system, advanced controls
+- **Professional Tools**: Settings panels, effects chains, gallery system
+- **Mobile Optimized**: Touch-friendly UI with slide-up panels
+- **Power User Features**: Camera presets, scene capture, performance monitoring
+- **Accessible via**: Hamburger menu → Sandbox
 
 ## Architecture Overview
 
@@ -531,21 +549,35 @@ See `CreateEffect.md`, `Postprocess.md`, and `BlendingModes.md` for effects syst
 ## File Structure
 
 ```
+├── index.html                  # Simplified homepage (Fisher hologram only)
+├── sandbox.html                # Full-featured sandbox page
 src/
-├── main.ts                     # App initialization and event handling
+├── main.ts                     # Simplified homepage logic (Fisher model + basic controls)
+├── sandbox.ts                  # Complete application logic (all features)
 ├── types.ts                    # Shared TypeScript interfaces  
 ├── camera/OrbitalCameraSystem.ts  # Camera controls, animations, scene state
 ├── models/ModelManager.ts      # Point cloud loading and management
 ├── effects/                    # Post-processing effects system
 ├── interface/                  # UI components and content loading
 ├── gallery/                    # PNG capture and gallery management
-└── style.css                   # Application styling
+└── style.css                   # Application styling (shared by both pages)
 
 public/
 ├── models-config.json          # Model defaults and metadata
 ├── scenes-config.json          # Preset scene configurations
 └── models/                     # Point cloud files
 ```
+
+## Page Comparison
+
+| Feature | Homepage (`index.html`) | Sandbox (`sandbox.html`) |
+|---------|------------------------|---------------------------|
+| **Models** | Fisher Towers only | All 4 models |
+| **Effects** | None | 40+ effects system |
+| **Controls** | Zoom slider only | Full settings panels |
+| **Loading** | ~1-2 seconds | ~3-5 seconds |
+| **Bundle Size** | Minimal | Full features |
+| **Use Case** | Quick showcase | Professional work |
 
 ## Specialized Documentation
 
