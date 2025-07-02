@@ -7,6 +7,7 @@ import { ModelManager } from './models'
 import { ContentLoader } from './interface'
 import { PostProcessingPass } from './effects'
 import { GalleryManager, CameraCapture } from './gallery'
+import { BackgroundManager } from './background/BackgroundManager'
 import type { InterfaceMode } from './types'
 import type { EffectsChainManager, EffectInstance } from './effects/EffectsChainManager'
 import type { GalleryItem, CaptureProgress } from './gallery'
@@ -66,7 +67,7 @@ function detectAndApplyInputType() {
 // Three.js setup
 const scene = new THREE.Scene()
 const backgroundColor = new THREE.Color(0x151515)
-scene.background = backgroundColor
+// scene.background = backgroundColor // Disabled to allow background effects to render
 
 // Add fog for atmospheric depth - matches background color
 scene.fog = new THREE.FogExp2(backgroundColor.getHex(), 0.003)
@@ -141,6 +142,12 @@ galleryManager.setCameraCapture(cameraCapture)
 ;(window as any).updatePostProcessingPointClouds = () => postProcessingPass.updatePointClouds()
 ;(window as any).galleryManager = galleryManager
 ;(window as any).cameraCapture = cameraCapture
+
+// Background system
+const backgroundManager = new BackgroundManager(renderer, window.innerWidth, window.innerHeight)
+
+// Expose backgroundManager globally for UI controls to access
+;(window as any).backgroundManager = backgroundManager
 
 const modelManager = new ModelManager(
   scene,
@@ -280,11 +287,16 @@ function animate() {
   
   orbitalCamera.update()
   
+  // Update animated background patterns and apply to scene
+  const backgroundTexture = backgroundManager.update(deltaTime / 1000) // Convert to seconds
+  if (scene && backgroundTexture) {
+    scene.background = backgroundTexture
+  }
+  
   // Check if we actually have effects to apply and if post-processing is enabled
   const effectsChain = postProcessingPass.getEffectsChain()
   const hasActiveEffects = postProcessingPass.enabled && (
     effectsChain.some((effect: any) => effect.enabled && (
-      effect.type === 'background' || // Background effects are always active when enabled
       effect.type === 'drawrange' ||  // DrawRange effects are always active when enabled
       effect.type === 'pointnetwork' || // Point network effects are always active when enabled
       effect.type === 'material' ||   // Material effects are always active when enabled
@@ -3801,13 +3813,12 @@ function setupBackgroundColorControl() {
     const color = new THREE.Color()
     color.setHSL(hue, saturation, lightness)
     
-    if (scene) {
-      scene.background = color
+    if (scene && backgroundManager) {
+      // Use BackgroundManager to set primary color
+      backgroundManager.setPrimaryColor(color)
       
-      // Update fog color to match background
-      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
-        scene.fog.color.copy(color)
-      }
+      // Apply background to scene (this will handle fog updates too)
+      backgroundManager.applyToScene(scene, scene.fog)
     }
   }
   
@@ -3843,6 +3854,28 @@ function setupBackgroundColorControl() {
     
     console.log('Background color changed to:', newColor)
   })
+  
+  // Setup background pattern picker
+  const patternPicker = document.getElementById('background-pattern-picker') as HTMLSelectElement
+  if (patternPicker) {
+    // Set initial pattern
+    patternPicker.value = 'solid'
+    
+    // Handle pattern change
+    patternPicker.addEventListener('change', (e) => {
+      const target = e.target as HTMLSelectElement
+      const newPattern = target.value as 'gradient' | 'waves' | 'noise' | 'geometric' | 'solid'
+      
+      if (backgroundManager) {
+        backgroundManager.setPattern(newPattern)
+        console.log('Background pattern changed to:', newPattern)
+      }
+    })
+    
+    console.log('Background pattern picker setup complete')
+  } else {
+    console.warn('Background pattern picker element not found')
+  }
 }
 
 

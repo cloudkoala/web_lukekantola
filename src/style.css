@@ -1852,6 +1852,46 @@ body, html {
   white-space: nowrap; /* Prevent text wrapping */
 }
 
+/* Settings Dropdown Control */
+.settings-dropdown-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.settings-dropdown-control label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+  font-family: monospace;
+  font-weight: 300;
+  min-width: 80px;
+  white-space: nowrap;
+}
+
+.settings-dropdown-control select {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: monospace;
+  font-size: 0.7rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-dropdown-control select:hover {
+  border-color: rgba(0, 255, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.settings-dropdown-control select:focus {
+  outline: none;
+  border-color: rgba(0, 255, 0, 0.7);
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.3);
+}
+
 .color-picker-container {
   position: relative;
   display: flex;

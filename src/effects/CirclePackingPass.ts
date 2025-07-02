@@ -270,7 +270,7 @@ export class CirclePackingPass {
   
   // Track parameter changes to trigger recompute
   private lastParameters = {
-    packingDensity: this.packingDensity,
+    totalCircles: this.totalCircles,
     minCircleSize: this.minCircleSize,
     maxCircleSize: this.maxCircleSize,
     circleSpacing: this.circleSpacing,
@@ -486,21 +486,22 @@ export class CirclePackingPass {
   private generateSimpleCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
     
-    // Use totalCircles parameter with screen scaling and gradient-based boost
+    // Calculate density-based circle count to maintain consistent visual density across screen sizes
     const screenArea = width * height
     const baseArea = 1920 * 1080 // Reference resolution (Full HD)
     const areaRatio = screenArea / baseArea
-    let baseAttempts = Math.floor(this.totalCircles * areaRatio * 10) // Scale attempts with screen size
     
+    // Scale target circles by area to maintain consistent density
+    const targetCircles = Math.floor(this.totalCircles * areaRatio)
     
-    
-    const totalAttempts = baseAttempts
+    // Use more attempts than target to account for placement failures
+    const totalAttempts = Math.max(targetCircles * 10, 1000)
     
     // Track consecutive failures to detect when packing is saturated
     let consecutiveFailures = 0
     const maxConsecutiveFailures = Math.min(1000, totalAttempts * 0.1)
     
-    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+    for (let attempt = 0; attempt < totalAttempts && circles.length < targetCircles; attempt++) {
       // Vector field-guided position sampling
       let x: number, y: number
       
@@ -916,11 +917,11 @@ export class CirclePackingPass {
   private generatePhysicsBasedCirclePacking(originalImageData: ImageData, width: number, height: number, spatialStructure: QuadTree | SpatialHashGrid): CircleData[] {
     const circles: CircleData[] = []
     
-    // Calculate screen-aware circle count for physics placement
+    // Calculate density-based circle count to maintain consistent visual density across screen sizes
     const screenArea = width * height
     const baseArea = 1920 * 1080 // Reference resolution (Full HD)
     const areaRatio = screenArea / baseArea
-    const maxCircles = Math.floor(this.packingDensity * 2 * areaRatio) // Adjust density for physics placement
+    const maxCircles = Math.floor(this.totalCircles * areaRatio) // Scale target circles by area
     
     
     // Spawn circles from the top with random initial velocities
@@ -1135,7 +1136,7 @@ export class CirclePackingPass {
     const screenArea = width * height
     const baseArea = 1920 * 1080 // Reference resolution (Full HD)
     const areaRatio = screenArea / baseArea
-    const maxCircles = Math.floor(this.packingDensity * 0.5 * areaRatio) // Fewer circles for better animation performance
+    const maxCircles = Math.floor(this.totalCircles * 0.5 * areaRatio) // Fewer circles for better animation performance
     
     for (let i = 0; i < maxCircles; i++) {
       const circle = this.createBouncingBall(originalImageData, width, height, i)
@@ -2646,7 +2647,7 @@ export class CirclePackingPass {
     const screenArea = width * height
     const baseArea = 1920 * 1080 // Reference resolution (Full HD)
     const areaRatio = screenArea / baseArea
-    const maxCircles = Math.min(Math.floor(this.packingDensity * Math.sqrt(region.area) / 10 * areaRatio), 200) // Screen-aware with area ratio
+    const maxCircles = Math.min(Math.floor(this.totalCircles * Math.sqrt(region.area) / 100 * areaRatio), 200) // Screen-aware with area ratio
     
     // Larger base radius for better screen filling
     const baseRadius = Math.sqrt(region.area / Math.PI) * 0.8 // Increased from 0.3 to 0.8
@@ -2811,7 +2812,7 @@ export class CirclePackingPass {
 
   private checkParameterChanges(): boolean {
     const currentParams = {
-      packingDensity: this.packingDensity,
+      totalCircles: this.totalCircles,
       minCircleSize: this.minCircleSize,
       maxCircleSize: this.maxCircleSize,
       circleSpacing: this.circleSpacing,
