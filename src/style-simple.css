@@ -64,6 +64,51 @@ body {
   height: 150px;
 }
 
+/* Cursor Effect Controls */
+.cursor-effect-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 15px;
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  border-radius: 6px;
+  color: #00ff00;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  min-width: 180px;
+}
+
+.cursor-control-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cursor-control-item:last-child {
+  margin-bottom: 0;
+}
+
+.cursor-control-item label {
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.cursor-control-item input[type="range"] {
+  flex: 1;
+  margin-left: 10px;
+  accent-color: #00ff00;
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.cursor-control-item input[type="checkbox"] {
+  margin-left: 10px;
+  accent-color: #00ff00;
+  transform: scale(1.2);
+}
+
 /* Header and navigation */
 .title-header {
   position: fixed;

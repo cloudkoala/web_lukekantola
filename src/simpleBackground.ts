@@ -59,8 +59,8 @@ void main() {
     vec3 col=vec3(1);
     uv.x+=.25;
     uv*=vec2(2,1);
-    // Add subtle scroll-based movement (10% of scroll, opposite direction)
-    uv.y -= scrollOffset * 0.1;
+    // Add enhanced scroll-based movement (25% of scroll, opposite direction)
+    uv.y -= scrollOffset * 0.25;
     float n=fbm(uv*.28+vec2(-T*.01,0));
     n=noise(uv*3.+n*2.);
     col.r-=fbm(uv+k+n);
@@ -134,8 +134,8 @@ void main() {
     vec3 col=vec3(1);
     uv.x+=.25;
     uv*=vec2(2,1);
-    // Add subtle scroll-based movement (10% of scroll, opposite direction)
-    uv.y -= scrollOffset * 0.1;
+    // Add enhanced scroll-based movement (25% of scroll, opposite direction)
+    uv.y -= scrollOffset * 0.25;
     float n=fbm(uv*.28+vec2(-T*.01,0));
     n=noise(uv*3.+n*2.);
     col.r-=fbm(uv+k+n) * 0.5;

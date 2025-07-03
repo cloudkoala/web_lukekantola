@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { ContentLoader } from './interface'
 import { initializeSimpleBackground, updateBackgroundScroll } from './simpleBackground'
+import { CursorSobelEffect } from './CursorSobelEffect'
 
 // DOM elements
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -14,6 +15,7 @@ const zoomSlider = document.querySelector<HTMLInputElement>('#zoom-slider')!
 // Global state
 let currentModel: THREE.Points | null = null
 let controls: OrbitControls
+let cursorEffect: CursorSobelEffect | null = null
 
 // Three.js setup - RE-ENABLED
 const scene = new THREE.Scene()
@@ -906,6 +908,12 @@ function updateCurrentSection() {
   
   // Update background scroll with normalized progress (0 to 1)
   updateBackgroundScroll(scrollProgress)
+  
+  // Update cursor effect intensity and scroll offset based on scroll position
+  if (cursorEffect) {
+    cursorEffect.updateScrollIntensity(scrollProgress)
+    cursorEffect.updateScrollOffset(scrollProgress)
+  }
 }
 
 // Initialize application
@@ -970,6 +978,14 @@ async function init() {
   } catch (error) {
     console.warn('Background renderer failed to initialize:', error)
   }
+
+  // Initialize cursor sobel effect on homepage
+  try {
+    cursorEffect = new CursorSobelEffect(document.body)
+    console.log('Cursor sobel effect active on homepage')
+  } catch (error) {
+    console.warn('Cursor sobel effect failed to initialize:', error)
+  }
   
   // Start animation loop
   animate()
@@ -1004,6 +1020,8 @@ async function init() {
       camera.position.copy(newCameraPos)
     })
   }
+
+  // Cursor effect is now always enabled at max settings
   
   // Load Fisher model
   await loadFisherModel()
