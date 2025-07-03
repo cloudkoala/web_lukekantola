@@ -489,17 +489,6 @@ function setupNavigation() {
     }
   })
   
-  // Hero navigation arrows
-  const navIndicators = document.querySelectorAll('.nav-indicator')
-  navIndicators.forEach(indicator => {
-    indicator.addEventListener('click', () => {
-      const target = indicator.getAttribute('data-target')
-      if (target) {
-        const targetId = target.replace('#', '')
-        scrollToSection(targetId)
-      }
-    })
-  })
 }
 
 // Wave-based Section Scroll Indicator
@@ -861,7 +850,7 @@ function updateCurrentSection() {
   if (!scrollingSection || !sectionList || !titleHeader) return
 
   const sections = ['hero', 'reel', 'projects', 'about', 'contact']
-  const sectionTitles = ['reel', 'projects', 'about', 'contact'] // Excluding hero
+  const sectionTitles = ['', 'reel', 'projects', 'about', 'contact'] // Empty string for hero position
   
   // Calculate scroll progress through all sections
   const totalHeight = document.documentElement.scrollHeight - window.innerHeight
@@ -888,31 +877,27 @@ function updateCurrentSection() {
     }
   }
   
-  // Handle visibility and positioning
+  // Always show the scrolling section and position based on scroll
+  scrollingSection.style.display = 'inline-block'
+  
+  // Calculate smooth position based on scroll
+  const currentSectionIndex = sections.indexOf(activeSection)
+  
+  // Update header styling based on section
   if (activeSection === 'hero') {
-    // Hide on hero section
-    scrollingSection.style.display = 'none'
     titleHeader.classList.remove('on-subpage')
   } else {
-    // Show and position based on scroll
-    scrollingSection.style.display = 'inline-block'
     titleHeader.classList.add('on-subpage')
-    
-    // Calculate smooth position based on scroll
-    const currentSectionIndex = sections.indexOf(activeSection)
-    const subSectionIndex = currentSectionIndex - 1 // Subtract 1 because we skip hero
-    
-    if (subSectionIndex >= 0) {
-      // Smooth interpolation: combine section index with progress within section
-      // This creates the smooth scroll-based animation
-      const smoothPosition = subSectionIndex + sectionProgress
-      const translateY = -(smoothPosition * 1.45) + 0.1 // 1.45rem per section + small offset to match original height
-      
-      // Remove transitions for smooth scroll-based movement
-      sectionList.style.transition = 'none'
-      sectionList.style.transform = `translateY(${translateY}rem)`
-    }
   }
+  
+  // Now the arrays are aligned, so we can use the section index directly
+  // Smooth interpolation: combine section index with progress within section
+  const smoothPosition = currentSectionIndex + sectionProgress
+  const translateY = -(smoothPosition * 1.45) + 0.1 // 1.45rem per section + small offset
+  
+  // Remove transitions for smooth scroll-based movement
+  sectionList.style.transition = 'none'
+  sectionList.style.transform = `translateY(${translateY}rem)`
   
   // Update scroll indicator
   if (scrollIndicator) {

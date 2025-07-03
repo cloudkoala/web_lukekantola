@@ -299,35 +299,6 @@ section {
   border-bottom: none;
 }
 
-/* Hero navigation arrows */
-.hero-navigation {
-  position: fixed;
-  bottom: 15px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 1000;
-  pointer-events: none;
-  font-family: 'Space Mono', monospace;
-  padding: 0 20px;
-}
-
-.nav-indicator {
-  pointer-events: auto;
-  color: #00ff00;
-  cursor: pointer;
-  padding: 10px;
-  border: 1px solid rgba(0, 255, 0, 0.3);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.7);
-}
-
-.nav-indicator:hover {
-  border-color: #00ff00;
-  color: white;
-}
 
 .green-text {
   color: #00ff00;
@@ -348,7 +319,7 @@ section {
   margin: 0;
   overflow: hidden;
   position: relative;
-  display: none; /* Hidden by default, shown by JS when needed */
+  display: inline-block; /* Always visible, positioned by scroll */
   vertical-align: top;
   width: auto; /* Allow width to adjust to content */
 }
