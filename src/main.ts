@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { ContentLoader } from './interface'
-import { initializeSimpleBackground } from './simpleBackground'
+import { initializeSimpleBackground, updateBackgroundScroll } from './simpleBackground'
 
 // DOM elements
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -903,6 +903,9 @@ function updateCurrentSection() {
   if (scrollIndicator) {
     scrollIndicator.update(activeSection, scrollProgress)
   }
+  
+  // Update background scroll with normalized progress (0 to 1)
+  updateBackgroundScroll(scrollProgress)
 }
 
 // Initialize application

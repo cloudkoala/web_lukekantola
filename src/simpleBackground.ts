@@ -5,7 +5,9 @@ class SimpleBackgroundRenderer {
   private program: WebGLProgram | null = null
   private timeLocation: WebGLUniformLocation | null = null
   private resolutionLocation: WebGLUniformLocation | null = null
+  private scrollOffsetLocation: WebGLUniformLocation | null = null
   private startTime: number
+  private scrollOffset: number = 0
 
   private vertexShader = `#version 300 es
 precision highp float;
@@ -19,6 +21,7 @@ precision highp float;
 out vec4 O;
 uniform float time;
 uniform vec2 resolution;
+uniform float scrollOffset;
 #define FC gl_FragCoord.xy
 #define R resolution
 #define T (time+660.)
@@ -56,6 +59,8 @@ void main() {
     vec3 col=vec3(1);
     uv.x+=.25;
     uv*=vec2(2,1);
+    // Add subtle scroll-based movement (10% of scroll, opposite direction)
+    uv.y -= scrollOffset * 0.1;
     float n=fbm(uv*.28+vec2(-T*.01,0));
     n=noise(uv*3.+n*2.);
     col.r-=fbm(uv+k+n);
@@ -91,6 +96,7 @@ precision highp float;
 out vec4 O;
 uniform float time;
 uniform vec2 resolution;
+uniform float scrollOffset;
 #define FC gl_FragCoord.xy
 #define R resolution
 #define T (time+660.)
@@ -128,6 +134,8 @@ void main() {
     vec3 col=vec3(1);
     uv.x+=.25;
     uv*=vec2(2,1);
+    // Add subtle scroll-based movement (10% of scroll, opposite direction)
+    uv.y -= scrollOffset * 0.1;
     float n=fbm(uv*.28+vec2(-T*.01,0));
     n=noise(uv*3.+n*2.);
     col.r-=fbm(uv+k+n) * 0.5;
@@ -178,6 +186,7 @@ void main() {
     
     this.timeLocation = this.gl.getUniformLocation(this.program, 'time')
     this.resolutionLocation = this.gl.getUniformLocation(this.program, 'resolution')
+    this.scrollOffsetLocation = this.gl.getUniformLocation(this.program, 'scrollOffset')
   }
 
   private setupGeometry() {
@@ -195,6 +204,10 @@ void main() {
     const positionAttribute = this.gl.getAttribLocation(this.program!, 'position')
     this.gl.enableVertexAttribArray(positionAttribute)
     this.gl.vertexAttribPointer(positionAttribute, 2, this.gl.FLOAT, false, 0, 0)
+  }
+
+  updateScrollOffset(offset: number) {
+    this.scrollOffset = offset
   }
 
   resize() {
@@ -219,8 +232,22 @@ void main() {
     
     this.gl.uniform1f(this.timeLocation, time)
     this.gl.uniform2f(this.resolutionLocation, this.canvas.width, this.canvas.height)
+    this.gl.uniform1f(this.scrollOffsetLocation, this.scrollOffset)
     
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4)
+  }
+}
+
+// Export renderer instances for scroll updates
+let backgroundRenderer: SimpleBackgroundRenderer | null = null
+let heroRenderer: SimpleBackgroundRenderer | null = null
+
+export function updateBackgroundScroll(scrollProgress: number): void {
+  if (backgroundRenderer) {
+    backgroundRenderer.updateScrollOffset(scrollProgress)
+  }
+  if (heroRenderer) {
+    heroRenderer.updateScrollOffset(scrollProgress)
   }
 }
 
@@ -228,17 +255,17 @@ export function initializeSimpleBackground(): void {
   // Initialize black noise background for other sections
   const canvas = document.querySelector<HTMLCanvasElement>('#background-canvas')
   if (canvas) {
-    initializeNoiseCanvas(canvas, false) // false = black background
+    backgroundRenderer = initializeNoiseCanvas(canvas, false) // false = black background
   }
 
   // Initialize blue noise background for hero section
   const heroCanvas = document.querySelector<HTMLCanvasElement>('#hero-noise-canvas')
   if (heroCanvas) {
-    initializeNoiseCanvas(heroCanvas, true) // true = blue background
+    heroRenderer = initializeNoiseCanvas(heroCanvas, true) // true = blue background
   }
 }
 
-function initializeNoiseCanvas(canvas: HTMLCanvasElement, useBlueBackground: boolean): void {
+function initializeNoiseCanvas(canvas: HTMLCanvasElement, useBlueBackground: boolean): SimpleBackgroundRenderer | null {
   console.log('Initializing noise canvas:', canvas.id, 'blue:', useBlueBackground)
 
   // Position canvas 
@@ -269,8 +296,10 @@ function initializeNoiseCanvas(canvas: HTMLCanvasElement, useBlueBackground: boo
     animate()
     
     console.log('Noise renderer started for:', canvas.id)
+    return renderer
   } catch (error) {
     console.error('Failed to initialize noise canvas:', error)
     canvas.style.display = 'none'
+    return null
   }
 }
