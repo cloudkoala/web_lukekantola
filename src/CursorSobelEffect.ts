@@ -51,7 +51,7 @@ export class CursorSobelEffect {
       this.enabled = false
       this.updateThrottle = 100 // ~10fps on mobile for better performance
     } else {
-      this.updateThrottle = 100 // ~10fps on desktop to reduce jitter during scroll
+      this.updateThrottle = 16 // ~60fps on desktop when not scrolling
     }
 
     // Create overlay canvas
@@ -364,13 +364,11 @@ export class CursorSobelEffect {
       // Capture the background canvas (animated noise)
       const backgroundCanvas = document.querySelector<HTMLCanvasElement>('#background-canvas')
       if (backgroundCanvas) {
-        console.log('Capturing background canvas:', backgroundCanvas.width, 'x', backgroundCanvas.height)
         ctx.drawImage(backgroundCanvas, 0, 0, w, h)
       }
       
       // Skip 3D canvas capture to keep Fisher model pristine
       // const mainCanvas = document.querySelector<HTMLCanvasElement>('#canvas')
-      console.log('3D canvas capture disabled to preserve model clarity')
       
     } catch (error) {
       console.warn('Canvas capture failed:', error)
@@ -543,8 +541,9 @@ export class CursorSobelEffect {
     
     this.material.uniforms.uIsScrolling.value = scrollFade
 
-    // Capture page content periodically (throttled for performance, continue during scroll)
-    if (now - this.lastUpdateTime > this.updateThrottle) {
+    // Capture page content periodically (paused during scroll for performance)
+    const scrollThrottle = this.isScrolling ? 500 : this.updateThrottle // Much slower during scroll
+    if (now - this.lastUpdateTime > scrollThrottle) {
       this.captureFullPage()
       this.lastUpdateTime = now
     }

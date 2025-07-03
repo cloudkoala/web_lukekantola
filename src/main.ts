@@ -17,10 +17,14 @@ let currentModel: THREE.Points | null = null
 let controls: OrbitControls
 let cursorEffect: CursorSobelEffect | null = null
 
+// Mouse position for cursor-based rotation
+let mousePosition = { x: 0, y: 0 }
+let isMouseOverCanvas = false
+
 // Three.js setup - RE-ENABLED
 const scene = new THREE.Scene()
-// Make scene transparent to show the blue div behind it
-scene.background = null
+// Set solid background color instead of transparent to prevent noise showing through 3D model
+scene.background = new THREE.Color(0x5d5fa2) // Blue background color (matches hero section)
 
 // Remove fog since we want transparency
 // scene.fog = new THREE.FogExp2(backgroundColor.getHex(), 0.003)
@@ -37,7 +41,7 @@ const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true
 })
-renderer.setClearColor(0x000000, 0) // Transparent clear color
+renderer.setClearColor(0x5d5fa2, 1) // Solid blue clear color (matches background)
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
@@ -96,7 +100,7 @@ const FISHER_CONFIG = {
   displayName: "Fisher Towers",
   defaultPointSize: 0.01,
   defaultFocalLength: 152, // Focal length in mm (from PNG metadata)
-  cameraPosition: { x: -7.508, y: 3.544, z: 7.131 },
+  cameraPosition: { x: 0, y: 3.544, z: 7.131 }, // Changed x from -7.508 to 0
   target: { x: 0.3, y: 0.8, z: 0.4 }
 }
 
@@ -415,11 +419,92 @@ function setupHomeNavigation() {
   }
 }
 
-// Animation loop with OrbitControls
+// Setup mouse tracking for cursor-based rotation
+function setupMouseTracking() {
+  // Track mouse globally, not just on canvas
+  document.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect()
+    
+    // Check if mouse is over the canvas area
+    const isOverCanvas = event.clientX >= rect.left && 
+                        event.clientX <= rect.right && 
+                        event.clientY >= rect.top && 
+                        event.clientY <= rect.bottom
+    
+    if (isOverCanvas) {
+      isMouseOverCanvas = true
+      // Normalize mouse position to -1 to 1 range
+      mousePosition.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mousePosition.y = ((event.clientY - rect.top) / rect.height) * 2 - 1
+    } else {
+      isMouseOverCanvas = false
+      // Reset to center when mouse is outside canvas
+      mousePosition.x = 0
+      mousePosition.y = 0
+    }
+  })
+}
+
+// Animation loop with OrbitControls and cursor-based rotation
 function animate() {
   requestAnimationFrame(animate)
   
-  // Update controls for damping
+  // Apply subtle cursor-based rotation influence
+  if (controls && isMouseOverCanvas) {
+    // Calculate target angles based on mouse position
+    const mouseInfluence = 0.16 // Strength of mouse influence (0-1) - reduced by 60% from 0.4
+    const maxAngleOffset = 7 * Math.PI / 180 // 7 degrees max offset - reduced by 60% from 17.5
+    
+    // Apply plateau sensitivity: max speed at certain radius, then falloff to edges
+    const maxSpeedRadius = 0.6 // Radius where max speed is reached
+    const falloffRadius = 0.9 // Radius where speed starts falling off to zero
+    
+    const distanceFromCenter = Math.sqrt(mousePosition.x * mousePosition.x + mousePosition.y * mousePosition.y)
+    
+    let speedMultiplier = 1.0
+    if (distanceFromCenter <= maxSpeedRadius) {
+      // Linear ramp up to max speed
+      speedMultiplier = distanceFromCenter / maxSpeedRadius
+    } else if (distanceFromCenter <= falloffRadius) {
+      // Plateau at max speed
+      speedMultiplier = 1.0
+    } else {
+      // Falloff to zero at canvas edges
+      const falloffProgress = (distanceFromCenter - falloffRadius) / (1.0 - falloffRadius)
+      speedMultiplier = 1.0 - falloffProgress
+      speedMultiplier = Math.max(0, speedMultiplier)
+    }
+    
+    const sensitivityX = mousePosition.x * speedMultiplier
+    const sensitivityY = mousePosition.y * speedMultiplier
+    
+    // Calculate desired azimuth and polar angles based on mouse (inverted with exponential sensitivity)
+    const mouseAzimuth = -sensitivityX * maxAngleOffset * mouseInfluence
+    const mousePolar = -sensitivityY * maxAngleOffset * mouseInfluence
+    
+    // Get current camera position relative to target
+    const offset = camera.position.clone().sub(controls.target)
+    const spherical = new THREE.Spherical().setFromVector3(offset)
+    
+    // Blend current angles with mouse-influenced angles
+    const blendFactor = 0.05 // How quickly to blend (lower = smoother) - increased from 0.02
+    const targetAzimuth = spherical.theta + mouseAzimuth
+    const targetPolar = spherical.phi + mousePolar
+    
+    // Apply smooth interpolation
+    spherical.theta += (targetAzimuth - spherical.theta) * blendFactor
+    spherical.phi += (targetPolar - spherical.phi) * blendFactor
+    
+    // Respect the existing angle limits
+    spherical.theta = Math.max(controls.minAzimuthAngle, Math.min(controls.maxAzimuthAngle, spherical.theta))
+    spherical.phi = Math.max(controls.minPolarAngle, Math.min(controls.maxPolarAngle, spherical.phi))
+    
+    // Update camera position
+    offset.setFromSpherical(spherical)
+    camera.position.copy(controls.target).add(offset)
+  }
+  
+  // Update controls for damping and auto-rotation
   controls.update()
   
   renderer.render(scene, camera)
@@ -505,6 +590,10 @@ class WaveScrollIndicator {
   private hoverStartTime: number = 0
   private lastUpdateTime: number = 0
   
+  // Wave travel animation - smoothly interpolated wave center
+  private currentWaveCenter: number = 0
+  private targetWaveCenter: number = 0
+  
   constructor(container: HTMLElement) {
     this.container = container
     this.scale = container.querySelector('.scroll-indicator__scale')!
@@ -512,6 +601,13 @@ class WaveScrollIndicator {
     
     this.createSectionIndicators()
     this.setupMouseInteraction()
+    
+    // Initialize wave center to hero position (0%)
+    this.currentWaveCenter = 0
+    this.targetWaveCenter = 0
+    
+    // Initial update to show correct state
+    this.updateFromScroll()
   }
   
   private setupMouseInteraction() {
@@ -572,9 +668,9 @@ class WaveScrollIndicator {
   }
   
   private clearHoverStyles() {
-    // Apply fast easing for hover state clearing
+    // Clear hover styles without transitions for instant reset
     this.markers.forEach(marker => {
-      marker.style.transition = 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)' // Fast ease-out
+      marker.style.transition = 'none' // No transition for instant reset
       // Clear stroke styling that was applied during hover
       marker.style.background = 'var(--marker-active)'
       marker.style.border = 'none'
@@ -584,25 +680,25 @@ class WaveScrollIndicator {
       delete marker.dataset.hoverTransition
     })
     
-    // Also clear any text hover styles with fast easing
+    // Also clear any text hover styles instantly
     this.labels.forEach(label => {
       if (!label) return // Skip null placeholders
-      label.style.transition = 'all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94)' // Fast ease-out
+      label.style.transition = 'none' // No transition for instant reset
       // Reset to transparent state - scroll events will set proper values
       label.style.borderColor = `rgba(0, 255, 0, 0)`
       label.style.backgroundColor = `rgba(0, 0, 0, 0)`
     })
     
-    // Restore normal fast transitions after clearing animation
-    setTimeout(() => {
+    // Restore normal transitions after one frame
+    requestAnimationFrame(() => {
       this.markers.forEach(marker => {
-        marker.style.transition = 'all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        marker.style.transition = ''  // Use CSS default
       })
       this.labels.forEach(label => {
         if (!label) return // Skip null placeholders
-        label.style.transition = 'opacity 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94), left 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94), background 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94), border 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        label.style.transition = '' // Use CSS default
       })
-    }, 150)
+    })
   }
   
   private createSectionIndicators() {
@@ -754,19 +850,29 @@ class WaveScrollIndicator {
       }
     }
     
-    // Update markers with wave effect
+    // Update target wave center based on scroll
+    this.targetWaveCenter = detailedProgress
+    
+    // Initialize wave center to first scroll position if not set
+    if (this.currentWaveCenter === 0 && this.targetWaveCenter > 0) {
+      this.currentWaveCenter = this.targetWaveCenter
+    }
+    
+    // Smoothly interpolate current wave center toward target  
+    const lerpFactor = 0.1 // Interpolation speed
+    const scrollDelta = this.targetWaveCenter - this.currentWaveCenter
+    const amplifiedDelta = scrollDelta * 5 // 5x more movement per scroll
+    this.currentWaveCenter += amplifiedDelta * lerpFactor
+    
+    // Update markers with wave effect - use interpolated wave center
     this.markers.forEach(marker => {
-      const markerSection = marker.dataset.section!
-      const markerOffset = parseInt(marker.dataset.offset!)
-      const markerSectionIndex = this.sections.indexOf(markerSection)
-      const markerPosition = (markerSectionIndex / (this.sections.length - 1)) * 100
-      
-      // Calculate distance from current scroll position
       const markerActualPosition = parseFloat(marker.style.top) // Use the actual pip position
-      const distance = Math.abs(detailedProgress - markerActualPosition)
       
-      // Wave effect: closer to scroll position = higher opacity and bigger
-      const waveInfluence = Math.max(0, 25 - distance) / 25 // More gradual falloff from center (10->25)
+      // Calculate distance from CURRENT wave center (not target)
+      const distance = Math.abs(this.currentWaveCenter - markerActualPosition)
+      
+      // Wave effect: closer to wave center = higher opacity and bigger
+      const waveInfluence = Math.max(0, 25 - distance) / 25
       const baseOpacity = 0.4
       const maxOpacity = 1.0
       const opacity = baseOpacity + (maxOpacity - baseOpacity) * waveInfluence
@@ -778,7 +884,7 @@ class WaveScrollIndicator {
       
       // Width effect for wave  
       const baseWidth = marker.classList.contains('scroll-indicator__marker--major') ? 4 : 4
-      const maxWidth = marker.classList.contains('scroll-indicator__marker--major') ? 30 : 26 // Only major pips reduced: 34->30, regular stay 26
+      const maxWidth = marker.classList.contains('scroll-indicator__marker--major') ? 30 : 26
       const width = baseWidth + (maxWidth - baseWidth) * waveInfluence
       
       marker.style.opacity = opacity.toString()
@@ -794,7 +900,7 @@ class WaveScrollIndicator {
       if (!label) return // Skip null placeholders (hero section)
       
       const labelPosition = (index / (this.sections.length - 1)) * 100
-      const distance = Math.abs(detailedProgress - labelPosition)
+      const distance = Math.abs(this.currentWaveCenter - labelPosition) // Use current wave center for consistency
       
       let opacity = 0.2 // Base opacity
       let isSelected = false
@@ -807,7 +913,7 @@ class WaveScrollIndicator {
         isSelected = distance <= 5 // Consider "selected" when very close
       }
       
-      // Calculate wave influence for this label position  
+      // Calculate wave influence for this label position using current wave center
       const waveInfluence = Math.max(0, 25 - distance) / 25 // Quicker falloff (30->25)
       
       // Calculate text position based on pip extension with proper wave influence
@@ -841,8 +947,144 @@ class WaveScrollIndicator {
   }
 }
 
+// Custom Zoom Slider styled like scroll indicator
+class CustomZoomSlider {
+  private container: HTMLElement
+  private scale: HTMLElement
+  private pips: HTMLElement[] = []
+  private handlePip: HTMLElement | null = null
+  private currentValue: number = 130
+  private minValue: number = 60
+  private maxValue: number = 200
+  private isDragging: boolean = false
+  
+  constructor(container: HTMLElement) {
+    this.container = container
+    this.scale = container.querySelector('.zoom-slider-scale')!
+    
+    this.createPips()
+    this.setupInteraction()
+  }
+  
+  private createPips() {
+    // Create 15 pips distributed across the width (horizontal)
+    const totalPips = 15
+    for (let i = 0; i <= totalPips; i++) {
+      const position = (i / totalPips) * 100
+      const pip = document.createElement('div')
+      pip.classList.add('zoom-pip')
+      pip.style.left = `${position}%`
+      
+      this.scale.appendChild(pip)
+      this.pips.push(pip)
+    }
+    
+    // Set initial handle position
+    this.updateHandle()
+  }
+  
+  private setupInteraction() {
+    this.container.addEventListener('mousedown', (e) => {
+      this.isDragging = true
+      this.updateValueFromMouse(e)
+      document.addEventListener('mousemove', this.handleMouseMove)
+      document.addEventListener('mouseup', this.handleMouseUp)
+    })
+  }
+  
+  private handleMouseMove = (e: MouseEvent) => {
+    if (this.isDragging) {
+      this.updateValueFromMouse(e)
+    }
+  }
+  
+  private handleMouseUp = () => {
+    this.isDragging = false
+    document.removeEventListener('mousemove', this.handleMouseMove)
+    document.removeEventListener('mouseup', this.handleMouseUp)
+  }
+  
+  private updateValueFromMouse(e: MouseEvent) {
+    const rect = this.container.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    const percentage = mouseX / rect.width // Left = min, right = max
+    const clampedPercentage = Math.max(0, Math.min(1, percentage))
+    
+    this.currentValue = this.minValue + (this.maxValue - this.minValue) * clampedPercentage
+    this.updateHandle()
+    this.triggerZoomChange()
+  }
+  
+  private updateHandle() {
+    // Calculate position
+    const percentage = (this.currentValue - this.minValue) / (this.maxValue - this.minValue)
+    const targetPosition = percentage * 100 // Left = min, right = max
+    
+    // Update all pips with falloff effect
+    this.pips.forEach(pip => {
+      // Clear handle class
+      pip.classList.remove('zoom-pip--handle')
+      
+      const pipPosition = parseFloat(pip.style.left)
+      const distance = Math.abs(targetPosition - pipPosition)
+      
+      // Falloff effect: closer to target = bigger and more opaque
+      const falloffRadius = 25 // Distance for falloff effect
+      const influence = Math.max(0, falloffRadius - distance) / falloffRadius
+      
+      const baseOpacity = 0.4
+      const maxOpacity = 1.0
+      const opacity = baseOpacity + (maxOpacity - baseOpacity) * influence
+      
+      const baseHeight = 4
+      const maxHeight = 20
+      const height = baseHeight + (maxHeight - baseHeight) * influence
+      
+      const baseWidth = 1
+      const maxWidth = 3
+      const width = baseWidth + (maxWidth - baseWidth) * influence
+      
+      pip.style.opacity = opacity.toString()
+      pip.style.height = `${height}px`
+      pip.style.width = `${width}px`
+    })
+    
+    // Find closest pip and set as handle
+    let closestPip = this.pips[0]
+    let minDistance = Infinity
+    
+    this.pips.forEach(pip => {
+      const pipPosition = parseFloat(pip.style.left)
+      const distance = Math.abs(targetPosition - pipPosition)
+      if (distance < minDistance) {
+        minDistance = distance
+        closestPip = pip
+      }
+    })
+    
+    // Set as handle
+    this.handlePip = closestPip
+    this.handlePip.classList.add('zoom-pip--handle')
+  }
+  
+  private triggerZoomChange() {
+    // Update the hidden range slider to trigger existing zoom logic
+    const originalSlider = document.querySelector<HTMLInputElement>('#zoom-slider')
+    if (originalSlider) {
+      originalSlider.value = this.currentValue.toString()
+      originalSlider.dispatchEvent(new Event('input'))
+    }
+  }
+  
+  setValue(value: number) {
+    this.currentValue = Math.max(this.minValue, Math.min(this.maxValue, value))
+    this.updateHandle()
+  }
+}
+
 // Initialize scroll indicator
 let scrollIndicator: WaveScrollIndicator
+let zoomSliderCustom: CustomZoomSlider
 
 // Section tracking with smooth scroll-based animation
 function updateCurrentSection() {
@@ -945,7 +1187,8 @@ async function init() {
   controls.dampingFactor = 0.05
   controls.enableZoom = false // Disable zoom to use our slider
   controls.enablePan = false // Disable panning to avoid conflicts with scrolling
-  controls.autoRotate = false
+  controls.autoRotate = true
+  controls.autoRotateSpeed = 0.001 // Much slower rotation
   
   // Set the target to match our Fisher model setup
   controls.target.set(
@@ -953,7 +1196,19 @@ async function init() {
     FISHER_CONFIG.target.y,
     FISHER_CONFIG.target.z
   )
+  
+  // Limit rotation to prevent camera going into -z territory
+  controls.minAzimuthAngle = -Math.PI / 2 // -90 degrees
+  controls.maxAzimuthAngle = Math.PI / 2   // +90 degrees
+  
+  // Limit vertical rotation (polar angle) - allow looking straight down, but limit upward view
+  controls.minPolarAngle = 0 // Allow looking straight down (0 degrees)
+  controls.maxPolarAngle = Math.PI / 2 + (15 * Math.PI / 180) // Limit upward view to 15 degrees below horizontal
+  
   controls.update() // Apply the target
+  
+  // Setup mouse tracking for cursor-based rotation
+  setupMouseTracking()
   
   // Setup navigation
   setupNavigation()
@@ -965,6 +1220,12 @@ async function init() {
   const indicatorElement = document.getElementById('sectionIndicator')
   if (indicatorElement) {
     scrollIndicator = new WaveScrollIndicator(indicatorElement)
+  }
+  
+  // Initialize custom zoom slider
+  const zoomSliderElement = document.getElementById('zoom-slider-container')
+  if (zoomSliderElement) {
+    zoomSliderCustom = new CustomZoomSlider(zoomSliderElement)
   }
   
   // Listen for scroll events to update current section
@@ -1007,7 +1268,7 @@ async function init() {
   // Setup zoom slider
   const zoomSlider = document.querySelector<HTMLInputElement>('#zoom-slider')
   if (zoomSlider) {
-    zoomSlider.value = "100" // Default zoom
+    zoomSlider.value = "130" // Default zoom at 50% (130 is 50% between 60-200)
     zoomSlider.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement
       const zoomFactor = parseFloat(target.value) / 100
