@@ -54,8 +54,8 @@ body {
 /* Custom zoom slider styled like scroll indicator - horizontal */
 .zoom-slider-container {
   position: absolute; /* Changed from fixed to absolute so it scrolls with hero section */
-  right: 200px; /* Moved left to 200px from right edge */
-  bottom: 80px; /* Lowered to 80px from bottom edge */
+  right: 15%; /* 15% from right edge instead of 200px */
+  bottom: 8%; /* 8% from bottom edge instead of 80px */
   width: 150px;
   height: 50px;
   z-index: 1000;
@@ -105,11 +105,22 @@ body {
   height: 30px !important; /* Much taller drag target */
 }
 
+/* On mobile/touch devices, make the handle always big (permanent hover state) */
+@media (hover: none) and (pointer: coarse) {
+  .zoom-pip--handle {
+    background: rgba(0, 255, 0, 0.8) !important;
+    border-color: rgba(0, 255, 0, 1) !important;
+    width: 12px !important; /* Even wider on mobile */
+    height: 35px !important; /* Even taller on mobile */
+  }
+}
+
 .zoom-label {
   position: absolute;
   bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  text-align: center;
   color: var(--color-foreground);
   font-size: 11px;
   font-family: 'Space Mono', monospace;
@@ -251,6 +262,45 @@ section {
   width: 100% !important;
   position: relative !important;
   box-sizing: border-box !important;
+}
+
+/* About section panel styling */
+.about-panel {
+  position: relative;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 600px;
+  margin: 0 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.about-content {
+  font-family: 'Space Mono', monospace;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: white;
+}
+
+.about-content h2 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #00ff00;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+}
+
+.about-content p {
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.about-content p:last-child {
+  margin-bottom: 0;
 }
 
 /* Scroll Indicator Styles - Based on CodePen */

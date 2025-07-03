@@ -425,24 +425,21 @@ function setupHomeNavigation() {
 
 // Setup mouse tracking for cursor-based rotation
 function setupMouseTracking() {
-  // Track mouse globally, not just on canvas
+  // Track mouse globally across the entire viewport (not just canvas)
   document.addEventListener('mousemove', (event) => {
-    const rect = canvas.getBoundingClientRect()
+    // Check if we're in the hero section (where the 3D model is)
+    const heroSection = document.getElementById('hero')
+    const isInHeroSection = heroSection && window.scrollY < window.innerHeight
     
-    // Check if mouse is over the canvas area
-    const isOverCanvas = event.clientX >= rect.left && 
-                        event.clientX <= rect.right && 
-                        event.clientY >= rect.top && 
-                        event.clientY <= rect.bottom
-    
-    if (isOverCanvas) {
+    if (isInHeroSection) {
       isMouseOverCanvas = true
-      // Normalize mouse position to -1 to 1 range
-      mousePosition.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      mousePosition.y = ((event.clientY - rect.top) / rect.height) * 2 - 1
+      // Use viewport coordinates instead of canvas rect for full-screen tracking
+      // Normalize mouse position to -1 to 1 range based on viewport
+      mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1
+      mousePosition.y = (event.clientY / window.innerHeight) * 2 - 1
     } else {
       isMouseOverCanvas = false
-      // Reset to center when mouse is outside canvas
+      // Reset to center when outside hero section
       mousePosition.x = 0
       mousePosition.y = 0
     }
@@ -487,10 +484,7 @@ function animate() {
     let mouseAzimuth = -sensitivityX * maxAzimuthOffset * mouseInfluence
     let mousePolar = -sensitivityY * maxPolarOffset * mouseInfluence
     
-    // Limit cursor-based polar angle to only go down (0 to positive values, no upward tilt)
-    if (mousePolar < 0) {
-      mousePolar = 0 // Don't allow cursor to tilt camera up
-    }
+    // Allow full range cursor-based polar movement (both up and down)
     
     // Get current camera position relative to target
     const offset = camera.position.clone().sub(controls.target)
@@ -501,22 +495,43 @@ function animate() {
     const targetAzimuth = spherical.theta + mouseAzimuth
     const targetPolar = spherical.phi + mousePolar
     
-    // Apply handrail easing - slow down as approaching limits
+    // Apply handrail easing - slow down ONLY when approaching limits, full speed when moving away
     const azimuthRange = controls.maxAzimuthAngle - controls.minAzimuthAngle
     const polarRange = controls.maxPolarAngle - controls.minPolarAngle
     
-    // Calculate distance from limits (0 = at limit, 1 = at center)
-    const azimuthFromMin = Math.abs(spherical.theta - controls.minAzimuthAngle) / azimuthRange
-    const azimuthFromMax = Math.abs(spherical.theta - controls.maxAzimuthAngle) / azimuthRange
-    const azimuthEasing = Math.min(azimuthFromMin, azimuthFromMax) * 2 // Double for stronger easing
+    // Calculate if we're moving toward or away from limits
+    const azimuthDelta = targetAzimuth - spherical.theta
+    const polarDelta = targetPolar - spherical.phi
     
-    const polarFromMin = Math.abs(spherical.phi - controls.minPolarAngle) / polarRange
-    const polarFromMax = Math.abs(spherical.phi - controls.maxPolarAngle) / polarRange
-    const polarEasing = Math.min(polarFromMin, polarFromMax) * 2 // Double for stronger easing
+    // Check if movement is toward a limit (apply easing) or away from limit (full speed)
+    let azimuthEasing = 1.0
+    let polarEasing = 1.0
     
-    // Apply eased blend factors (slower near limits)
-    const easedAzimuthBlend = blendFactor * Math.min(1, azimuthEasing)
-    const easedPolarBlend = blendFactor * Math.min(1, polarEasing)
+    // Azimuth (horizontal) easing
+    if (azimuthDelta > 0 && spherical.theta > controls.maxAzimuthAngle - 0.3) {
+      // Moving right toward max limit
+      const distanceFromLimit = controls.maxAzimuthAngle - spherical.theta
+      azimuthEasing = Math.max(0.1, distanceFromLimit / 0.3)
+    } else if (azimuthDelta < 0 && spherical.theta < controls.minAzimuthAngle + 0.3) {
+      // Moving left toward min limit
+      const distanceFromLimit = spherical.theta - controls.minAzimuthAngle
+      azimuthEasing = Math.max(0.1, distanceFromLimit / 0.3)
+    }
+    
+    // Polar (vertical) easing
+    if (polarDelta > 0 && spherical.phi > controls.maxPolarAngle - 0.3) {
+      // Moving down toward max limit
+      const distanceFromLimit = controls.maxPolarAngle - spherical.phi
+      polarEasing = Math.max(0.1, distanceFromLimit / 0.3)
+    } else if (polarDelta < 0 && spherical.phi < controls.minPolarAngle + 0.3) {
+      // Moving up toward min limit
+      const distanceFromLimit = spherical.phi - controls.minPolarAngle
+      polarEasing = Math.max(0.1, distanceFromLimit / 0.3)
+    }
+    
+    // Apply eased blend factors (only when approaching limits)
+    const easedAzimuthBlend = blendFactor * azimuthEasing
+    const easedPolarBlend = blendFactor * polarEasing
     
     // Apply smooth interpolation with easing
     spherical.theta += (targetAzimuth - spherical.theta) * easedAzimuthBlend
@@ -995,8 +1010,8 @@ class CustomZoomSlider {
   }
   
   private createPips() {
-    // Create 15 pips distributed across the width (horizontal)
-    const totalPips = 15
+    // Create 14 pips distributed across the width (horizontal) for symmetry
+    const totalPips = 14
     for (let i = 0; i <= totalPips; i++) {
       const position = (i / totalPips) * 100
       const pip = document.createElement('div')
@@ -1044,6 +1059,28 @@ class CustomZoomSlider {
         e.preventDefault() // Prevent text selection
       }
     })
+    
+    // Add touch support for mobile
+    this.container.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0]
+      const rect = this.container.getBoundingClientRect()
+      const touchX = touch.clientX - rect.left
+      
+      // Check if touch is on handle using direct coordinates
+      if (this.handlePip) {
+        const handlePosition = parseFloat(this.handlePip.style.left)
+        const handlePixelPosition = (handlePosition / 100) * rect.width
+        const tolerance = 60 // Large touch target
+        
+        if (Math.abs(touchX - handlePixelPosition) <= tolerance) {
+          this.isDragging = true
+          document.addEventListener('touchmove', this.handleTouchMove, { passive: false })
+          document.addEventListener('touchend', this.handleTouchEnd)
+          e.preventDefault()
+          console.log('Touch drag started') // Debug
+        }
+      }
+    })
   }
   
   private isClickOnHandle(e: MouseEvent): boolean {
@@ -1056,8 +1093,9 @@ class CustomZoomSlider {
     const handlePosition = parseFloat(this.handlePip.style.left)
     const handlePixelPosition = (handlePosition / 100) * rect.width
     
-    // Allow clicking within 40px of the handle center (larger for hover state)
-    const tolerance = 40
+    // Allow clicking within larger tolerance on mobile
+    const isMobile = 'ontouchstart' in window
+    const tolerance = isMobile ? 60 : 40 // Larger touch target on mobile
     return Math.abs(mouseX - handlePixelPosition) <= tolerance
   }
 
@@ -1073,6 +1111,30 @@ class CustomZoomSlider {
     document.removeEventListener('mouseup', this.handleMouseUp)
   }
   
+  private handleTouchMove = (e: TouchEvent) => {
+    if (this.isDragging) {
+      const touch = e.touches[0]
+      const rect = this.container.getBoundingClientRect()
+      const touchX = touch.clientX - rect.left
+      const percentage = touchX / rect.width
+      const clampedPercentage = Math.max(0, Math.min(1, percentage))
+      
+      this.currentValue = this.minValue + (this.maxValue - this.minValue) * clampedPercentage
+      this.updateHandle()
+      this.triggerZoomChange()
+      
+      e.preventDefault()
+      console.log('Touch drag move:', this.currentValue) // Debug
+    }
+  }
+  
+  private handleTouchEnd = () => {
+    console.log('Touch drag ended') // Debug
+    this.isDragging = false
+    document.removeEventListener('touchmove', this.handleTouchMove)
+    document.removeEventListener('touchend', this.handleTouchEnd)
+  }
+  
   private updateValueFromMouse(e: MouseEvent) {
     const rect = this.container.getBoundingClientRect()
     const mouseX = e.clientX - rect.left
@@ -1085,9 +1147,9 @@ class CustomZoomSlider {
   }
   
   private updateHandle() {
-    // Calculate position
+    // Calculate percentage position (0-1)
     const percentage = (this.currentValue - this.minValue) / (this.maxValue - this.minValue)
-    const targetPosition = percentage * 100 // Left = min, right = max
+    const targetPosition = percentage * 100 // 0% to 100%
     
     // Update all pips with symmetrical falloff effect
     this.pips.forEach((pip, index) => {
@@ -1118,11 +1180,12 @@ class CustomZoomSlider {
       pip.style.height = `${height}px`
       pip.style.width = `${width}px`
       
-      // Update pip position to ensure perfect symmetry
+      // Ensure pip position is percentage-based
       pip.style.left = `${pipPosition}%`
     })
     
-    // Find closest pip and set as handle
+    // Create a virtual handle pip at the exact percentage position
+    // Find closest pip to set as handle for visual feedback
     let closestPip = this.pips[0]
     let minDistance = Infinity
     
@@ -1135,17 +1198,34 @@ class CustomZoomSlider {
       }
     })
     
-    // Set as handle
+    // Set as handle and update its position to exact percentage
     this.handlePip = closestPip
     this.handlePip.classList.add('zoom-pip--handle')
+    this.handlePip.style.left = `${targetPosition}%` // Set exact percentage position
   }
   
   private triggerZoomChange() {
-    // Update the hidden range slider to trigger existing zoom logic
+    // Convert value to percentage (0-100) for camera zoom
+    const percentage = (this.currentValue - this.minValue) / (this.maxValue - this.minValue)
+    
+    // Update camera zoom using percentage-based system
+    if (cameraTarget && initialCameraDistance) {
+      // Zoom range: 50% to 150% of original distance
+      const minZoom = 0.5
+      const maxZoom = 1.5
+      const zoomFactor = minZoom + (maxZoom - minZoom) * percentage
+      
+      const currentDirection = camera.position.clone().sub(cameraTarget).normalize()
+      const newDistance = initialCameraDistance * zoomFactor
+      const newCameraPos = cameraTarget.clone().add(currentDirection.multiplyScalar(newDistance))
+      
+      camera.position.copy(newCameraPos)
+    }
+    
+    // Also update the hidden range slider for compatibility
     const originalSlider = document.querySelector<HTMLInputElement>('#zoom-slider')
     if (originalSlider) {
       originalSlider.value = this.currentValue.toString()
-      originalSlider.dispatchEvent(new Event('input'))
     }
   }
   
@@ -1300,12 +1380,12 @@ async function init() {
   )
   
   // Limit rotation with eased handrails for click+drag
-  controls.minAzimuthAngle = -Math.PI / 3 // -60 degrees (120 degree total range)
-  controls.maxAzimuthAngle = Math.PI / 3   // +60 degrees
+  controls.minAzimuthAngle = -Math.PI / 3 - (30 * Math.PI / 180) // -90 degrees (30 more to the left)
+  controls.maxAzimuthAngle = Math.PI / 3 + (15 * Math.PI / 180)   // +75 degrees (15 more to the right)
   
-  // Limit vertical rotation (polar angle) - 45 degrees up from horizontal, straight down allowed
-  controls.minPolarAngle = 0 // Allow looking straight down (0 degrees)
-  controls.maxPolarAngle = Math.PI / 2 + (45 * Math.PI / 180) // 45 degrees up from horizontal
+  // Limit vertical rotation (polar angle) - allow looking up and down
+  controls.minPolarAngle = Math.PI / 2 - (45 * Math.PI / 180) // 45 degrees up from horizontal
+  controls.maxPolarAngle = Math.PI / 2 + (45 * Math.PI / 180) // 45 degrees down from horizontal
   
   controls.update() // Apply the target
   
@@ -1356,13 +1436,23 @@ async function init() {
   initialCameraDistance = initialCameraPosition.distanceTo(cameraTarget)
   cameraDirection = initialCameraPosition.clone().sub(cameraTarget).normalize()
   
-  // Setup zoom slider
+  // Setup zoom slider with percentage-based system
   const zoomSlider = document.querySelector<HTMLInputElement>('#zoom-slider')
   if (zoomSlider) {
     zoomSlider.value = "130" // Default zoom at 50% (130 is 50% between 60-200)
     zoomSlider.addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement
-      const zoomFactor = parseFloat(target.value) / 100
+      const sliderValue = parseFloat(target.value)
+      
+      // Convert slider value to percentage (0-1)
+      const minValue = 60
+      const maxValue = 200
+      const percentage = (sliderValue - minValue) / (maxValue - minValue)
+      
+      // Zoom range: 50% to 150% of original distance
+      const minZoom = 0.5
+      const maxZoom = 1.5
+      const zoomFactor = minZoom + (maxZoom - minZoom) * percentage
       
       // Calculate new camera position based on zoom
       const currentDirection = camera.position.clone().sub(cameraTarget).normalize()
