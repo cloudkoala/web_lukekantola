@@ -9,6 +9,7 @@
 html {
   scroll-behavior: smooth;
   scroll-snap-type: y mandatory;
+  scroll-restoration: manual; /* Prevent browser from restoring scroll position */
 }
 
 body {
@@ -32,6 +33,12 @@ body {
   display: block;
   pointer-events: auto;
   touch-action: pan-y; /* Allow vertical scrolling on touch devices */
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+
+#canvas.loaded {
+  opacity: 1;
 }
 
 #background-canvas {
@@ -46,13 +53,14 @@ body {
 
 /* Custom zoom slider styled like scroll indicator - horizontal */
 .zoom-slider-container {
-  position: fixed;
+  position: absolute; /* Changed from fixed to absolute so it scrolls with hero section */
   right: 200px; /* Moved left to 200px from right edge */
-  bottom: 200px; /* Moved up to 200px from bottom edge */
+  bottom: 80px; /* Lowered to 80px from bottom edge */
   width: 150px;
   height: 50px;
   z-index: 1000;
   pointer-events: auto;
+  transition: opacity 0.3s ease;
 }
 
 .zoom-slider-track {
@@ -70,7 +78,7 @@ body {
 .zoom-pip {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%); /* Center both horizontally and vertically */
   background: var(--marker-active);
   width: 1px;
   height: 4px;
@@ -87,11 +95,14 @@ body {
   border: 1px solid rgba(0, 255, 0, 0.6);
   border-radius: 3px;
   cursor: pointer;
+  transition: width 0.2s ease, height 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
-.zoom-pip--handle:hover {
+.zoom-slider-container:hover .zoom-pip--handle {
   background: rgba(0, 255, 0, 0.8);
   border-color: rgba(0, 255, 0, 1);
+  width: 8px !important; /* Much wider drag target */
+  height: 30px !important; /* Much taller drag target */
 }
 
 .zoom-label {

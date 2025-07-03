@@ -511,6 +511,13 @@ export class CursorSobelEffect {
   }
 
   /**
+   * Get current enabled state
+   */
+  get isEnabled(): boolean {
+    return this.enabled
+  }
+
+  /**
    * Animation loop
    */
   private animate = (): void => {
@@ -524,31 +531,29 @@ export class CursorSobelEffect {
     // Update time uniform for potential animations
     this.material.uniforms.uTime.value = now * 0.001
     
-    // Update scrolling state in shader with fade transitions
-    let scrollFade = 1.0
+    // Calculate fade alpha based on scroll state
+    let fadeAlpha = 1.0
     
     if (this.isScrolling) {
-      // Calculate fade-out progress
-      const timeSinceScrollStart = now - this.scrollStartTime
-      const fadeOutProgress = Math.min(1.0, timeSinceScrollStart / this.fadeOutDuration)
-      scrollFade = 1.0 - fadeOutProgress
+      // Fade out during scroll
+      fadeAlpha = 0.0
     } else if (this.scrollEndTime > 0) {
-      // Calculate fade-in progress
+      // Fade in after scroll ends
       const timeSinceScrollEnd = now - this.scrollEndTime
       const fadeInProgress = Math.min(1.0, timeSinceScrollEnd / this.fadeInDuration)
-      scrollFade = fadeInProgress
+      fadeAlpha = fadeInProgress
     }
     
-    this.material.uniforms.uIsScrolling.value = scrollFade
+    // Update fade uniform
+    this.material.uniforms.uIsScrolling.value = fadeAlpha
 
-    // Capture page content periodically (paused during scroll for performance)
-    const scrollThrottle = this.isScrolling ? 500 : this.updateThrottle // Much slower during scroll
-    if (now - this.lastUpdateTime > scrollThrottle) {
+    // Only capture page when not scrolling to avoid stuttering
+    if (!this.isScrolling && now - this.lastUpdateTime > this.updateThrottle) {
       this.captureFullPage()
       this.lastUpdateTime = now
     }
-
-    // Render the effect
+    
+    // Always render to show fade transitions
     this.renderer.render(this.scene, this.camera)
     
     this.animationId = requestAnimationFrame(this.animate)

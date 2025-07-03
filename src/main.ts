@@ -21,10 +21,14 @@ let cursorEffect: CursorSobelEffect | null = null
 let mousePosition = { x: 0, y: 0 }
 let isMouseOverCanvas = false
 
+// Sobel effect state management
+let lastSobelSection = ''
+let sobelDebounceTimeout: number | null = null
+
 // Three.js setup - RE-ENABLED
 const scene = new THREE.Scene()
-// Set solid background color instead of transparent to prevent noise showing through 3D model
-scene.background = new THREE.Color(0x5d5fa2) // Blue background color (matches hero section)
+// Set solid static background color - this won't scroll with the noise
+scene.background = new THREE.Color(0x5d5fa2) // Static blue background color (matches hero section)
 
 // Remove fog since we want transparency
 // scene.fog = new THREE.FogExp2(backgroundColor.getHex(), 0.003)
@@ -451,9 +455,10 @@ function animate() {
   
   // Apply subtle cursor-based rotation influence
   if (controls && isMouseOverCanvas) {
-    // Calculate target angles based on mouse position
-    const mouseInfluence = 0.16 // Strength of mouse influence (0-1) - reduced by 60% from 0.4
-    const maxAngleOffset = 7 * Math.PI / 180 // 7 degrees max offset - reduced by 60% from 17.5
+    // Calculate target angles based on mouse position - limited range for cursor movement
+    const mouseInfluence = 0.16 // Strength of mouse influence (0-1)
+    const maxAzimuthOffset = 45 * Math.PI / 180 // 45 degrees max horizontal (instead of 90)
+    const maxPolarOffset = 30 * Math.PI / 180 // 30 degrees max vertical (instead of full range)
     
     // Apply plateau sensitivity: max speed at certain radius, then falloff to edges
     const maxSpeedRadius = 0.6 // Radius where max speed is reached
@@ -478,9 +483,14 @@ function animate() {
     const sensitivityX = mousePosition.x * speedMultiplier
     const sensitivityY = mousePosition.y * speedMultiplier
     
-    // Calculate desired azimuth and polar angles based on mouse (inverted with exponential sensitivity)
-    const mouseAzimuth = -sensitivityX * maxAngleOffset * mouseInfluence
-    const mousePolar = -sensitivityY * maxAngleOffset * mouseInfluence
+    // Calculate desired azimuth and polar angles with different limits for each axis
+    let mouseAzimuth = -sensitivityX * maxAzimuthOffset * mouseInfluence
+    let mousePolar = -sensitivityY * maxPolarOffset * mouseInfluence
+    
+    // Limit cursor-based polar angle to only go down (0 to positive values, no upward tilt)
+    if (mousePolar < 0) {
+      mousePolar = 0 // Don't allow cursor to tilt camera up
+    }
     
     // Get current camera position relative to target
     const offset = camera.position.clone().sub(controls.target)
@@ -491,9 +501,26 @@ function animate() {
     const targetAzimuth = spherical.theta + mouseAzimuth
     const targetPolar = spherical.phi + mousePolar
     
-    // Apply smooth interpolation
-    spherical.theta += (targetAzimuth - spherical.theta) * blendFactor
-    spherical.phi += (targetPolar - spherical.phi) * blendFactor
+    // Apply handrail easing - slow down as approaching limits
+    const azimuthRange = controls.maxAzimuthAngle - controls.minAzimuthAngle
+    const polarRange = controls.maxPolarAngle - controls.minPolarAngle
+    
+    // Calculate distance from limits (0 = at limit, 1 = at center)
+    const azimuthFromMin = Math.abs(spherical.theta - controls.minAzimuthAngle) / azimuthRange
+    const azimuthFromMax = Math.abs(spherical.theta - controls.maxAzimuthAngle) / azimuthRange
+    const azimuthEasing = Math.min(azimuthFromMin, azimuthFromMax) * 2 // Double for stronger easing
+    
+    const polarFromMin = Math.abs(spherical.phi - controls.minPolarAngle) / polarRange
+    const polarFromMax = Math.abs(spherical.phi - controls.maxPolarAngle) / polarRange
+    const polarEasing = Math.min(polarFromMin, polarFromMax) * 2 // Double for stronger easing
+    
+    // Apply eased blend factors (slower near limits)
+    const easedAzimuthBlend = blendFactor * Math.min(1, azimuthEasing)
+    const easedPolarBlend = blendFactor * Math.min(1, polarEasing)
+    
+    // Apply smooth interpolation with easing
+    spherical.theta += (targetAzimuth - spherical.theta) * easedAzimuthBlend
+    spherical.phi += (targetPolar - spherical.phi) * easedPolarBlend
     
     // Respect the existing angle limits
     spherical.theta = Math.max(controls.minAzimuthAngle, Math.min(controls.maxAzimuthAngle, spherical.theta))
@@ -853,7 +880,7 @@ class WaveScrollIndicator {
     // Update target wave center based on scroll
     this.targetWaveCenter = detailedProgress
     
-    // Initialize wave center to first scroll position if not set
+    // Initialize wave center to first scroll position if not set (but allow 0 for hero)
     if (this.currentWaveCenter === 0 && this.targetWaveCenter > 0) {
       this.currentWaveCenter = this.targetWaveCenter
     }
@@ -957,6 +984,7 @@ class CustomZoomSlider {
   private minValue: number = 60
   private maxValue: number = 200
   private isDragging: boolean = false
+  private isHovering: boolean = false
   
   constructor(container: HTMLElement) {
     this.container = container
@@ -979,19 +1007,60 @@ class CustomZoomSlider {
       this.pips.push(pip)
     }
     
-    // Set initial handle position
+    // Set initial handle position and sync with existing zoom value
+    const originalSlider = document.querySelector<HTMLInputElement>('#zoom-slider')
+    if (originalSlider) {
+      this.currentValue = parseFloat(originalSlider.value)
+    }
     this.updateHandle()
+    
+    // Force initial zoom update to sync model with slider position
+    this.triggerZoomChange()
   }
   
   private setupInteraction() {
+    this.container.addEventListener('mouseenter', () => {
+      this.isHovering = true
+      // Stop model auto-rotation when hovering over zoom slider
+      if (controls) {
+        controls.autoRotate = false
+      }
+    })
+    
+    this.container.addEventListener('mouseleave', () => {
+      this.isHovering = false
+      // Resume model auto-rotation when leaving zoom slider
+      if (controls) {
+        controls.autoRotate = true
+      }
+    })
+    
     this.container.addEventListener('mousedown', (e) => {
-      this.isDragging = true
-      this.updateValueFromMouse(e)
-      document.addEventListener('mousemove', this.handleMouseMove)
-      document.addEventListener('mouseup', this.handleMouseUp)
+      // Only allow dragging if clicking on or near the handle
+      if (this.isClickOnHandle(e)) {
+        this.isDragging = true
+        document.addEventListener('mousemove', this.handleMouseMove)
+        document.addEventListener('mouseup', this.handleMouseUp)
+        e.preventDefault() // Prevent text selection
+      }
     })
   }
   
+  private isClickOnHandle(e: MouseEvent): boolean {
+    if (!this.handlePip) return false
+    
+    const rect = this.container.getBoundingClientRect()
+    const mouseX = e.clientX - rect.left
+    
+    // Get handle position
+    const handlePosition = parseFloat(this.handlePip.style.left)
+    const handlePixelPosition = (handlePosition / 100) * rect.width
+    
+    // Allow clicking within 40px of the handle center (larger for hover state)
+    const tolerance = 40
+    return Math.abs(mouseX - handlePixelPosition) <= tolerance
+  }
+
   private handleMouseMove = (e: MouseEvent) => {
     if (this.isDragging) {
       this.updateValueFromMouse(e)
@@ -1020,12 +1089,13 @@ class CustomZoomSlider {
     const percentage = (this.currentValue - this.minValue) / (this.maxValue - this.minValue)
     const targetPosition = percentage * 100 // Left = min, right = max
     
-    // Update all pips with falloff effect
-    this.pips.forEach(pip => {
+    // Update all pips with symmetrical falloff effect
+    this.pips.forEach((pip, index) => {
       // Clear handle class
       pip.classList.remove('zoom-pip--handle')
       
-      const pipPosition = parseFloat(pip.style.left)
+      // Use pip index for perfectly symmetrical spacing
+      const pipPosition = (index / (this.pips.length - 1)) * 100
       const distance = Math.abs(targetPosition - pipPosition)
       
       // Falloff effect: closer to target = bigger and more opaque
@@ -1047,6 +1117,9 @@ class CustomZoomSlider {
       pip.style.opacity = opacity.toString()
       pip.style.height = `${height}px`
       pip.style.width = `${width}px`
+      
+      // Update pip position to ensure perfect symmetry
+      pip.style.left = `${pipPosition}%`
     })
     
     // Find closest pip and set as handle
@@ -1155,11 +1228,40 @@ function updateCurrentSection() {
   if (cursorEffect) {
     cursorEffect.updateScrollIntensity(scrollProgress)
     cursorEffect.updateScrollOffset(scrollProgress)
+    
+    // Enable/disable sobel effect based on section (hero = disabled, others = enabled)
+    if (activeSection !== lastSobelSection) {
+      if (sobelDebounceTimeout) {
+        clearTimeout(sobelDebounceTimeout)
+      }
+      
+      sobelDebounceTimeout = window.setTimeout(() => {
+        if (activeSection === 'hero') {
+          if (cursorEffect.isEnabled) {
+            console.log('Disabling sobel effect for hero section (clean 3D model)')
+            cursorEffect.setEnabled(false)
+          }
+        } else {
+          if (!cursorEffect.isEnabled) {
+            console.log('Enabling sobel effect for section:', activeSection)
+            cursorEffect.setEnabled(true)
+          }
+        }
+        lastSobelSection = activeSection
+      }, 100) // 100ms debounce
+    }
   }
+  
+  // Zoom slider now scrolls with hero section, no need to hide it
 }
 
 // Initialize application
 async function init() {
+  // Force scroll to top immediately on load to prevent intermediate positioning
+  window.scrollTo(0, 0)
+  document.documentElement.scrollTop = 0
+  document.body.scrollTop = 0
+  
   console.log('Initializing Three.js with Fisher model...')
   
   // Position camera
@@ -1197,13 +1299,13 @@ async function init() {
     FISHER_CONFIG.target.z
   )
   
-  // Limit rotation to prevent camera going into -z territory
-  controls.minAzimuthAngle = -Math.PI / 2 // -90 degrees
-  controls.maxAzimuthAngle = Math.PI / 2   // +90 degrees
+  // Limit rotation with eased handrails for click+drag
+  controls.minAzimuthAngle = -Math.PI / 3 // -60 degrees (120 degree total range)
+  controls.maxAzimuthAngle = Math.PI / 3   // +60 degrees
   
-  // Limit vertical rotation (polar angle) - allow looking straight down, but limit upward view
+  // Limit vertical rotation (polar angle) - 45 degrees up from horizontal, straight down allowed
   controls.minPolarAngle = 0 // Allow looking straight down (0 degrees)
-  controls.maxPolarAngle = Math.PI / 2 + (15 * Math.PI / 180) // Limit upward view to 15 degrees below horizontal
+  controls.maxPolarAngle = Math.PI / 2 + (45 * Math.PI / 180) // 45 degrees up from horizontal
   
   controls.update() // Apply the target
   
@@ -1215,18 +1317,6 @@ async function init() {
   
   // Setup home navigation
   setupHomeNavigation()
-  
-  // Initialize scroll indicator
-  const indicatorElement = document.getElementById('sectionIndicator')
-  if (indicatorElement) {
-    scrollIndicator = new WaveScrollIndicator(indicatorElement)
-  }
-  
-  // Initialize custom zoom slider
-  const zoomSliderElement = document.getElementById('zoom-slider-container')
-  if (zoomSliderElement) {
-    zoomSliderCustom = new CustomZoomSlider(zoomSliderElement)
-  }
   
   // Listen for scroll events to update current section
   window.addEventListener('scroll', updateCurrentSection)
@@ -1243,9 +1333,10 @@ async function init() {
   // Initialize cursor sobel effect on homepage
   try {
     cursorEffect = new CursorSobelEffect(document.body)
-    console.log('Cursor sobel effect active on homepage')
+    cursorEffect.setEnabled(true) // Explicitly enable on initialization
+    console.log('Cursor sobel effect initialized:', cursorEffect)
   } catch (error) {
-    console.warn('Cursor sobel effect failed to initialize:', error)
+    console.error('Cursor sobel effect failed to initialize:', error)
   }
   
   // Start animation loop
@@ -1287,7 +1378,35 @@ async function init() {
   // Load Fisher model
   await loadFisherModel()
   
+  // Fade in canvas after model loads
+  canvas.classList.add('loaded')
+  
   console.log('Fisher model loaded with zoom controls - scrolling should still work')
+  
+  // Initialize scroll indicator AFTER canvas and model are loaded
+  const indicatorElement = document.getElementById('sectionIndicator')
+  if (indicatorElement) {
+    scrollIndicator = new WaveScrollIndicator(indicatorElement)
+  }
+  
+  // Initialize custom zoom slider AFTER everything is loaded
+  const zoomSliderElement = document.getElementById('zoom-slider-container')
+  if (zoomSliderElement) {
+    zoomSliderCustom = new CustomZoomSlider(zoomSliderElement)
+  }
+  
+  // Force final scroll indicator update after everything is ready
+  setTimeout(() => {
+    if (scrollIndicator) {
+      scrollIndicator.update('hero', 0) // Explicitly set to hero at 0%
+    }
+    updateCurrentSection()
+    
+    // Ensure sobel effect is enabled on hero section
+    if (cursorEffect) {
+      cursorEffect.setEnabled(true)
+    }
+  }, 200)
 }
 
 // Start the application
