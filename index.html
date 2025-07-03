@@ -28,10 +28,29 @@
       </div>
     </div>
     
+    <!-- Scroll Indicator -->
+    <div class="scroll-indicator scroll-indicator--vertical" id="sectionIndicator">
+      <div class="scroll-indicator__track">
+        <div class="scroll-indicator__progress"></div>
+        <div class="scroll-indicator__thumb"></div>
+        <div class="scroll-indicator__tooltip">hero</div>
+      </div>
+      <div class="scroll-indicator__scale"></div>
+    </div>
+
     <!-- Fixed Header -->
     <header class="title-header">
       <h1>
-        <span id="home-path" class="clickable-path"><span class="green-text">./</span>kantola<span class="green-text">/</span>luke</span><span id="current-section"></span>
+        <span class="green-text">./</span>kantola<span class="green-text">/</span>luke<span class="section-container">
+          <span class="green-text">/</span><div class="scrolling-section" id="scrolling-section">
+            <ul id="section-list">
+              <li> reel</li>
+              <li> projects</li>
+              <li> about</li>
+              <li> contact</li>
+            </ul>
+          </div>
+        </span>
       </h1>
       
       <!-- Hamburger Menu (always visible) -->
