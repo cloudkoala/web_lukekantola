@@ -229,8 +229,9 @@ export class ProgressiveLoader {
   
   /**
    * Load a chunked PLY model progressively
+   * @param modelNameOrPath - Either just the model name (e.g., "Fisher_001_6") or full manifest path
    */
-  public async loadChunkedModel(manifestPath: string): Promise<void> {
+  public async loadChunkedModel(modelNameOrPath: string): Promise<void> {
     
     // Cancel any existing loading operation
     this.cancelLoading()
@@ -239,6 +240,13 @@ export class ProgressiveLoader {
     this.abortController = new AbortController()
     
     try {
+      // Auto-construct manifest path if just model name is provided
+      let manifestPath = modelNameOrPath
+      if (!manifestPath.includes('/') && !manifestPath.endsWith('.json')) {
+        // Just a model name provided, construct full path
+        manifestPath = `models/chunks/${modelNameOrPath}/${modelNameOrPath}_manifest.json`
+      }
+      
       // Load manifest
       const response = await fetch(`${this.basePath}${manifestPath}`, {
         signal: this.abortController.signal

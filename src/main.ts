@@ -5,6 +5,9 @@ import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { ContentLoader } from './interface'
 import { initializeSimpleBackground, updateBackgroundScroll } from './simpleBackground'
 import { CursorSobelEffect } from './CursorSobelEffect'
+import { ReelViewer } from './ReelViewer'
+import { PageLoadingSpinner } from './PageLoadingSpinner'
+import { ProgressiveLoader } from './ProgressiveLoader'
 
 // DOM elements
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -16,10 +19,18 @@ const zoomSlider = document.querySelector<HTMLInputElement>('#zoom-slider')!
 let currentModel: THREE.Points | null = null
 let controls: OrbitControls
 let cursorEffect: CursorSobelEffect | null = null
+let reelViewer: ReelViewer | null = null
+let hasRefreshedReel = false // Track if we've refreshed the reel viewer
+let pageLoader: PageLoadingSpinner | null = null
+let progressiveLoader: ProgressiveLoader | null = null
 
 // Mouse position for cursor-based rotation
 let mousePosition = { x: 0, y: 0 }
 let isMouseOverCanvas = false
+
+// Mobile joystick state
+let joystickPosition = { x: 0, y: 0 }
+let isMobileDevice = false
 
 // Sobel effect state management
 let lastSobelSection = ''
@@ -102,7 +113,7 @@ window.addEventListener('scroll', updateCurrentSection)
 const FISHER_CONFIG = {
   fileName: "Fisher_001_6.ply",
   displayName: "Fisher Towers",
-  defaultPointSize: 0.01,
+  defaultPointSize: 0.03,
   defaultFocalLength: 152, // Focal length in mm (from PNG metadata)
   cameraPosition: { x: 0, y: 3.544, z: 7.131 }, // Changed x from -7.508 to 0
   target: { x: 0.3, y: 0.8, z: 0.4 }
@@ -114,11 +125,69 @@ let initialCameraPosition: THREE.Vector3
 let cameraTarget: THREE.Vector3
 let cameraDirection: THREE.Vector3
 
-// Simple Fisher model loading
+// Progressive Fisher model loading using chunked PLY files
 async function loadFisherModel() {
   try {
-    console.log('Loading Fisher model...')
+    console.log('Loading Fisher model progressively...')
     
+    // Initialize progressive loader
+    progressiveLoader = new ProgressiveLoader(scene)
+    
+    // Set point size to match Fisher config
+    progressiveLoader.setPointSize(FISHER_CONFIG.defaultPointSize)
+    
+    // Set up progress callback
+    progressiveLoader.setOnChunkLoaded((chunkIndex, totalChunks) => {
+      const progress = (chunkIndex / totalChunks) * 100
+      console.log(`Loading Fisher: ${chunkIndex}/${totalChunks} chunks (${progress.toFixed(1)}%)`)
+      
+      // Update page loading counter
+      if ((window as any).updateLoadingCounter) {
+        (window as any).updateLoadingCounter(progress)
+      }
+      
+      // Update progress indicator if visible
+      if (progressEl.style.display !== 'none') {
+        const progressText = progressEl.querySelector('div')
+        if (progressText) {
+          progressText.textContent = `Loading Fisher model... ${Math.round(progress)}%`
+        }
+      }
+    })
+    
+    // Set completion callback
+    progressiveLoader.setOnLoadComplete(() => {
+      console.log('Fisher model loaded successfully')
+      
+      // Ensure counter shows 100%
+      if ((window as any).updateLoadingCounter) {
+        (window as any).updateLoadingCounter(100)
+      }
+      
+      // Trigger reel viewer loading after Fisher is complete
+      if (reelViewer) {
+        setTimeout(() => {
+          reelViewer!.loadModelAfterFisher()
+        }, 500)
+      }
+    })
+    
+    // Load the chunked Fisher model (auto-constructs manifest path)
+    const modelName = FISHER_CONFIG.fileName.replace('.ply', '')
+    await progressiveLoader.loadChunkedModel(modelName)
+    
+  } catch (error) {
+    console.error('Error loading Fisher model:', error)
+    
+    // Fallback to regular PLY loading if chunked version fails
+    console.log('Falling back to regular PLY loading...')
+    await loadFisherModelFallback()
+  }
+}
+
+// Fallback function for regular PLY loading
+async function loadFisherModelFallback() {
+  try {
     const loader = new PLYLoader()
     const geometry = await loader.loadAsync(`models/base/pointcloud/${FISHER_CONFIG.fileName}`)
     
@@ -126,12 +195,12 @@ async function loadFisherModel() {
     if (geometry.attributes.color) {
       const colors = geometry.attributes.color.array as Float32Array
       for (let i = 0; i < colors.length; i += 3) {
-        let r = colors[i] * 1.8
-        let g = colors[i + 1] * 1.8
-        let b = colors[i + 2] * 1.8
+        let r = colors[i] * 2.2
+        let g = colors[i + 1] * 2.2
+        let b = colors[i + 2] * 2.2
         
         const gray = 0.299 * r + 0.587 * g + 0.114 * b
-        const saturationBoost = 1.2
+        const saturationBoost = 0.8
         r = gray + saturationBoost * (r - gray)
         g = gray + saturationBoost * (g - gray)
         b = gray + saturationBoost * (b - gray)
@@ -152,10 +221,17 @@ async function loadFisherModel() {
     currentModel = new THREE.Points(geometry, material)
     scene.add(currentModel)
     
-    console.log('Fisher model loaded successfully')
+    console.log('Fisher model fallback loaded successfully')
+    
+    // Trigger reel viewer loading after Fisher is complete
+    if (reelViewer) {
+      setTimeout(() => {
+        reelViewer!.loadModelAfterFisher()
+      }, 500)
+    }
     
   } catch (error) {
-    console.error('Error loading Fisher model:', error)
+    console.error('Error loading Fisher model fallback:', error)
   }
 }
 
@@ -172,14 +248,14 @@ async function loadFisherModel() {
     if (geometry.attributes.color) {
       const colors = geometry.attributes.color.array as Float32Array
       for (let i = 0; i < colors.length; i += 3) {
-        // Increase brightness (multiply by 1.8 like sandbox)
-        let r = colors[i] * 1.8
-        let g = colors[i + 1] * 1.8
-        let b = colors[i + 2] * 1.8
+        // Increase brightness (multiply by 2.2 for brighter colors)
+        let r = colors[i] * 2.2
+        let g = colors[i + 1] * 2.2
+        let b = colors[i + 2] * 2.2
         
-        // Increase saturation
+        // Reduce saturation (0.8 for more muted colors)
         const gray = 0.299 * r + 0.587 * g + 0.114 * b
-        const saturationBoost = 1.2
+        const saturationBoost = 0.8
         r = gray + saturationBoost * (r - gray)
         g = gray + saturationBoost * (g - gray)
         b = gray + saturationBoost * (b - gray)
@@ -450,35 +526,50 @@ function setupMouseTracking() {
 function animate() {
   requestAnimationFrame(animate)
   
-  // Apply subtle cursor-based rotation influence
-  if (controls && isMouseOverCanvas) {
+  // Check if we're on mobile
+  const isMobile = 'ontouchstart' in window
+  
+  // Apply rotation influence based on device type
+  if (controls && ((!isMobile && isMouseOverCanvas) || (isMobile && (joystickPosition.x !== 0 || joystickPosition.y !== 0)))) {
+    // Use joystick input on mobile, mouse input on desktop
+    const inputX = isMobile ? joystickPosition.x : mousePosition.x
+    const inputY = isMobile ? joystickPosition.y : mousePosition.y
     // Calculate target angles based on mouse position - limited range for cursor movement
     const mouseInfluence = 0.16 // Strength of mouse influence (0-1)
     const maxAzimuthOffset = 45 * Math.PI / 180 // 45 degrees max horizontal (instead of 90)
     const maxPolarOffset = 30 * Math.PI / 180 // 30 degrees max vertical (instead of full range)
     
-    // Apply plateau sensitivity: max speed at certain radius, then falloff to edges
-    const maxSpeedRadius = 0.6 // Radius where max speed is reached
-    const falloffRadius = 0.9 // Radius where speed starts falling off to zero
+    // Apply different sensitivity for mobile vs desktop
+    let sensitivityX, sensitivityY
     
-    const distanceFromCenter = Math.sqrt(mousePosition.x * mousePosition.x + mousePosition.y * mousePosition.y)
-    
-    let speedMultiplier = 1.0
-    if (distanceFromCenter <= maxSpeedRadius) {
-      // Linear ramp up to max speed
-      speedMultiplier = distanceFromCenter / maxSpeedRadius
-    } else if (distanceFromCenter <= falloffRadius) {
-      // Plateau at max speed
-      speedMultiplier = 1.0
+    if (isMobile) {
+      // Direct joystick input (already -1 to 1)
+      sensitivityX = inputX
+      sensitivityY = inputY
     } else {
-      // Falloff to zero at canvas edges
-      const falloffProgress = (distanceFromCenter - falloffRadius) / (1.0 - falloffRadius)
-      speedMultiplier = 1.0 - falloffProgress
-      speedMultiplier = Math.max(0, speedMultiplier)
+      // Apply plateau sensitivity for mouse: max speed at certain radius, then falloff to edges
+      const maxSpeedRadius = 0.6 // Radius where max speed is reached
+      const falloffRadius = 0.9 // Radius where speed starts falling off to zero
+      
+      const distanceFromCenter = Math.sqrt(inputX * inputX + inputY * inputY)
+      
+      let speedMultiplier = 1.0
+      if (distanceFromCenter <= maxSpeedRadius) {
+        // Linear ramp up to max speed
+        speedMultiplier = distanceFromCenter / maxSpeedRadius
+      } else if (distanceFromCenter <= falloffRadius) {
+        // Plateau at max speed
+        speedMultiplier = 1.0
+      } else {
+        // Falloff to zero at canvas edges
+        const falloffProgress = (distanceFromCenter - falloffRadius) / (1.0 - falloffRadius)
+        speedMultiplier = 1.0 - falloffProgress
+        speedMultiplier = Math.max(0, speedMultiplier)
+      }
+      
+      sensitivityX = inputX * speedMultiplier
+      sensitivityY = inputY * speedMultiplier
     }
-    
-    const sensitivityX = mousePosition.x * speedMultiplier
-    const sensitivityY = mousePosition.y * speedMultiplier
     
     // Calculate desired azimuth and polar angles with different limits for each axis
     let mouseAzimuth = -sensitivityX * maxAzimuthOffset * mouseInfluence
@@ -557,6 +648,11 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
+  
+  // Resize reel viewer if it exists
+  if (reelViewer) {
+    reelViewer.resize()
+  }
 }
 
 window.addEventListener('resize', onWindowResize)
@@ -989,6 +1085,110 @@ class WaveScrollIndicator {
   }
 }
 
+// Simple Mobile Joystick for 3D rotation
+class MobileJoystick {
+  private container: HTMLElement
+  private zone: HTMLElement
+  private stick: HTMLElement
+  private isDragging: boolean = false
+  private startPos = { x: 0, y: 0 }
+  private currentPos = { x: 0, y: 0 }
+  private maxDistance: number
+  
+  constructor(container: HTMLElement) {
+    this.container = container
+    this.zone = container.querySelector('.joystick-zone')!
+    this.maxDistance = 25 // Maximum stick travel in pixels (15% smaller)
+    
+    this.createStick()
+    this.setupEvents()
+  }
+  
+  private createStick() {
+    this.stick = document.createElement('div')
+    this.stick.style.cssText = `
+      position: absolute;
+      width: 21px;
+      height: 21px;
+      background: #00ff00;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.8;
+      pointer-events: none;
+    `
+    this.zone.appendChild(this.stick)
+  }
+  
+  private setupEvents() {
+    // Touch events
+    this.zone.addEventListener('touchstart', this.handleStart.bind(this), { passive: false })
+    this.zone.addEventListener('touchmove', this.handleMove.bind(this), { passive: false })
+    this.zone.addEventListener('touchend', this.handleEnd.bind(this), { passive: false })
+    
+    // Mouse events for testing on desktop
+    this.zone.addEventListener('mousedown', this.handleStart.bind(this))
+    document.addEventListener('mousemove', this.handleMove.bind(this))
+    document.addEventListener('mouseup', this.handleEnd.bind(this))
+  }
+  
+  private handleStart(e: TouchEvent | MouseEvent) {
+    this.isDragging = true
+    const rect = this.zone.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    
+    this.startPos = { x: centerX, y: centerY }
+    e.preventDefault()
+  }
+  
+  private handleMove(e: TouchEvent | MouseEvent) {
+    if (!this.isDragging) return
+    
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
+    
+    const deltaX = clientX - this.startPos.x
+    const deltaY = clientY - this.startPos.y
+    
+    // Limit stick movement to maxDistance
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+    let finalX = deltaX
+    let finalY = deltaY
+    
+    if (distance > this.maxDistance) {
+      const angle = Math.atan2(deltaY, deltaX)
+      finalX = Math.cos(angle) * this.maxDistance
+      finalY = Math.sin(angle) * this.maxDistance
+    }
+    
+    // Update stick position (10.5 = half of 21px stick size)
+    this.stick.style.transform = `translate(${finalX - 10.5}px, ${finalY - 10.5}px)`
+    
+    // Update joystick position for 3D rotation (-1 to 1 range)
+    joystickPosition.x = finalX / this.maxDistance
+    joystickPosition.y = finalY / this.maxDistance
+    
+    e.preventDefault()
+  }
+  
+  private handleEnd(e: TouchEvent | MouseEvent) {
+    if (!this.isDragging) return
+    
+    this.isDragging = false
+    
+    // Return stick to center
+    this.stick.style.transform = 'translate(-50%, -50%)'
+    
+    // Reset joystick position
+    joystickPosition.x = 0
+    joystickPosition.y = 0
+    
+    e.preventDefault()
+  }
+}
+
 // Custom Zoom Slider styled like scroll indicator
 class CustomZoomSlider {
   private container: HTMLElement
@@ -1238,6 +1438,7 @@ class CustomZoomSlider {
 // Initialize scroll indicator
 let scrollIndicator: WaveScrollIndicator
 let zoomSliderCustom: CustomZoomSlider
+let mobileJoystick: MobileJoystick
 
 // Section tracking with smooth scroll-based animation
 function updateCurrentSection() {
@@ -1269,6 +1470,8 @@ function updateCurrentSection() {
         const sectionTop = rect.top
         const sectionHeight = rect.height
         sectionProgress = Math.max(0, Math.min(1, (100 - sectionTop) / sectionHeight))
+        
+        
         break
       }
     }
@@ -1337,6 +1540,8 @@ function updateCurrentSection() {
 
 // Initialize application
 async function init() {
+  // Page loading spinner is already visible in HTML
+  
   // Force scroll to top immediately on load to prevent intermediate positioning
   window.scrollTo(0, 0)
   document.documentElement.scrollTop = 0
@@ -1371,6 +1576,13 @@ async function init() {
   controls.enablePan = false // Disable panning to avoid conflicts with scrolling
   controls.autoRotate = true
   controls.autoRotateSpeed = 0.001 // Much slower rotation
+  
+  // Disable OrbitControls drag rotation on mobile (we'll use joystick instead)
+  const isMobile = 'ontouchstart' in window
+  if (isMobile) {
+    controls.enableRotate = false
+    console.log('Disabled OrbitControls rotation on mobile - using joystick instead')
+  }
   
   // Set the target to match our Fisher model setup
   controls.target.set(
@@ -1417,6 +1629,22 @@ async function init() {
     console.log('Cursor sobel effect initialized:', cursorEffect)
   } catch (error) {
     console.error('Cursor sobel effect failed to initialize:', error)
+  }
+
+  // Initialize ReelViewer immediately (while off-screen) but don't load model yet
+  try {
+    const reelCanvas = document.querySelector<HTMLCanvasElement>('#reel-canvas')
+    console.log('Looking for reel canvas element:', reelCanvas)
+    if (reelCanvas) {
+      console.log('Found reel canvas, creating ReelViewer (without model)...')
+      reelViewer = new ReelViewer(reelCanvas)
+      console.log('ReelViewer initialized successfully (model will load after Fisher)')
+    } else {
+      console.warn('Reel canvas element #reel-canvas not found')
+    }
+  } catch (error) {
+    console.error('Reel viewer failed to initialize:', error)
+    console.error('Full error:', error)
   }
   
   // Start animation loop
@@ -1473,6 +1701,14 @@ async function init() {
   
   console.log('Fisher model loaded with zoom controls - scrolling should still work')
   
+  // Now that Fisher model is loaded, trigger ReelViewer model loading
+  if (reelViewer) {
+    console.log('🎯 Fisher model complete - triggering Castleton model load...')
+    reelViewer.loadModelAfterFisher()
+  } else {
+    console.warn('❌ ReelViewer not found when trying to load Castleton model')
+  }
+  
   // Initialize scroll indicator AFTER canvas and model are loaded
   const indicatorElement = document.getElementById('sectionIndicator')
   if (indicatorElement) {
@@ -1483,6 +1719,13 @@ async function init() {
   const zoomSliderElement = document.getElementById('zoom-slider-container')
   if (zoomSliderElement) {
     zoomSliderCustom = new CustomZoomSlider(zoomSliderElement)
+  }
+  
+  // Initialize mobile joystick on touch devices
+  const joystickElement = document.getElementById('mobile-joystick-container')
+  if (joystickElement && 'ontouchstart' in window) {
+    mobileJoystick = new MobileJoystick(joystickElement)
+    console.log('Mobile joystick initialized')
   }
   
   // Force final scroll indicator update after everything is ready
@@ -1496,7 +1739,18 @@ async function init() {
     if (cursorEffect) {
       cursorEffect.setEnabled(true)
     }
-  }, 200)
+    
+    // Hide page loading spinner - everything is ready
+    const pageLoadingOverlay = document.getElementById('page-loading-overlay')
+    if (pageLoadingOverlay) {
+      pageLoadingOverlay.style.opacity = '0'
+      setTimeout(() => {
+        if (pageLoadingOverlay.parentNode) {
+          pageLoadingOverlay.parentNode.removeChild(pageLoadingOverlay)
+        }
+      }, 500)
+    }
+  }, 500) // Slightly longer delay to ensure everything is visible
 }
 
 // Start the application

@@ -8,7 +8,281 @@
     <!-- <link rel="stylesheet" href="/src/style.css"> -->
   </head>
   <body onload="window.scrollTo(0,0)">
-    <!-- Loading screen disabled for testing -->
+    <!-- Page Loading Background (immediate) -->
+    <div id="page-loading-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1a1a1a; z-index: 9999; display: flex; align-items: center; justify-content: center; opacity: 1; transition: opacity 0.5s ease;">
+      <div class="page-spinner">
+        <!-- Nucleus -->
+        <div class="page-spinner-nucleus"></div>
+        
+        <!-- Ring 1: 8 dots -->
+        <div class="page-spinner-ring">
+          <div class="page-spinner-dot" style="--angle: 0deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 45deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 90deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 135deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 180deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 225deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 270deg; --delay: 0.13s;"></div>
+          <div class="page-spinner-dot" style="--angle: 315deg; --delay: 0.13s;"></div>
+        </div>
+        
+        <!-- Ring 2: 16 dots -->
+        <div class="page-spinner-ring page-spinner-ring-2">
+          <div class="page-spinner-dot" style="--angle: 0deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 22.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 45deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 67.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 90deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 112.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 135deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 157.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 180deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 202.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 225deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 247.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 270deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 292.5deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 315deg; --delay: 0.26s;"></div>
+          <div class="page-spinner-dot" style="--angle: 337.5deg; --delay: 0.26s;"></div>
+        </div>
+        
+        <!-- Ring 3: 16 dots offset -->
+        <div class="page-spinner-ring page-spinner-ring-3">
+          <div class="page-spinner-dot" style="--angle: 11.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 33.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 56.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 78.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 101.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 123.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 146.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 168.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 191.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 213.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 236.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 258.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 281.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 303.75deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 326.25deg; --delay: 0.39s;"></div>
+          <div class="page-spinner-dot" style="--angle: 348.75deg; --delay: 0.39s;"></div>
+        </div>
+        
+        <!-- Ring 4: 16 dots -->
+        <div class="page-spinner-ring page-spinner-ring-4">
+          <div class="page-spinner-dot" style="--angle: 0deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 22.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 45deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 67.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 90deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 112.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 135deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 157.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 180deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 202.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 225deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 247.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 270deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 292.5deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 315deg; --delay: 0.52s;"></div>
+          <div class="page-spinner-dot" style="--angle: 337.5deg; --delay: 0.52s;"></div>
+        </div>
+        
+        <!-- Ring 5: 16 dots offset -->
+        <div class="page-spinner-ring page-spinner-ring-5">
+          <div class="page-spinner-dot" style="--angle: 11.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 33.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 56.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 78.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 101.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 123.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 146.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 168.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 191.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 213.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 236.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 258.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 281.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 303.75deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 326.25deg; --delay: 0.65s;"></div>
+          <div class="page-spinner-dot" style="--angle: 348.75deg; --delay: 0.65s;"></div>
+        </div>
+        
+        <!-- Ring 6: 16 dots -->
+        <div class="page-spinner-ring page-spinner-ring-6">
+          <div class="page-spinner-dot" style="--angle: 0deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 22.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 45deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 67.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 90deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 112.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 135deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 157.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 180deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 202.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 225deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 247.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 270deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 292.5deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 315deg; --delay: 0.78s;"></div>
+          <div class="page-spinner-dot" style="--angle: 337.5deg; --delay: 0.78s;"></div>
+        </div>
+        
+        <!-- Loading Counter -->
+        <!-- <div class="page-spinner-counter" id="page-spinner-counter">000</div> -->
+        
+        <!-- Loading Text -->
+        <div class="page-spinner-text">Loading...</div>
+      </div>
+    </div>
+
+    <!-- CSS Animation Styles -->
+    <style>
+      .page-spinner {
+        width: 150px;
+        height: 150px;
+        position: relative;
+      }
+      
+      .page-spinner-nucleus {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 6px;
+        height: 6px;
+        background: #ffffff;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transform-origin: center center;
+        animation: page-crest-wave 1s ease-in-out infinite;
+        animation-delay: 0s;
+        animation-fill-mode: both;
+        opacity: 0;
+        box-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
+      }
+      
+      .page-spinner-ring {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100%;
+        height: 100%;
+        transform: translate(-50%, -50%);
+      }
+      
+      .page-spinner-ring-2 {
+        width: 120%;
+        height: 120%;
+      }
+      
+      .page-spinner-ring-3 {
+        width: 140%;
+        height: 140%;
+      }
+      
+      .page-spinner-ring-4 {
+        width: 160%;
+        height: 160%;
+      }
+      
+      .page-spinner-ring-5 {
+        width: 180%;
+        height: 180%;
+      }
+      
+      .page-spinner-ring-6 {
+        width: 200%;
+        height: 200%;
+      }
+      
+      .page-spinner-dot {
+        position: absolute;
+        width: 3px;
+        height: 3px;
+        background: #ffffff;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-15px);
+        animation: page-crest-wave 1s ease-in-out infinite;
+        animation-delay: var(--delay);
+        animation-fill-mode: both;
+        box-shadow: 0 0 1px rgba(255, 255, 255, 0.8);
+        opacity: 0;
+      }
+      
+      .page-spinner-ring-2 .page-spinner-dot {
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-25px);
+      }
+      
+      .page-spinner-ring-3 .page-spinner-dot {
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-35px);
+      }
+      
+      .page-spinner-ring-4 .page-spinner-dot {
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-45px);
+      }
+      
+      .page-spinner-ring-5 .page-spinner-dot {
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-55px);
+      }
+      
+      .page-spinner-ring-6 .page-spinner-dot {
+        transform: 
+          translate(-50%, -50%) 
+          rotate(var(--angle)) 
+          translateY(-65px);
+      }
+      
+      .page-spinner-counter {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #1a1a1a;
+        font-family: 'Space Mono', monospace;
+        font-size: 48px;
+        font-weight: bold;
+        letter-spacing: 0.1em;
+        opacity: 1;
+        z-index: 10;
+      }
+      
+      .page-spinner-text {
+        position: absolute;
+        bottom: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ffffff;
+        font-family: 'Space Mono', monospace;
+        font-size: 14px;
+        letter-spacing: 0.1em;
+        opacity: 0.8;
+      }
+      
+      @keyframes page-crest-wave {
+        0%, 100% { 
+          opacity: 0;
+        }
+        50% { 
+          opacity: 1;
+        }
+      }
+      
+    </style>
 
     <!-- Simple Zoom Control (fixed position) -->
     <div class="simple-zoom-control" id="simple-zoom-control">
@@ -24,6 +298,12 @@
         </div>
       </div>
       <div class="zoom-label">zoom</div>
+    </div>
+
+    <!-- Mobile Joystick (only visible on mobile) -->
+    <div class="mobile-joystick-container" id="mobile-joystick-container">
+      <div class="joystick-zone" id="joystick-zone"></div>
+      <div class="joystick-label">rotate</div>
     </div>
 
     
@@ -85,8 +365,22 @@
       </div>
     </section>
     
-    <section id="reel" style="height: 100vh; background: transparent; color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
-      REEL SECTION
+    <section id="reel" style="height: 100vh; background: transparent; color: white; display: flex; align-items: center; position: relative;">
+      <div class="reel-content" style="display: flex; width: 100%; height: 100%;">
+        <!-- Left 2/3: Main content -->
+        <div class="reel-left" style="width: 66.67%; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+          REEL SECTION
+        </div>
+        
+        <!-- Right 1/3: Gaussian Splat Viewer -->
+        <div class="reel-viewer" style="width: 33.33%; height: 100%; position: relative;">
+          <canvas id="reel-canvas" style="width: 100%; height: 100%;"></canvas>
+          <div class="viewer-overlay" style="position: absolute; bottom: 20px; left: 20px; right: 20px; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; font-family: 'Space Mono', monospace; z-index: 2; pointer-events: none;">
+            <div>Corona Arch</div>
+            <div style="font-size: 0.7rem; opacity: 0.6;">Interactive 3D Model</div>
+          </div>
+        </div>
+      </div>
     </section>
     
     <section id="projects" style="height: 100vh; background: transparent; color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
@@ -107,6 +401,18 @@
       CONTACT SECTION
     </section>
 
+    <script>
+      // Update loading counter (called from main.ts)
+      function updateLoadingCounter(progress) {
+        const counter = document.getElementById('page-spinner-counter');
+        if (counter) {
+          counter.textContent = Math.floor(progress).toString().padStart(3, '0');
+        }
+      }
+      
+      // Expose function globally for main.ts to use
+      window.updateLoadingCounter = updateLoadingCounter;
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

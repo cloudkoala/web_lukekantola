@@ -18,7 +18,9 @@
       "Bash(rm:*)",
       "Bash(npm run typecheck:*)",
       "Bash(vite build:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:huggingface.co)"
     ],
     "deny": []
   }
