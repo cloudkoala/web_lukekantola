@@ -25,23 +25,9 @@ export default defineConfig({
             'three/examples/jsm/loaders/EXRLoader.js'
           ],
           
-          // Effects system (post-processing pipeline)
-          'effects': [
-            './src/effects/index.ts',
-            './src/effects/EffectsChainManager.ts',
-            './src/effects/PostProcessingPass.ts',
-            './src/effects/ASCIIDitheringPass.ts',
-            './src/effects/HalftoneDitheringPass.ts',
-            './src/effects/CirclePackingPass.ts',
-            './src/effects/EngravingPass.ts'
-          ],
-          
-          // Interface and UI components
-          'interface': [
-            './src/interface/index.ts',
-            './src/interface/ContentLoader.ts',
-            './src/interface/EffectsPanel.ts'
-          ],
+          // Remove manual chunk splitting for effects and interface
+          // This was causing effects modules to load on homepage
+          // Let Vite handle chunking automatically based on imports
           
           // Camera and model management systems
           'systems': [

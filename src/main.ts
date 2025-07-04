@@ -7,7 +7,7 @@ import { initializeSimpleBackground, updateBackgroundScroll } from './simpleBack
 import { CursorSobelEffect } from './CursorSobelEffect'
 import { ReelViewer } from './ReelViewer'
 import { PageLoadingSpinner } from './PageLoadingSpinner'
-import { ProgressiveLoader } from './ProgressiveLoader'
+import { SimpleProgressiveLoader } from './SimpleProgressiveLoader'
 
 // DOM elements
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
@@ -22,7 +22,7 @@ let cursorEffect: CursorSobelEffect | null = null
 let reelViewer: ReelViewer | null = null
 let hasRefreshedReel = false // Track if we've refreshed the reel viewer
 let pageLoader: PageLoadingSpinner | null = null
-let progressiveLoader: ProgressiveLoader | null = null
+let progressiveLoader: SimpleProgressiveLoader | null = null
 
 // Mouse position for cursor-based rotation
 let mousePosition = { x: 0, y: 0 }
@@ -113,7 +113,7 @@ window.addEventListener('scroll', updateCurrentSection)
 const FISHER_CONFIG = {
   fileName: "Fisher_001_6.ply",
   displayName: "Fisher Towers",
-  defaultPointSize: 0.03,
+  defaultPointSize: 0.015,
   defaultFocalLength: 152, // Focal length in mm (from PNG metadata)
   cameraPosition: { x: 0, y: 3.544, z: 7.131 }, // Changed x from -7.508 to 0
   target: { x: 0.3, y: 0.8, z: 0.4 }
@@ -130,8 +130,8 @@ async function loadFisherModel() {
   try {
     console.log('Loading Fisher model progressively...')
     
-    // Initialize progressive loader
-    progressiveLoader = new ProgressiveLoader(scene)
+    // Initialize simple progressive loader
+    progressiveLoader = new SimpleProgressiveLoader(scene)
     
     // Set point size to match Fisher config
     progressiveLoader.setPointSize(FISHER_CONFIG.defaultPointSize)
@@ -535,7 +535,7 @@ function animate() {
     const inputX = isMobile ? joystickPosition.x : mousePosition.x
     const inputY = isMobile ? joystickPosition.y : mousePosition.y
     // Calculate target angles based on mouse position - limited range for cursor movement
-    const mouseInfluence = 0.16 // Strength of mouse influence (0-1)
+    const mouseInfluence = 0.08 // Strength of mouse influence (0-1) - reduced by 50%
     const maxAzimuthOffset = 45 * Math.PI / 180 // 45 degrees max horizontal (instead of 90)
     const maxPolarOffset = 30 * Math.PI / 180 // 30 degrees max vertical (instead of full range)
     
@@ -548,8 +548,8 @@ function animate() {
       sensitivityY = inputY
     } else {
       // Apply plateau sensitivity for mouse: max speed at certain radius, then falloff to edges
-      const maxSpeedRadius = 0.6 // Radius where max speed is reached
-      const falloffRadius = 0.9 // Radius where speed starts falling off to zero
+      const maxSpeedRadius = 0.4 // Radius where max speed is reached (reduced from 0.6)
+      const falloffRadius = 0.7 // Radius where speed starts falling off to zero (reduced from 0.9)
       
       const distanceFromCenter = Math.sqrt(inputX * inputX + inputY * inputY)
       
@@ -1440,6 +1440,45 @@ let scrollIndicator: WaveScrollIndicator
 let zoomSliderCustom: CustomZoomSlider
 let mobileJoystick: MobileJoystick
 
+// Update canvas blur effect based on scroll position within hero
+function updateGlassmorphismOverlay(activeSection: string, scrollProgress: number) {
+  const canvas = document.getElementById('canvas') as HTMLCanvasElement
+  if (!canvas) {
+    console.warn('Three.js canvas not found')
+    return
+  }
+  
+  // Calculate blur based on hero scroll position
+  const heroSection = document.getElementById('hero')
+  if (heroSection) {
+    const rect = heroSection.getBoundingClientRect()
+    const heroHeight = heroSection.offsetHeight
+    const scrolledDistance = Math.max(0, -rect.top)
+    
+    // Start fading in immediately when scrolling begins
+    const fadeStartThreshold = heroHeight * 0.0
+    const fadeEndThreshold = heroHeight * 0.8
+    const fadeOffThreshold = heroHeight * 1.0 // Start fading off at 100% (end of hero)
+    const fadeOffEndThreshold = heroHeight * 1.5 // Complete fade-off at 150%
+    
+    let blurAmount = 0
+    if (scrolledDistance >= fadeStartThreshold && scrolledDistance <= fadeEndThreshold) {
+      const fadeProgress = (scrolledDistance - fadeStartThreshold) / (fadeEndThreshold - fadeStartThreshold)
+      blurAmount = fadeProgress * 22.5 // Max 22.5px blur (50% of 45px)
+    } else if (scrolledDistance > fadeEndThreshold && scrolledDistance <= fadeOffThreshold) {
+      blurAmount = 22.5 // Full blur in the middle section
+    } else if (scrolledDistance > fadeOffThreshold && scrolledDistance <= fadeOffEndThreshold) {
+      // Fade off the blur as hero goes off-screen
+      const fadeOffProgress = (scrolledDistance - fadeOffThreshold) / (fadeOffEndThreshold - fadeOffThreshold)
+      blurAmount = 22.5 * Math.max(0, 1 - fadeOffProgress) // Fade from 22.5px to 0px
+    }
+    // After fadeOffEndThreshold, blurAmount stays 0
+    
+    canvas.style.filter = `blur(${blurAmount}px)`
+    console.log(`Canvas blur: scrolled=${scrolledDistance.toFixed(0)}px, blur=${blurAmount.toFixed(1)}px`)
+  }
+}
+
 // Section tracking with smooth scroll-based animation
 function updateCurrentSection() {
   const scrollingSection = document.getElementById('scrolling-section')
@@ -1506,6 +1545,9 @@ function updateCurrentSection() {
   
   // Update background scroll with normalized progress (0 to 1)
   updateBackgroundScroll(scrollProgress)
+  
+  // Update glassmorphism overlay based on scroll position
+  updateGlassmorphismOverlay(activeSection, scrollProgress)
   
   // Update cursor effect intensity and scroll offset based on scroll position
   if (cursorEffect) {

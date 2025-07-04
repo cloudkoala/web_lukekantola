@@ -1,2 +1,3 @@
 export { ContentLoader } from './ContentLoader'
-export { EffectsPanel } from './EffectsPanel'
+// EffectsPanel removed from index to prevent bundling on homepage
+// It's still available for direct import in sandbox.ts

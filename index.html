@@ -351,6 +351,13 @@
       </div>
     </header>
     
+    <!-- Glassmorphism overlay effect positioned to blur hero section -->
+    <div id="glassmorphism-overlay" class="glassmorphism-overlay">
+      <div class="glassmorphism-drop-shadow">
+        <div class="glassmorphism-glass"></div>
+      </div>
+    </div>
+    
     <!-- Hero Section with transparent background -->
     <section id="hero" style="height: 100vh; background: transparent; color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem; position: relative;">
       <!-- Blue noise canvas for hero section -->
@@ -413,6 +420,7 @@
       // Expose function globally for main.ts to use
       window.updateLoadingCounter = updateLoadingCounter;
     </script>
+    
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

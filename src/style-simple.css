@@ -586,3 +586,5 @@ section {
   letter-spacing: inherit;
   text-transform: inherit;
 }
+
+/* Glassmorphism overlay effect - REMOVED (using direct canvas blur instead) */
