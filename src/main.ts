@@ -139,8 +139,6 @@ async function loadFisherModel() {
     // Set up progress callback
     progressiveLoader.setOnChunkLoaded((chunkIndex, totalChunks) => {
       const progress = (chunkIndex / totalChunks) * 100
-      console.log(`Loading Fisher: ${chunkIndex}/${totalChunks} chunks (${progress.toFixed(1)}%)`)
-      
       // Update page loading counter
       if ((window as any).updateLoadingCounter) {
         (window as any).updateLoadingCounter(progress)
@@ -536,6 +534,7 @@ function animate() {
     const inputY = isMobile ? joystickPosition.y : mousePosition.y
     // Calculate target angles based on mouse position - limited range for cursor movement
     const mouseInfluence = 0.08 // Strength of mouse influence (0-1) - reduced by 50%
+    const joystickInfluence = 0.16 // Strength of joystick influence (0-1) - 2x faster than mouse
     const maxAzimuthOffset = 45 * Math.PI / 180 // 45 degrees max horizontal (instead of 90)
     const maxPolarOffset = 30 * Math.PI / 180 // 30 degrees max vertical (instead of full range)
     
@@ -572,8 +571,9 @@ function animate() {
     }
     
     // Calculate desired azimuth and polar angles with different limits for each axis
-    let mouseAzimuth = -sensitivityX * maxAzimuthOffset * mouseInfluence
-    let mousePolar = -sensitivityY * maxPolarOffset * mouseInfluence
+    const influence = isMobile ? joystickInfluence : mouseInfluence
+    let mouseAzimuth = -sensitivityX * maxAzimuthOffset * influence
+    let mousePolar = -sensitivityY * maxPolarOffset * influence
     
     // Allow full range cursor-based polar movement (both up and down)
     
@@ -1410,9 +1410,9 @@ class CustomZoomSlider {
     
     // Update camera zoom using percentage-based system
     if (cameraTarget && initialCameraDistance) {
-      // Zoom range: 50% to 150% of original distance
+      // Zoom range: 50% to 300% of original distance (2x wider zoom)
       const minZoom = 0.5
-      const maxZoom = 1.5
+      const maxZoom = 3.0
       const zoomFactor = minZoom + (maxZoom - minZoom) * percentage
       
       const currentDirection = camera.position.clone().sub(cameraTarget).normalize()
@@ -1475,7 +1475,6 @@ function updateGlassmorphismOverlay(activeSection: string, scrollProgress: numbe
     // After fadeOffEndThreshold, blurAmount stays 0
     
     canvas.style.filter = `blur(${blurAmount}px)`
-    console.log(`Canvas blur: scrolled=${scrolledDistance.toFixed(0)}px, blur=${blurAmount.toFixed(1)}px`)
   }
 }
 
@@ -1719,9 +1718,9 @@ async function init() {
       const maxValue = 200
       const percentage = (sliderValue - minValue) / (maxValue - minValue)
       
-      // Zoom range: 50% to 150% of original distance
+      // Zoom range: 50% to 300% of original distance (2x wider zoom)
       const minZoom = 0.5
-      const maxZoom = 1.5
+      const maxZoom = 3.0
       const zoomFactor = minZoom + (maxZoom - minZoom) * percentage
       
       // Calculate new camera position based on zoom
@@ -1740,8 +1739,7 @@ async function init() {
   
   // Fade in canvas after model loads
   canvas.classList.add('loaded')
-  
-  console.log('Fisher model loaded with zoom controls - scrolling should still work')
+
   
   // Now that Fisher model is loaded, trigger ReelViewer model loading
   if (reelViewer) {
@@ -1767,7 +1765,6 @@ async function init() {
   const joystickElement = document.getElementById('mobile-joystick-container')
   if (joystickElement && 'ontouchstart' in window) {
     mobileJoystick = new MobileJoystick(joystickElement)
-    console.log('Mobile joystick initialized')
   }
   
   // Force final scroll indicator update after everything is ready

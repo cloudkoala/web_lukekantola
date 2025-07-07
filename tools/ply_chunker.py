@@ -164,7 +164,7 @@ class PLYChunker:
         }
     
     def chunk_vertices_radial(self, vertices: List[Vertex]) -> List[List[Vertex]]:
-        """Chunk vertices using feathered probability-based loading for smooth form appearance."""
+        """Chunk vertices using enhanced feathered probability-based loading with full distance range."""
         import math
         import random
         
@@ -174,7 +174,7 @@ class PLYChunker:
         
         print(f"Target chunk size: {self.target_chunk_size_mb}MB")
         print(f"Estimated vertices per chunk: {vertices_per_chunk}")
-        print(f"Using feathered probability-based chunking from origin...")
+        print(f"Using two-way feathered probability-based chunking with outer feathering...")
         
         # Calculate distance from origin for each vertex and find max distance
         vertex_distances = []
@@ -187,10 +187,14 @@ class PLYChunker:
         
         print(f"Max distance from origin: {max_distance:.2f}")
         
-        # Sort by distance from origin (closest first)
+        # Sort by distance from origin (closest first) 
         vertex_distances.sort(key=lambda x: x[0])
         
-        # Create feathered chunks using probability-based selection
+        # Shuffle the vertices to enable true outer feathering
+        # This breaks the distance-sorted order so distant vertices can appear in early chunks
+        random.shuffle(vertex_distances)
+        
+        # Create feathered chunks using enhanced probability-based selection
         chunks = []
         remaining_vertices = vertex_distances.copy()
         chunk_num = 0
@@ -202,12 +206,18 @@ class PLYChunker:
             
             # Calculate probability for each remaining vertex
             for i, (distance, original_index, vertex) in enumerate(remaining_vertices):
-                # Probability decreases linearly from 30% at origin to 5% at max distance
-                # This creates better form recognition without dense center blob
-                base_probability = 0.30 - (distance / max_distance * 0.25)  # 30% -> 5%
+                # Two-way feathering: high probability at center, some probability everywhere
+                # Base probability favors center but gives every vertex a chance
+                center_probability = 0.50 - (distance / max_distance * 0.30)  # 50% -> 20%
+                
+                # Add uniform "outer feather" probability so distant vertices can appear early
+                outer_feather = 0.15  # 15% chance for any vertex regardless of distance
+                
+                # Combine for total base probability
+                base_probability = center_probability + outer_feather  # 65% -> 35%
                 
                 # Increase probability for later chunks to ensure all vertices eventually load
-                chunk_boost = min(0.3, (chunk_num - 1) * 0.1)  # Up to 30% boost for later chunks
+                chunk_boost = min(0.30, (chunk_num - 1) * 0.08)  # Up to 30% boost for later chunks
                 final_probability = min(1.0, base_probability + chunk_boost)
                 
                 # Special handling for final chunks to clean up remaining vertices
@@ -250,7 +260,7 @@ class PLYChunker:
                     print(f"Final chunk: {len(final_chunk)} vertices (forced inclusion)")
                 break
         
-        print(f"Feathered chunking complete: {len(chunks)} chunks created")
+        print(f"Two-way feathered chunking complete: {len(chunks)} chunks created")
         return chunks
 
     def chunk_vertices_sequential(self, vertices: List[Vertex]) -> List[List[Vertex]]:
