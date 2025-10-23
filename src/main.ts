@@ -1579,6 +1579,104 @@ function updateCurrentSection() {
   // Zoom slider now scrolls with hero section, no need to hide it
 }
 
+// Reel viewer resize functionality
+function setupReelViewerResize() {
+  const reelViewerElement = document.getElementById('reel-viewer')
+  const reelContent = document.querySelector('.reel-content') as HTMLElement
+  const reelLeft = document.querySelector('.reel-left') as HTMLElement
+  const resizeSlider = document.getElementById('reel-resize-slider')
+  
+  if (!reelViewerElement || !reelContent || !reelLeft || !resizeSlider) {
+    console.warn('Reel viewer resize elements not found')
+    return
+  }
+  
+  let isDragging = false
+  let startX = 0
+  let startWidth = 0
+  
+  const MIN_WIDTH = 20 // Minimum width percentage
+  const MAX_WIDTH = 80 // Maximum width percentage
+  
+  function handleMouseDown(e: MouseEvent) {
+    isDragging = true
+    startX = e.clientX
+    startWidth = parseFloat(reelViewerElement.style.width || '33.33')
+    
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    e.preventDefault()
+  }
+  
+  function handleMouseMove(e: MouseEvent) {
+    if (!isDragging) return
+    
+    const deltaX = e.clientX - startX
+    const containerWidth = reelContent.offsetWidth
+    const deltaPercentage = (deltaX / containerWidth) * 100
+    
+    let newWidth = startWidth - deltaPercentage // Subtract because we're dragging from the left edge
+    newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth))
+    
+    const leftWidth = 100 - newWidth
+    
+    // Update widths
+    reelViewerElement.style.width = `${newWidth}%`
+    reelLeft.style.width = `${leftWidth}%`
+    
+    // Trigger resize for the reel viewer instance
+    if (reelViewer) {
+      reelViewer.resize()
+    }
+  }
+  
+  function handleMouseUp() {
+    isDragging = false
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+  
+  // Touch events for mobile
+  function handleTouchStart(e: TouchEvent) {
+    isDragging = true
+    startX = e.touches[0].clientX
+    startWidth = parseFloat(reelViewerElement.style.width || '33.33')
+    e.preventDefault()
+  }
+  
+  function handleTouchMove(e: TouchEvent) {
+    if (!isDragging) return
+    
+    const deltaX = e.touches[0].clientX - startX
+    const containerWidth = reelContent.offsetWidth
+    const deltaPercentage = (deltaX / containerWidth) * 100
+    
+    let newWidth = startWidth - deltaPercentage
+    newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth))
+    
+    const leftWidth = 100 - newWidth
+    
+    reelViewerElement.style.width = `${newWidth}%`
+    reelLeft.style.width = `${leftWidth}%`
+    
+    if (reelViewer) {
+      reelViewer.resize()
+    }
+    
+    e.preventDefault()
+  }
+  
+  function handleTouchEnd() {
+    isDragging = false
+  }
+  
+  // Add event listeners
+  resizeSlider.addEventListener('mousedown', handleMouseDown)
+  resizeSlider.addEventListener('touchstart', handleTouchStart)
+  document.addEventListener('touchmove', handleTouchMove)
+  document.addEventListener('touchend', handleTouchEnd)
+}
+
 // Initialize application
 async function init() {
   // Page loading spinner is already visible in HTML
@@ -1766,6 +1864,9 @@ async function init() {
   if (joystickElement && 'ontouchstart' in window) {
     mobileJoystick = new MobileJoystick(joystickElement)
   }
+  
+  // Initialize reel viewer resize functionality
+  setupReelViewerResize()
   
   // Force final scroll indicator update after everything is ready
   setTimeout(() => {

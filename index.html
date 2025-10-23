@@ -380,7 +380,12 @@
         </div>
         
         <!-- Right 1/3: Gaussian Splat Viewer -->
-        <div class="reel-viewer" style="width: 33.33%; height: 100%; position: relative;">
+        <div class="reel-viewer" id="reel-viewer" style="width: 33.33%; height: 100%; position: relative;">
+          <!-- Resize slider -->
+          <div class="reel-resize-slider" id="reel-resize-slider">
+            <div class="reel-resize-handle" id="reel-resize-handle"></div>
+          </div>
+          
           <canvas id="reel-canvas" style="width: 100%; height: 100%;"></canvas>
           <div class="viewer-overlay" style="position: absolute; bottom: 20px; left: 20px; right: 20px; color: rgba(255, 255, 255, 0.8); font-size: 0.9rem; font-family: 'Space Mono', monospace; z-index: 2; pointer-events: none;">
             <div>Corona Arch</div>

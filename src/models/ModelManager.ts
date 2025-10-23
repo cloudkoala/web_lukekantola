@@ -681,6 +681,22 @@ export class ModelManager {
       pointCloud.rotateZ((currentModel.rotation.z * Math.PI) / 180)
     }
     
+    // Clear any existing point clouds before adding new one (unless this is a comparison load)
+    if (!isComparisonLoad) {
+      const existingPointClouds = this.scene.children.filter(child => child instanceof THREE.Points)
+      if (existingPointClouds.length > 0) {
+        console.log(`Removing ${existingPointClouds.length} existing point cloud(s) for model switch`)
+        existingPointClouds.forEach(obj => {
+          console.log('Removing existing point cloud:', obj.uuid)
+          this.scene.remove(obj)
+          // Also dispose of geometry and material to free memory
+          if (obj.geometry) obj.geometry.dispose()
+          if (obj.material && typeof obj.material.dispose === 'function') obj.material.dispose()
+        })
+      } else {
+        console.log('No existing point clouds to remove')
+      }
+    }
     
     this.scene.add(pointCloud)
     
